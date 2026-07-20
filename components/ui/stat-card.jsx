@@ -7,7 +7,7 @@ export function StatCard({ icon: Icon, label, value, sub, delta, positive = true
     const { brand } = useBrand()
     const c = tone || brand.primaryColor
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 card-hover">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-foreground/5 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 card-hover">
             <div className="flex items-start justify-between">
                 <div className="h-10 w-10 rounded-lg flex items-center justify-center" style={{ background: `${c}20`, border: `1px solid ${c}40` }}>
                     <Icon className="h-4 w-4" style={{ color: c }} />
@@ -19,9 +19,9 @@ export function StatCard({ icon: Icon, label, value, sub, delta, positive = true
                     </div>
                 )}
             </div>
-            <div className="mt-4 text-[10px] uppercase tracking-widest text-white/50">{label}</div>
+            <div className="mt-4 text-[10px] uppercase tracking-widest text-foreground/50">{label}</div>
             <div className="font-display text-3xl font-bold tracking-tight mt-1">{value}</div>
-            {sub && <div className="text-xs text-white/40 mt-0.5">{sub}</div>}
+            {sub && <div className="text-xs text-foreground/40 mt-0.5">{sub}</div>}
         </motion.div>
     )
 }

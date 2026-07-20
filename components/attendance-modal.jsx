@@ -14,10 +14,10 @@ import { useBrand } from './brand-provider'
 const Field = ({ fieldKey, value, onChange, secretShown, toggleSecret }) => {
   const spec = FIELD_CATALOG[fieldKey]
   if (!spec) return null
-  const common = 'w-full h-10 bg-white/[0.03] border-white/10 text-sm rounded-md px-3'
+  const common = 'w-full h-10 bg-foreground/[0.03] border-foreground/10 text-sm rounded-md px-3'
   if (spec.type === 'switch') {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2.5">
+      <div className="flex items-center justify-between rounded-lg border border-foreground/5 bg-foreground/[0.02] px-3 py-2.5">
         <div>
           <div className="text-sm">{spec.label}</div>
         </div>
@@ -28,8 +28,8 @@ const Field = ({ fieldKey, value, onChange, secretShown, toggleSecret }) => {
   if (spec.type === 'select') {
     return (
       <div>
-        <Label className="text-xs text-white/60">{spec.label}</Label>
-        <select value={value || ''} onChange={(e) => onChange(fieldKey, e.target.value)} className={`${common} mt-1.5 focus:outline-none focus:border-white/25`}>
+        <Label className="text-xs text-foreground/60">{spec.label}</Label>
+        <select value={value || ''} onChange={(e) => onChange(fieldKey, e.target.value)} className={`${common} mt-1.5 focus:outline-none focus:border-foreground/25`}>
           <option value="">Select…</option>
           {spec.options.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
@@ -39,10 +39,10 @@ const Field = ({ fieldKey, value, onChange, secretShown, toggleSecret }) => {
   if (spec.type === 'secret') {
     return (
       <div>
-        <Label className="text-xs text-white/60">{spec.label}</Label>
+        <Label className="text-xs text-foreground/60">{spec.label}</Label>
         <div className="relative mt-1.5">
-          <Input type={secretShown ? 'text' : 'password'} value={value || ''} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={spec.placeholder} className="h-10 pr-10 bg-white/[0.03] border-white/10 font-mono text-sm" />
-          <button type="button" onClick={toggleSecret} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
+          <Input type={secretShown ? 'text' : 'password'} value={value || ''} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={spec.placeholder} className="h-10 pr-10 bg-foreground/[0.03] border-foreground/10 font-mono text-sm" />
+          <button type="button" onClick={toggleSecret} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40">
             {secretShown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
@@ -51,8 +51,8 @@ const Field = ({ fieldKey, value, onChange, secretShown, toggleSecret }) => {
   }
   return (
     <div>
-      <Label className="text-xs text-white/60">{spec.label}</Label>
-      <Input type={spec.type === 'number' ? 'number' : 'text'} value={value ?? spec.default ?? ''} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={spec.placeholder} className="h-10 mt-1.5 bg-white/[0.03] border-white/10 text-sm" />
+      <Label className="text-xs text-foreground/60">{spec.label}</Label>
+      <Input type={spec.type === 'number' ? 'number' : 'text'} value={value ?? spec.default ?? ''} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={spec.placeholder} className="h-10 mt-1.5 bg-foreground/[0.03] border-foreground/10 text-sm" />
     </div>
   )
 }
@@ -112,13 +112,13 @@ export function AttendanceModal({ provider, existing, onClose }) {
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
       <motion.div initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 20 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 inset-0 flex items-start md:items-center justify-center p-3 md:p-8 pointer-events-none">
-        <div className="pointer-events-auto bg-[#0a0a0a] w-full max-w-4xl max-h-[92vh] rounded-2xl border border-white/10 overflow-hidden flex flex-col shadow-2xl">
+        <div className="pointer-events-auto bg-card w-full max-w-4xl max-h-[92vh] rounded-2xl border border-foreground/10 overflow-hidden flex flex-col shadow-2xl">
           {/* Header */}
-          <div className="relative p-6 border-b border-white/5 flex items-center gap-4" style={{ background: `linear-gradient(135deg, ${provider.color}15, transparent 60%)` }}>
+          <div className="relative p-6 border-b border-foreground/5 flex items-center gap-4" style={{ background: `linear-gradient(135deg, ${provider.color}15, transparent 60%)` }}>
             <div className="h-12 w-12 rounded-xl flex items-center justify-center font-display font-bold text-lg" style={{ background: `${provider.color}25`, border: `1px solid ${provider.color}55`, color: provider.color }}>{provider.logo}</div>
             <div className="flex-1 min-w-0">
               <div className="font-display text-xl font-bold tracking-tight">Connect {provider.name}</div>
-              <div className="text-xs text-white/50">{provider.description}</div>
+              <div className="text-xs text-foreground/50">{provider.description}</div>
             </div>
             <button onClick={onClose} className="h-9 w-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center"><X className="h-4 w-4" /></button>
           </div>
@@ -128,14 +128,14 @@ export function AttendanceModal({ provider, existing, onClose }) {
             <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/5">
               {/* Form */}
               <div className="p-6 space-y-4">
-                <div className="text-xs uppercase tracking-widest text-white/40">Configuration</div>
+                <div className="text-xs uppercase tracking-widest text-foreground/40">Configuration</div>
                 <div className="space-y-3">
                   {allFields.map((f) => (
                     <Field key={f} fieldKey={f} value={config[f]} onChange={set} secretShown={showSecrets[f]} toggleSecret={() => setShowSecrets(s => ({ ...s, [f]: !s[f] }))} />
                   ))}
                 </div>
                 {provider.optional.length > 0 && (
-                  <button type="button" onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 text-xs text-white/60 hover:text-white mt-3">
+                  <button type="button" onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 text-xs text-foreground/60 hover:text-foreground mt-3">
                     {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     {expanded ? 'Hide' : 'Show'} advanced ({provider.optional.length} more)
                   </button>
@@ -144,13 +144,13 @@ export function AttendanceModal({ provider, existing, onClose }) {
 
               {/* Test + Device info */}
               <div className="p-6 bg-black/40">
-                <div className="text-xs uppercase tracking-widest text-white/40 mb-3">Test connection</div>
-                <div className="rounded-xl border border-white/5 bg-black/40 p-4 min-h-[220px]">
+                <div className="text-xs uppercase tracking-widest text-foreground/40 mb-3">Test connection</div>
+                <div className="rounded-xl border border-foreground/5 bg-black/40 p-4 min-h-[220px]">
                   {!testing && !result && (
                     <div className="h-full flex flex-col items-center justify-center text-center py-8">
                       <Zap className="h-8 w-8 mb-3" style={{ color: brand.primaryColor }} />
-                      <div className="text-sm text-white/70">Run a test handshake before saving</div>
-                      <div className="text-xs text-white/40 mt-1">Simulates the exact flow a real device would use</div>
+                      <div className="text-sm text-foreground/70">Run a test handshake before saving</div>
+                      <div className="text-xs text-foreground/40 mt-1">Simulates the exact flow a real device would use</div>
                     </div>
                   )}
                   {(testing || result) && (
@@ -163,14 +163,14 @@ export function AttendanceModal({ provider, existing, onClose }) {
                 </div>
 
                 <div className="flex gap-2 mt-3">
-                  <Button size="sm" onClick={() => runTest({ shouldSucceed: true })} disabled={testing} variant="outline" className="flex-1 bg-white/[0.03] border-white/10 h-9 text-xs">Simulate success</Button>
-                  <Button size="sm" onClick={() => runTest({ shouldSucceed: false })} disabled={testing} variant="outline" className="flex-1 bg-white/[0.03] border-white/10 h-9 text-xs">Simulate failure</Button>
+                  <Button size="sm" onClick={() => runTest({ shouldSucceed: true })} disabled={testing} variant="outline" className="flex-1 bg-foreground/[0.03] border-foreground/10 h-9 text-xs">Simulate success</Button>
+                  <Button size="sm" onClick={() => runTest({ shouldSucceed: false })} disabled={testing} variant="outline" className="flex-1 bg-foreground/[0.03] border-foreground/10 h-9 text-xs">Simulate failure</Button>
                 </div>
 
                 {deviceInfo && result === 'ok' && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
-                    <div className="text-xs uppercase tracking-widest text-white/40 mb-2">Device</div>
-                    <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-2 text-xs">
+                    <div className="text-xs uppercase tracking-widest text-foreground/40 mb-2">Device</div>
+                    <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-4 space-y-2 text-xs">
                       {[
                         { icon: Cpu,     l: 'Device',       v: deviceInfo.deviceName },
                         { icon: MapPin,  l: 'Model',        v: deviceInfo.model },
@@ -182,9 +182,9 @@ export function AttendanceModal({ provider, existing, onClose }) {
                         deviceInfo.battery && { icon: Battery, l: 'Battery', v: `${deviceInfo.battery}%` },
                       ].filter(Boolean).map((r, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <r.icon className="h-3.5 w-3.5 text-white/40" />
-                          <span className="text-white/50 w-24">{r.l}</span>
-                          <span className="text-white font-mono">{r.v}</span>
+                          <r.icon className="h-3.5 w-3.5 text-foreground/40" />
+                          <span className="text-foreground/50 w-24">{r.l}</span>
+                          <span className="text-foreground font-mono">{r.v}</span>
                         </div>
                       ))}
                     </div>
@@ -195,11 +195,11 @@ export function AttendanceModal({ provider, existing, onClose }) {
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-white/5 flex items-center justify-between gap-2">
-            <div className="text-[10px] text-white/40">Provider ID: <span className="font-mono text-white/60">{provider.id}</span></div>
+          <div className="p-4 border-t border-foreground/5 flex items-center justify-between gap-2">
+            <div className="text-[10px] text-foreground/40">Provider ID: <span className="font-mono text-foreground/60">{provider.id}</span></div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={onClose} className="bg-white/[0.03] border-white/10">Cancel</Button>
-              <Button onClick={save} disabled={!result || result === 'err'} className="text-white border-0" style={{ background: result === 'ok' ? brand.primaryColor : '#333' }}>Save connection</Button>
+              <Button variant="outline" onClick={onClose} className="bg-foreground/[0.03] border-foreground/10">Cancel</Button>
+              <Button onClick={save} disabled={!result || result === 'err'} className="text-foreground border-0" style={{ background: result === 'ok' ? brand.primaryColor : '#333' }}>Save connection</Button>
             </div>
           </div>
         </div>

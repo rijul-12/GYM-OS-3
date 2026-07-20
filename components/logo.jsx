@@ -12,7 +12,7 @@ export function Logo({ size = 'md', showName = true }) {
   return (
     <div className="flex items-center gap-2.5">
       <div
-        className={`${s.box} rounded-lg flex items-center justify-center font-bold font-display text-white relative overflow-hidden`}
+        className={`${s.box} rounded-lg flex items-center justify-center font-bold font-display text-foreground relative overflow-hidden`}
         style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}
       >
         <span className="relative z-10">{brand.logoText || brand.gymName?.[0] || 'G'}</span>

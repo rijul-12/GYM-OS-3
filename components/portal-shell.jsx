@@ -41,15 +41,15 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
   if (!mounted) return null
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex">
+    <div className="min-h-screen bg-background text-foreground flex">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-60 border-r border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 h-screen">
-        <div className="px-5 py-6 border-b border-white/5">
+      <aside className="hidden md:flex flex-col w-60 border-r border-foreground/5 bg-black/50 backdrop-blur-xl sticky top-0 h-screen">
+        <div className="px-5 py-6 border-b border-foreground/5">
           <Link href="/portal" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold font-display text-white" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || brand.gymName?.[0] || 'G'}</div>
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold font-display text-foreground" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || brand.gymName?.[0] || 'G'}</div>
             <div>
               <div className="font-display font-bold tracking-tight">{brand.gymName}</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-widest">Member</div>
+              <div className="text-[10px] text-foreground/40 uppercase tracking-widest">Member</div>
             </div>
           </Link>
         </div>
@@ -58,7 +58,7 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
             const Icon = l.icon
             const active = pathname === l.href
             return (
-              <Link key={l.href} href={l.href} className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${active ? 'bg-white/[0.06] text-white' : 'text-white/60 hover:text-white hover:bg-white/[0.03]'}`}>
+              <Link key={l.href} href={l.href} className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'}`}>
                 <Icon className="h-4 w-4" style={active ? { color: brand.primaryColor } : {}} />
                 <span className="font-medium">{l.label}</span>
                 {active && <span className="ml-auto h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />}
@@ -66,14 +66,14 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
             )
           })}
         </nav>
-        <div className="p-3 border-t border-white/5">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03]">
+        <div className="p-3 border-t border-foreground/5">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-foreground/[0.03]">
             <Image src={ME.photo} className="h-9 w-9 rounded-full object-cover ring-1 ring-white/10" alt="" width={120} height={120} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{ME.name.split(' ')[0]}</div>
-              <div className="text-[10px] text-white/40">{ME.plan} member</div>
+              <div className="text-[10px] text-foreground/40">{ME.plan} member</div>
             </div>
-            <Link href="/" onClick={(e) => { e.preventDefault(); doLogout() }} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Link>
+            <Link href="/" onClick={(e) => { e.preventDefault(); doLogout() }} className="text-foreground/40 hover:text-foreground"><LogOut className="h-4 w-4" /></Link>
           </div>
         </div>
       </aside>
@@ -81,14 +81,14 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
       {/* Main */}
       <main className="flex-1 min-w-0 pb-24 md:pb-8">
         {/* Mobile top bar */}
-        <header className="md:hidden sticky top-0 z-30 bg-[#050505]/85 backdrop-blur-xl border-b border-white/5">
+        <header className="md:hidden sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-foreground/5">
           <div className="px-5 py-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold font-display text-white" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || brand.gymName?.[0] || 'G'}</div>
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold font-display text-foreground" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || brand.gymName?.[0] || 'G'}</div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] text-white/40 uppercase tracking-widest">{brand.gymName} Member</div>
+              <div className="text-[10px] text-foreground/40 uppercase tracking-widest">{brand.gymName} Member</div>
               <div className="font-display font-semibold text-sm truncate">{title || 'Home'}</div>
             </div>
-            <button className="relative h-9 w-9 rounded-xl bg-white/[0.04] border border-white/5 flex items-center justify-center">
+            <button className="relative h-9 w-9 rounded-xl bg-foreground/[0.04] border border-foreground/5 flex items-center justify-center">
               <Bell className="h-4 w-4" />
               <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />
             </button>
@@ -101,7 +101,7 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-white/5 bg-black/85 backdrop-blur-2xl">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-foreground/5 bg-black/85 backdrop-blur-2xl">
         <div className="max-w-md mx-auto grid grid-cols-5 px-2 pt-1.5 pb-3">
           {TABS.map((t) => {
             const Icon = t.icon

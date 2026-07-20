@@ -21,6 +21,7 @@ export async function getOccupancyStats() {
             const totalCapacity = settingsDoc.exists ? (settingsDoc.data().buildingCapacity || 100) : 100;
 
             // Memory filter to prevent needing a Composite Index!
+            const attendanceSnap = await adminDb.collection('attendance').where('gymId', '==', gymId).get();
             const activeCheckins = attendanceSnap.docs
                 .map(d => ({ id: d.id, ...d.data() }))
                 .filter(d => !d.checkOut && !d.check_out_time);

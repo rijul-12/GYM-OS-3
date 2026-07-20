@@ -32,3 +32,28 @@ export async function saveBiometricSettings(gymId, settings) {
     }
     return true;
 }
+
+// Retrieves appearance preferences for a specific User ID
+export async function getUserAppearance(uid) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb && uid) {
+            const doc = await adminDb.collection('user_settings').doc(uid).get()
+            if (doc.exists) return doc.data()
+            return null
+        }
+    }
+    return null;
+}
+
+// Saves appearance settings for a specific User ID (Theme, Density, Sidebar, etc)
+export async function updateUserAppearance(uid, settings) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb && uid) {
+            await adminDb.collection('user_settings').doc(uid).set({ ...settings, updated_at: new Date().toISOString() }, { merge: true })
+            return true
+        }
+    }
+    return true;
+}

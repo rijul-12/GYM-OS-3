@@ -53,12 +53,20 @@ export async function loginAction({ email, password, role, remember }) {
 
         let onboarded = true;
         let gymCode = tokenResult.claims?.gymCode || 'DEMO';
+        let subStatus = { isReadOnly: false, currentPhase: 'Active', daysRemaining: 999 };
+
         if (userRole === 'owner') {
             const { adminDb } = await import('@/lib/firebase/server');
             const settings = await adminDb.collection('gym_settings').doc(gymCode).get();
             if (settings.exists && settings.data().onboarded === false) {
                 onboarded = false;
             }
+        }
+
+        // Compute strict subscription boundaries
+        if (userRole === 'owner' || userRole === 'trainer' || userRole === 'super_admin') {
+            const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+            subStatus = await getSubscriptionStatus(gymCode);
         }
 
         const session = {
@@ -70,7 +78,10 @@ export async function loginAction({ email, password, role, remember }) {
             loginAt: new Date().toISOString(),
             expiresAt: new Date(Date.now() + (remember ? SESSION_TTL_MS * 30 : SESSION_TTL_MS)).toISOString(),
             firebase: true, // Flag that this is a real Firebase session
-            onboarded: onboarded
+            onboarded: onboarded,
+            readOnly: subStatus.isReadOnly,
+            subscriptionPhase: subStatus.currentPhase,
+            daysRemaining: subStatus.daysRemaining
         }
 
         const cookieStore = await cookies()

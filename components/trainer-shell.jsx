@@ -35,15 +35,15 @@ export function TrainerShell({ children, title, subtitle, actions }) {
   if (!mounted) return null
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex">
+    <div className="min-h-screen bg-background text-foreground flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 border-r border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 h-screen">
-        <div className="px-5 py-5 border-b border-white/5">
+      <aside className="hidden lg:flex flex-col w-64 border-r border-foreground/10 bg-background sticky top-0 h-screen">
+        <div className="px-5 py-5 border-b border-foreground/5">
           <Link href="/trainer" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center font-bold font-display text-white" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || brand.gymName?.[0] || 'G'}</div>
+            <div className="h-9 w-9 rounded-lg flex items-center justify-center font-bold font-display text-foreground" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || brand.gymName?.[0] || 'G'}</div>
             <div>
               <div className="font-display font-bold tracking-tight">{brand.gymName}</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-widest">Trainer</div>
+              <div className="text-[10px] text-foreground/40 uppercase tracking-widest">Trainer</div>
             </div>
           </Link>
         </div>
@@ -52,7 +52,7 @@ export function TrainerShell({ children, title, subtitle, actions }) {
             const active = pathname === n.href
             const Icon = n.icon
             return (
-              <Link key={n.href} href={n.href} className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active ? 'bg-white/[0.06] text-white' : 'text-white/60 hover:text-white hover:bg-white/[0.03]'}`}>
+              <Link key={n.href} href={n.href} className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'}`}>
                 <Icon className="h-4 w-4" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.4)' }} />
                 <span className="font-medium">{n.label}</span>
                 {active && <span className="ml-auto h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />}
@@ -60,14 +60,14 @@ export function TrainerShell({ children, title, subtitle, actions }) {
             )
           })}
         </nav>
-        <div className="p-3 border-t border-white/5">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03]">
+        <div className="p-3 border-t border-foreground/5">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-foreground/[0.03]">
             <Image src={me.photo} className="h-9 w-9 rounded-full object-cover ring-1 ring-white/10" alt="" width={120} height={120} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{me.name?.split(' ')[0]}</div>
-              <div className="text-[10px] text-white/40">Trainer</div>
+              <div className="text-[10px] text-foreground/40">Trainer</div>
             </div>
-            <button onClick={doLogout} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></button>
+            <button onClick={doLogout} className="text-foreground/40 hover:text-foreground"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </aside>
@@ -77,19 +77,19 @@ export function TrainerShell({ children, title, subtitle, actions }) {
         {open && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/70 lg:hidden" />
-            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', damping: 25 }} className="fixed z-50 top-0 left-0 h-full w-72 bg-[#0a0a0a] border-r border-white/5 lg:hidden flex flex-col">
-              <div className="px-5 py-5 border-b border-white/5 flex items-center justify-between">
+            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', damping: 25 }} className="fixed z-50 top-0 left-0 h-full w-72 bg-background border-r border-foreground/10 lg:hidden flex flex-col">
+              <div className="px-5 py-5 border-b border-foreground/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-white" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || 'G'}</div>
+                  <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-foreground" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}, ${brand.accentColor})` }}>{brand.logoText || 'G'}</div>
                   <span className="font-display font-bold">{brand.gymName}</span>
                 </div>
-                <button className="p-2.5 -mr-2.5 rounded-lg text-white/70 hover:bg-white/5" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
+                <button className="p-2.5 -mr-2.5 rounded-lg text-foreground/70 hover:bg-white/5" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
               </div>
               <nav className="flex-1 px-3 py-4 space-y-0.5">
                 {NAV.map((n) => {
                   const Icon = n.icon; const active = pathname === n.href
                   return (
-                    <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${active ? 'bg-white/[0.06] text-white' : 'text-white/60'}`}>
+                    <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60'}`}>
                       <Icon className="h-4 w-4" style={active ? { color: brand.primaryColor } : {}} /> {n.label}
                     </Link>
                   )
@@ -102,18 +102,18 @@ export function TrainerShell({ children, title, subtitle, actions }) {
 
       {/* Main */}
       <main className="flex-1 min-w-0">
-        <header className="sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
+        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-foreground/10">
           <div className="px-4 sm:px-8 py-4 flex items-center gap-4">
-            <button className="lg:hidden p-2.5 -ml-2.5 rounded-lg text-white/70 hover:bg-white/5" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
+            <button className="lg:hidden p-2.5 -ml-2.5 rounded-lg text-foreground/70 hover:bg-white/5" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight truncate">{title}</h1>
-              {subtitle && <p className="text-xs sm:text-sm text-white/50 truncate">{subtitle}</p>}
+              {subtitle && <p className="text-xs sm:text-sm text-foreground/50 truncate">{subtitle}</p>}
             </div>
-            <div className="hidden md:flex items-center gap-2 bg-white/[0.04] border border-white/5 rounded-lg px-3 py-2 w-56">
-              <Search className="h-4 w-4 text-white/40" />
-              <input placeholder="Search members..." className="bg-transparent outline-none text-sm flex-1 placeholder:text-white/30" />
+            <div className="hidden md:flex items-center gap-2 bg-foreground/[0.04] border border-foreground/5 rounded-lg px-3 py-2 w-56">
+              <Search className="h-4 w-4 text-foreground/40" />
+              <input placeholder="Search members..." className="bg-transparent outline-none text-sm flex-1 placeholder:text-foreground/30" />
             </div>
-            <button className="relative h-10 w-10 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center hover:bg-white/[0.08]">
+            <button className="relative h-10 w-10 rounded-lg bg-foreground/[0.04] border border-foreground/5 flex items-center justify-center hover:bg-foreground/[0.08]">
               <Bell className="h-4 w-4" />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full" style={{ background: brand.primaryColor }} />
             </button>

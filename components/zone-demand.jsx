@@ -2,18 +2,36 @@
 import { motion } from 'framer-motion'
 
 const ZONES = [
-  { name: 'Cardio', demand: 85, trend: '+5%', color: '#ef4444' },
-  { name: 'Strength', demand: 92, trend: '+12%', color: '#3b82f6' }
+  { id: 'z1', name: 'Cardio', emoji: '🏃‍♂️', demand: 85, trend: '+5%', color: '#ef4444', border: 'rgba(239,68,68,0.2)', bg: 'rgba(239,68,68,0.05)', status: 'Very Busy', members: 42 },
+  { id: 'z2', name: 'Free Weights', emoji: '🏋️‍♂️', demand: 92, trend: '+12%', color: '#3b82f6', border: 'rgba(59,130,246,0.2)', bg: 'rgba(59,130,246,0.05)', status: 'Peak', members: 68 },
+  { id: 'z3', name: 'Machine Floor', emoji: '🦾', demand: 45, trend: '-2%', color: '#10b981', border: 'rgba(16,185,129,0.2)', bg: 'rgba(16,185,129,0.05)', status: 'Clear', members: 15 },
+  { id: 'z4', name: 'Stretching', emoji: '🧘‍♀️', demand: 25, trend: '0%', color: '#f59e0b', border: 'rgba(245,158,11,0.2)', bg: 'rgba(245,158,11,0.05)', status: 'Clear', members: 8 },
+  { id: 'z5', name: 'CrossFit Rig', emoji: '🤸‍♂️', demand: 75, trend: '+8%', color: '#8b5cf6', border: 'rgba(139,92,246,0.2)', bg: 'rgba(139,92,246,0.05)', status: 'Busy', members: 32 },
+  { id: 'z6', name: 'Pool', emoji: '🏊‍♂️', demand: 60, trend: '+1%', color: '#06b6d4', border: 'rgba(6,182,212,0.2)', bg: 'rgba(6,182,212,0.05)', status: 'Moderate', members: 20 },
 ]
-const CROWD_HEATMAP = Array(7).fill(0).map(() => Array(24).fill(Math.random() * 100))
-const ZONE_INSIGHTS = []
+
+const CROWD_HEATMAP = [
+  { time: '6 AM', level: 'Low', percent: 12, dot: '🟢', color: '#10b981' },
+  { time: '9 AM', level: 'Busy', percent: 65, dot: '🟡', color: '#f59e0b' },
+  { time: '12 PM', level: 'Moderate', percent: 35, dot: '🟢', color: '#10b981' },
+  { time: '5 PM', level: 'Peak', percent: 95, dot: '🔴', color: '#ef4444' },
+  { time: '8 PM', level: 'Busy', percent: 78, dot: '🟡', color: '#f59e0b' },
+  { time: '10 PM', level: 'Low', percent: 18, dot: '🟢', color: '#10b981' },
+]
+
+const ZONE_INSIGHTS = [
+  { tone: 'critical', icon: '🔥', text: 'Free Weights zone is at 95% capacity', hint: 'Pushing SMS off-peak discounts.' },
+  { tone: 'positive', icon: '✨', text: 'Stretching area is totally clear', hint: 'Perfect time for guided yoga.' },
+  { tone: 'warning', icon: '⚠️', text: 'Treadmills are all booked', hint: 'Recommend adding 3 more machines.' }
+]
+
 // -------- Workout Zone Demand Grid --------
 export function ZoneDemandGrid({ compact = false, zones = ZONES }) {
   return (
     <div className={`grid gap-3 ${compact ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'}`}>
       {zones.map((z, i) => (
         <motion.div
-          key={z.id}
+          key={z.id || i}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.4 }}
@@ -27,7 +45,7 @@ export function ZoneDemandGrid({ compact = false, zones = ZONES }) {
               <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${z.color}25`, color: z.color }}>{z.status}</span>
             </div>
             <div className="mt-3 font-display font-semibold text-sm md:text-base">{z.name}</div>
-            <div className="mt-1 text-xs text-white/50">{z.members} members</div>
+            <div className="mt-1 text-xs text-foreground/50">{z.members} members</div>
             <div className="mt-3 flex items-center gap-2">
               <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
                 <motion.div
@@ -48,19 +66,20 @@ export function ZoneDemandGrid({ compact = false, zones = ZONES }) {
 }
 
 // -------- Crowd Heatmap Horizontal Timeline --------
-export function CrowdHeatmap() {
+export function CrowdHeatmap({ overrideData }) {
+  const data = overrideData || CROWD_HEATMAP;
   return (
     <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-      {CROWD_HEATMAP.map((h, i) => (
+      {data.map((h, i) => (
         <motion.div
-          key={h.time}
+          key={h.time || i}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.06 }}
           className="relative shrink-0 min-w-[110px] md:flex-1 rounded-2xl border p-4 overflow-hidden"
           style={{ borderColor: `${h.color}45`, background: `linear-gradient(180deg, ${h.color}18, transparent 90%)` }}
         >
-          <div className="text-xs uppercase tracking-widest font-semibold text-white/60">{h.time}</div>
+          <div className="text-xs uppercase tracking-widest font-semibold text-foreground/60">{h.time}</div>
           <div className="mt-2 flex items-center gap-1.5">
             <span className="text-base">{h.dot}</span>
             <span className="font-display text-sm md:text-base font-bold" style={{ color: h.color }}>{h.level}</span>
@@ -68,7 +87,7 @@ export function CrowdHeatmap() {
           <div className="mt-3 h-1 rounded-full bg-white/5 overflow-hidden">
             <motion.div initial={{ width: 0 }} animate={{ width: `${h.percent}%` }} transition={{ duration: 1.1, delay: i * 0.06 + 0.1 }} className="h-full rounded-full" style={{ background: h.color }} />
           </div>
-          <div className="mt-2 text-[10px] text-white/50 tabular-nums">{h.percent}% capacity</div>
+          <div className="mt-2 text-[10px] text-foreground/50 tabular-nums">{h.percent}% capacity</div>
         </motion.div>
       ))}
     </div>
@@ -101,7 +120,7 @@ export function ZoneInsightsGrid({ limit = 6 }) {
             <div className="relative">
               <div className="text-2xl leading-none">{ins.icon}</div>
               <div className="mt-3 font-display font-semibold leading-snug">{ins.text}</div>
-              <div className="text-xs text-white/55 mt-2">{ins.hint}</div>
+              <div className="text-xs text-foreground/55 mt-2">{ins.hint}</div>
             </div>
           </motion.div>
         )
