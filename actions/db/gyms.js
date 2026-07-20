@@ -1,0 +1,209 @@
+'use server'
+
+
+import { revalidatePath } from 'next/cache'
+import mockGyms from '@/scripts/mock-db-gyms.json'
+import mockTrainers from '@/scripts/mock-db-trainers.json'
+
+function isFirebaseConfigured() {
+    return !!process.env.FIREBASE_PROJECT_ID;
+}
+
+export async function getGyms() {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            const snap = await adminDb.collection('gyms').orderBy('name').get()
+            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        }
+    }
+
+    // Offline / Supabase Fallback Bypass
+    return mockGyms;
+}
+
+export async function getGymSettings(gymId) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            const doc = await adminDb.collection('gym_settings').doc(gymId).get()
+            if (doc.exists) return { id: doc.id, ...doc.data() }
+            return {}
+        }
+    }
+    // Fallback Mock
+    return {}
+}
+
+export async function getTrainers() {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            const snap = await adminDb.collection('trainers').get()
+            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        }
+    }
+    return mockTrainers;
+}
+
+export async function getDashboardStats() {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        const { cookies } = await import('next/headers')
+        const cookieStore = await cookies()
+        const sessionStr = cookieStore.get('gymos_session')?.value
+        let gymId = 'DEMO'
+        try { if (sessionStr) gymId = JSON.parse(sessionStr).gymCode || 'DEMO' } catch (e) { }
+
+        if (adminDb) {
+            const [memSnap, trnSnap, attSnap, settingsSnap] = await Promise.all([
+                adminDb.collection('members').where('gymId', '==', gymId).count().get(),
+                adminDb.collection('trainers').where('gymId', '==', gymId).count().get(),
+                adminDb.collection('attendance').where('gymId', '==', gymId).get(),
+                adminDb.collection('gym_settings').doc(gymId).get()
+            ])
+
+            const totalMembers = memSnap.data().count;
+            const totalTrainers = trnSnap.data().count;
+            const currencyStr = settingsSnap.exists ? (settingsSnap.data().currency || '₹ INR') : '₹ INR';
+            const currencySymbol = currencyStr.split(' ')[0];
+            const capacity = settingsSnap.exists ? (settingsSnap.data().buildingCapacity || 100) : 100;
+
+            const todayIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+            const todayCheckins = attSnap.docs.filter(d => (d.data().checkIn || d.data().check_in_time) >= todayIso).length;
+
+            const activeCheckins = attSnap.docs.filter(d => !d.data().checkOut && !d.data().check_out_time).map(d => d.data());
+            const insideCount = activeCheckins.length;
+
+            // Compute Intelligence securely without mock arrays
+            const membersListDoc = await adminDb.collection('members').where('gymId', '==', gymId).get();
+            const members = membersListDoc.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const today = days[new Date().getDay()];
+
+            const getWorkoutForToday = (m) => {
+                if (m.weeklySchedule && m.weeklySchedule[today]) return m.weeklySchedule[today];
+                if (m.workout) return m.workout;
+                if (m.primaryWorkoutSplit) return m.primaryWorkoutSplit;
+                return 'Rest';
+            }
+
+            let chest = 0, back = 0, legs = 0, shoulders = 0, arms = 0, core = 0, cardio = 0, yoga = 0;
+            activeCheckins.forEach(a => {
+                const mId = a.memberId || a.member_id || (a.members && a.members.id);
+                const m = members.find(mbr => mbr.id === mId || mbr.name === (a.members && a.members.name)) || { workout: 'Rest' };
+                const w = getWorkoutForToday(m).toLowerCase();
+                if (w.includes('chest') || w.includes('push')) chest++;
+                if (w.includes('back') || w.includes('pull')) back++;
+                if (w.includes('leg')) legs++;
+                if (w.includes('shoulder')) shoulders++;
+                if (w.includes('arm') || w.includes('bicep') || w.includes('tricep')) arms++;
+                if (w.includes('core') || w.includes('abs')) core++;
+                if (w.includes('cardio') || w.includes('hiit')) cardio++;
+                if (w.includes('yoga') || w.includes('flex')) yoga++;
+                if (w.includes('full body')) { chest++; back++; legs++; shoulders++; core++; }
+                if (w.includes('powerlifting')) { chest++; back++; legs++; }
+            });
+
+            // Map Zone Demands strictly for the GymOS Live Intelligence constraint!
+            const max = Math.max(1, chest, back, legs, shoulders, arms, core, cardio);
+            const getDem = (v) => Math.floor((v / Math.max(1, insideCount)) * 100);
+            const getStatus = (v) => v > (insideCount * 0.4) && v > 1 ? 'Busy' : (v > 0 ? 'Medium' : 'Empty');
+
+            const ZONES = [
+                { id: 'z1', name: 'Chest Zone', members: chest, demand: getDem(chest), emoji: '💪', color: '#ef4444', status: getStatus(chest), bg: 'rgba(239,68,68,0.03)', border: 'rgba(239,68,68,0.1)' },
+                { id: 'z2', name: 'Back Zone', members: back, demand: getDem(back), emoji: '🏋️', color: '#f97316', status: getStatus(back), bg: 'rgba(249,115,22,0.03)', border: 'rgba(249,115,22,0.1)' },
+                { id: 'z3', name: 'Leg Zone', members: legs, demand: getDem(legs), emoji: '🦵', color: '#22c55e', status: getStatus(legs), bg: 'rgba(34,197,94,0.03)', border: 'rgba(34,197,94,0.1)' },
+                { id: 'z4', name: 'Shoulder Zone', members: shoulders, demand: getDem(shoulders), emoji: '🎯', color: '#eab308', status: getStatus(shoulders), bg: 'rgba(234,179,8,0.03)', border: 'rgba(234,179,8,0.1)' },
+                { id: 'z5', name: 'Arms Zone', members: arms, demand: getDem(arms), emoji: '💥', color: '#84cc16', status: getStatus(arms), bg: 'rgba(132,204,22,0.03)', border: 'rgba(132,204,22,0.1)' },
+                { id: 'z6', name: 'Core Zone', members: core, demand: getDem(core), emoji: '🏃', color: '#3b82f6', status: getStatus(core), bg: 'rgba(59,130,246,0.03)', border: 'rgba(59,130,246,0.1)' },
+            ];
+
+            const str = chest + back + legs + shoulders + arms;
+            const WORKOUT_DIST = [
+                { name: 'Strength Training', value: str || 0, color: '#ef4444' },
+                { name: 'Cardio Core', value: (cardio + core) || 0, color: '#3b82f6' },
+                { name: 'Flexibility / Yoga', value: yoga || 0, color: '#10b981' }
+            ].filter(d => d.value > 0);
+            if (WORKOUT_DIST.length === 0) WORKOUT_DIST.push({ name: 'Idle', value: 1, color: '#64748b' });
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const hourly = {};
+            attSnap.docs.forEach(d => {
+                const t = new Date(d.data().checkIn || d.data().check_in_time);
+                if (t.toISOString().startsWith(todayStr)) {
+                    hourly[t.getHours()] = (hourly[t.getHours()] || 0) + 1;
+                }
+            });
+            const ATTENDANCE_DAILY = Array.from({ length: 15 }).map((_, i) => ({
+                hour: `${i + 6}am`,
+                v: hourly[i + 6] || 0,
+                forecast: Math.floor(capacity * 0.15)
+            }));
+
+            // Map Busy/Quiet metrics
+            let busyHr = 18, peakV = 0, quietHr = 6, minV = 9999;
+            Object.keys(hourly).forEach(h => {
+                if (hourly[h] > peakV) { peakV = hourly[h]; busyHr = h; }
+                if (hourly[h] < minV && hourly[h] > 0) { minV = hourly[h]; quietHr = h; }
+            });
+            const bFmt = `${busyHr > 12 ? busyHr - 12 : busyHr}:00 ${busyHr >= 12 ? 'PM' : 'AM'}`;
+            const qFmt = `${quietHr > 12 ? quietHr - 12 : quietHr}:00 ${quietHr >= 12 ? 'PM' : 'AM'}`;
+
+            const AI_INSIGHTS = [
+                {
+                    title: insideCount > 0 ? `Occupancy at ${Math.floor((insideCount / capacity) * 100)}%` : "Facility Empty",
+                    detail: insideCount > 0 ? `Current active count mapping nominal footprints. Busiest recorded hour tracks to ${bFmt}.` : "No presence detected floor-wide natively. Quiet operations secure.",
+                    confidence: 100,
+                    action: insideCount > (capacity * 0.8) ? "Hold Access" : "Monitor Dashboard"
+                }
+            ]
+
+            return {
+                totalMembers,
+                totalTrainers,
+                todayCheckins,
+                revenueMtd: `${currencySymbol}${totalMembers > 0 ? (totalMembers * 49.99).toLocaleString() : '0.00'}`,
+                zones: ZONES,
+                dist: WORKOUT_DIST,
+                dailyLine: ATTENDANCE_DAILY,
+                insights: AI_INSIGHTS
+            }
+        }
+    }
+
+    // Default Fallback Aggregate
+    return { totalMembers: 520, totalTrainers: 12, todayCheckins: 145 };
+}
+
+export async function regenerateGymCode(gymIdParam) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        const { cookies } = await import('next/headers')
+        const cookieStore = await cookies()
+        const sessionStr = cookieStore.get('gymos_session')?.value
+        let sessionGymId = 'DEMO'
+        try { if (sessionStr) sessionGymId = JSON.parse(sessionStr).gymCode || 'DEMO' } catch (e) { }
+
+        const gymId = gymIdParam || sessionGymId;
+
+        if (adminDb && gymId && gymId !== 'DEMO') {
+            const gymDoc = await adminDb.collection('gyms').doc(gymId).get()
+            const existingData = gymDoc.data() || {}
+            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+            const existingCodeDoc = await adminDb.collection('gyms').where('gymCode', '==', newCode).get()
+            if (!existingCodeDoc.empty) return regenerateGymCode(gymId)
+
+            const now = new Date().toISOString()
+            await adminDb.collection('gyms').doc(gymId).update({
+                gymCode: newCode,
+                qrCreatedDate: existingData.qrCreatedDate || now,
+                qrLastResetDate: now
+            })
+            revalidatePath('/settings')
+            return newCode;
+        }
+    }
+    return null;
+}
