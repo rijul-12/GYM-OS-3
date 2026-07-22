@@ -24,7 +24,7 @@ export default function DashboardClient({ stats, latestAttendance }) {
     const weeklyData = stats?.weeklyLine || [];
 
     // Transform attendance generic rows into the UI expectations
-    const inside = latestAttendance.map(a => ({
+    const inside = (latestAttendance || []).map(a => ({
         id: a.id,
         name: a.members?.name || 'Unknown Member',
         photo: a.members?.photo_url || `https://i.pravatar.cc/150?u=${a.member_id}`,
@@ -122,7 +122,7 @@ export default function DashboardClient({ stats, latestAttendance }) {
                         <>
                             <div className="text-xs text-foreground/40 mb-4 mt-1">Found {inside.length} members inside</div>
                             <div className="space-y-3">
-                                {inside.slice(0, 5).map((m) => (
+                                {(inside || []).slice(0, 5).map((m) => (
                                     <div key={m.id} className="flex items-center gap-3">
                                         <div className="relative shrink-0">
                                             <Image src={m.photo} className="h-9 w-9 rounded-full object-cover" alt="" width={120} height={120} />
@@ -178,15 +178,15 @@ export default function DashboardClient({ stats, latestAttendance }) {
                     <div className="h-52 flex items-center">
                         <ResponsiveContainer>
                             <PieChart>
-                                <Pie data={stats.dist} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={4}>
-                                    {stats.dist.map((e, i) => <Cell key={i} fill={e.color} />)}
+                                <Pie data={stats?.dist || []} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={4}>
+                                    {(stats?.dist || []).map((e, i) => <Cell key={i} fill={e.color} />)}
                                 </Pie>
                                 <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5 text-xs mt-2">
-                        {stats.dist.map((w) => (
+                        {(stats?.dist || []).map((w) => (
                             <div key={w.name} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: w.color }} /> {w.name}</div>
                         ))}
                     </div>

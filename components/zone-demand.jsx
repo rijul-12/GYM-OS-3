@@ -29,7 +29,7 @@ const ZONE_INSIGHTS = [
 export function ZoneDemandGrid({ compact = false, zones = ZONES }) {
   return (
     <div className={`grid gap-3 ${compact ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'}`}>
-      {zones.map((z, i) => (
+      {(zones || []).map((z, i) => (
         <motion.div
           key={z.id || i}
           initial={{ opacity: 0, y: 12 }}
