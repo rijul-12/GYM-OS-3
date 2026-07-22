@@ -34,8 +34,12 @@ export async function loginAction({ email, password, role, remember }) {
         const { auth } = await import('@/lib/firebase/client')
         const { signInWithEmailAndPassword } = await import('firebase/auth')
 
-        const credential = await signInWithEmailAndPassword(auth, emailNorm, password)
-            .catch(err => { throw new Error(err.message) })
+        let credential;
+        try {
+            credential = await signInWithEmailAndPassword(auth, emailNorm, password)
+        } catch (err) {
+            return { error: 'Invalid credentials. Please verify your email and password.' }
+        }
 
         const user = credential.user
         const tokenResult = await user.getIdTokenResult()
@@ -48,8 +52,8 @@ export async function loginAction({ email, password, role, remember }) {
             userRole = role || (emailNorm === 'superadmin@gymos.com' ? 'super_admin' : 'member');
         }
 
-        if (!userRole) throw new Error('Your account has no role assigned. Contact your gym administrator.')
-        if (role && userRole !== role) throw new Error(`This account is registered as a different role.`)
+        if (!userRole) return { error: 'Your account has no role assigned. Contact your gym administrator.' }
+        if (role && userRole !== role) return { error: 'This account is registered as a different role.' }
 
         let onboarded = true;
         let gymCode = tokenResult.claims?.gymCode || 'DEMO';
@@ -63,7 +67,7 @@ export async function loginAction({ email, password, role, remember }) {
             if (gymSnap.exists && gymSnap.data().status === 'Pending') {
                 const { signOut } = await import('firebase/auth');
                 if (auth) await signOut(auth)
-                throw new Error('Your gym registration is pending Super Admin approval. We will notify you once verified.');
+                return { error: 'Your gym registration is pending Super Admin approval. We will notify you once verified.' }
             }
 
             const settings = await adminDb.collection('gym_settings').doc(gymCode).get();
@@ -74,11 +78,13 @@ export async function loginAction({ email, password, role, remember }) {
 
         if (userRole === 'trainer') {
             const { adminDb } = await import('@/lib/firebase/server');
-            const trainerSnap = await adminDb.collection('trainers').doc(user.uid).get();
-            if (trainerSnap.exists && trainerSnap.data().status === 'Pending') {
-                const { signOut } = await import('firebase/auth');
-                if (auth) await signOut(auth)
-                throw new Error('Your trainer profile is pending Gym Owner approval.');
+            if (adminDb) {
+                const trainerSnap = await adminDb.collection('trainers').doc(user.uid).get();
+                if (trainerSnap.exists && trainerSnap.data().status === 'Pending') {
+                    const { signOut } = await import('firebase/auth');
+                    if (auth) await signOut(auth)
+                    return { error: 'Your trainer profile is pending Gym Owner approval.' }
+                }
             }
         }
 
@@ -119,11 +125,11 @@ export async function loginAction({ email, password, role, remember }) {
     await new Promise(r => setTimeout(r, 600)) // Simulate latency
 
     const rec = DEMO_CREDS[emailNorm]
-    if (!rec) throw new Error('No account found with that email.')
-    if (rec.password !== password) throw new Error('Incorrect password. Try 123456 for the demo.')
+    if (!rec) return { error: 'No account found with that email. Turn on Firebase to use live accounts.' }
+    if (rec.password !== password) return { error: 'Incorrect password. Try 123456 for the demo mode.' }
 
     // Super Admin is hidden from frontend tabs, so we ignore the tab selection mismatch for them
-    if (role && rec.role !== role && rec.role !== 'super_admin') throw new Error('This account is a restricted role.')
+    if (role && rec.role !== role && rec.role !== 'super_admin') return { error: 'This account is a restricted role.' }
 
     const session = {
         role: rec.role,
