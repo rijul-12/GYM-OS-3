@@ -5,12 +5,12 @@ import { Server, Database, Activity, ShieldCheck, Mail, Bell, CheckCircle2, Chev
 
 export default function SystemHealth() {
     const services = [
-        { name: "Firebase Edge Config", uptime: "99.98%", ping: "24ms", icon: Database, color: "text-orange-500", bg: "bg-orange-500/10" },
-        { name: "Auth & Identity", uptime: "100%", ping: "45ms", icon: Key, color: "text-blue-500", bg: "bg-blue-500/10" },
-        { name: "File Storage", uptime: "99.99%", ping: "12ms", icon: Server, color: "text-purple-500", bg: "bg-purple-500/10" },
-        { name: "Transactional Emails", uptime: "98.50%", ping: "340ms", icon: Mail, color: "text-amber-500", bg: "bg-amber-500/10" },
-        { name: "WebSocket Presence", uptime: "100%", ping: "18ms", icon: Activity, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-        { name: "FCM Push Notifications", uptime: "99.99%", ping: "78ms", icon: Bell, color: "text-rose-500", bg: "bg-rose-500/10" }
+        { name: "Firebase Edge Config", uptime: "Operational", ping: "Active", icon: Database, color: "text-orange-500", bg: "bg-orange-500/10" },
+        { name: "Auth & Identity", uptime: "Operational", ping: "Active", icon: Key, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { name: "File Storage", uptime: "Operational", ping: "Active", icon: Server, color: "text-purple-500", bg: "bg-purple-500/10" },
+        { name: "Transactional Emails", uptime: "Operational", ping: "Active", icon: Mail, color: "text-amber-500", bg: "bg-amber-500/10" },
+        { name: "WebSocket Presence", uptime: "Operational", ping: "Active", icon: Activity, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+        { name: "FCM Push Notifications", uptime: "Operational", ping: "Active", icon: Bell, color: "text-rose-500", bg: "bg-rose-500/10" }
     ]
 
     return (

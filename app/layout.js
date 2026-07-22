@@ -12,8 +12,36 @@ import { GlobalSearch } from '@/components/global-search'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'GymOS — Premium Gym Management',
-  description: 'The white-label operating system for the world\'s best gyms.',
+  title: 'GymOS — The Operating System for Modern Gyms',
+  description: 'An AI-native gym intelligence layer predicting machine bottlenecks and scaling modern physical fitness facilities.',
+  generator: 'Next.js',
+  applicationName: 'GymOS',
+  keywords: ['Gym', 'Management', 'AI', 'Fitness', 'Software', 'GymOS', 'B2B', 'Access Control'],
+  creator: 'GymOS Technologies',
+  publisher: 'GymOS Technologies',
+  openGraph: {
+    title: 'GymOS — The Operating System for Modern Gyms',
+    description: 'An AI-native gym intelligence layer predicting machine bottlenecks and scaling modern physical fitness facilities.',
+    url: 'https://gymos.tech',
+    siteName: 'GymOS',
+    images: [
+      {
+        url: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
+        width: 1200,
+        height: 630,
+        alt: 'GymOS Production Command Center'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'GymOS — The Operating System for Modern Gyms',
+    description: 'An AI-native gym intelligence layer predicting machine bottlenecks and scaling physical fitness facilities.',
+    creator: '@GymOSTech',
+    images: ['https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg'],
+  }
 }
 
 export default function RootLayout({ children }) {
@@ -26,7 +54,7 @@ export default function RootLayout({ children }) {
               <AuthProvider>
                 {children}
                 <GlobalSearch />
-                <Toaster theme="dark" position="bottom-right" />
+                <Toaster theme="system" position="bottom-right" />
               </AuthProvider>
             </BrandProvider>
           </Providers>

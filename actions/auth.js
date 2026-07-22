@@ -57,9 +57,28 @@ export async function loginAction({ email, password, role, remember }) {
 
         if (userRole === 'owner') {
             const { adminDb } = await import('@/lib/firebase/server');
+
+            // Check Gym Approval Status (Step 7)
+            const gymSnap = await adminDb.collection('gyms').doc(gymCode).get();
+            if (gymSnap.exists && gymSnap.data().status === 'Pending') {
+                const { signOut } = await import('firebase/auth');
+                if (auth) await signOut(auth)
+                throw new Error('Your gym registration is pending Super Admin approval. We will notify you once verified.');
+            }
+
             const settings = await adminDb.collection('gym_settings').doc(gymCode).get();
             if (settings.exists && settings.data().onboarded === false) {
                 onboarded = false;
+            }
+        }
+
+        if (userRole === 'trainer') {
+            const { adminDb } = await import('@/lib/firebase/server');
+            const trainerSnap = await adminDb.collection('trainers').doc(user.uid).get();
+            if (trainerSnap.exists && trainerSnap.data().status === 'Pending') {
+                const { signOut } = await import('firebase/auth');
+                if (auth) await signOut(auth)
+                throw new Error('Your trainer profile is pending Gym Owner approval.');
             }
         }
 

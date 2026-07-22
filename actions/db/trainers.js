@@ -70,3 +70,19 @@ export async function suspendTrainer(trainerId) {
         }
     }
 }
+
+export async function getMyTrainerProfile() {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        const { cookies } = await import('next/headers')
+        const cookieStore = await cookies()
+        const sessionStr = cookieStore.get('gymos_session')?.value
+        if (!sessionStr) return null;
+        try {
+            const session = JSON.parse(sessionStr);
+            const snap = await adminDb.collection('trainers').where('gymId', '==', session.gymCode).where('email', '==', session.email).limit(1).get()
+            if (!snap.empty) return { id: snap.docs[0].id, ...JSON.parse(JSON.stringify(snap.docs[0].data())) }
+        } catch (e) { }
+    }
+    return null;
+}

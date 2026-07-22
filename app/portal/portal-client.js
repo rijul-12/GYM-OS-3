@@ -9,10 +9,7 @@ import { ZoneDemandGrid, CrowdHeatmap } from '@/components/zone-demand'
 
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
 
-const MEMBER_INSIGHTS = [
-    { value: '5:30 AM', detail: 'Based on your history, the gym is quietest early tomorrow.' },
-    { value: '1.2x', detail: 'You are crushing it. Burned more calories this week.' }
-]
+const MEMBER_INSIGHTS = []
 
 const Ring = ({ value, size = 180, stroke = 14, gradient }) => {
     const r = (size - stroke) / 2
@@ -225,8 +222,8 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
                         </div>
                         <div className="mt-4">
                             <div className="text-xs text-foreground/40">Best time to visit tomorrow</div>
-                            <div className="font-display text-3xl font-bold mt-1">{topInsights[0].value}</div>
-                            <div className="text-xs text-foreground/50 mt-2 leading-relaxed line-clamp-2">{topInsights[0].detail}</div>
+                            <div className="font-display text-3xl font-bold mt-1">{topInsights[0]?.value || 'TBD'}</div>
+                            <div className="text-xs text-foreground/50 mt-2 leading-relaxed line-clamp-2">{topInsights[0]?.detail || 'System requires more member data to generate live insights.'}</div>
                         </div>
                     </div>
                 </Link>

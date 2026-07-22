@@ -329,10 +329,10 @@ function RegisterContent() {
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-foreground/60">Height / Weight</label>
+                                                    <label className="text-xs text-foreground/60">Height / Weight *</label>
                                                     <div className="flex gap-2">
-                                                        <Input placeholder="cm" name="height" value={formData.height} onChange={handleChange} className="mt-1.5 h-11 bg-foreground/[0.03]" />
-                                                        <Input placeholder="kg" name="weight" value={formData.weight} onChange={handleChange} className="mt-1.5 h-11 bg-foreground/[0.03]" />
+                                                        <Input required placeholder="cm" name="height" value={formData.height} onChange={handleChange} className="mt-1.5 h-11 bg-foreground/[0.03]" />
+                                                        <Input required placeholder="kg" name="weight" value={formData.weight} onChange={handleChange} className="mt-1.5 h-11 bg-foreground/[0.03]" />
                                                     </div>
                                                 </div>
                                                 <div className="col-span-2">
@@ -344,8 +344,9 @@ function RegisterContent() {
                                                     <p className="text-[10px] text-foreground/40 mb-3 mt-1">This data powers your customized AI Insights on the Gym Floor.</p>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-foreground/60">Workout Goal</label>
-                                                    <select name="fitnessGoal" value={formData.fitnessGoal} onChange={handleChange} className="mt-1.5 h-11 w-full rounded-md border border-foreground/10 bg-card px-3 py-2 text-sm text-foreground">
+                                                    <label className="text-xs text-foreground/60">Workout Goal *</label>
+                                                    <select required name="fitnessGoal" value={formData.fitnessGoal} onChange={handleChange} className="mt-1.5 h-11 w-full rounded-md border border-foreground/10 bg-card px-3 py-2 text-sm text-foreground">
+                                                        <option value="" disabled>Select Goal</option>
                                                         <option value="Weight Loss">Weight Loss</option>
                                                         <option value="Muscle Gain">Muscle Gain</option>
                                                         <option value="Strength">Strength</option>

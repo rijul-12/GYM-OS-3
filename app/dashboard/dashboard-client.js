@@ -20,13 +20,8 @@ export default function DashboardClient({ stats, latestAttendance }) {
     const { user } = useAuth()
     const topInsight = stats.insights?.[0] || { tone: 'info', category: 'General', title: 'System Running', detail: 'Operations nominal', confidence: 100, action: 'View' }
 
-    // Synthesize weekly data dynamically based on checkins
-    const fakeWeekly = [
-        { day: 'Mon', in: 42, out: 38 },
-        { day: 'Tue', in: 55, out: 51 },
-        { day: 'Wed', in: stats.todayCheckins || 0, out: Math.floor((stats.todayCheckins || 0) * 0.9) },
-        { day: 'Thu', in: 0, out: 0 }
-    ]
+    // The system now expects `stats.weeklyLine` from Firebase. Fallbacks stripped.
+    const weeklyData = stats?.weeklyLine || [];
 
     // Transform attendance generic rows into the UI expectations
     const inside = latestAttendance.map(a => ({
@@ -157,16 +152,23 @@ export default function DashboardClient({ stats, latestAttendance }) {
                     <div className="text-sm text-foreground/70 font-medium mb-1">Weekly attendance</div>
                     <div className="text-xs text-foreground/40 mb-4">Ins vs outs</div>
                     <div className="h-52">
-                        <ResponsiveContainer>
-                            <BarChart data={fakeWeekly}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} />
-                                <YAxis stroke="#ffffff40" fontSize={11} />
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                <Bar dataKey="in" fill={brand.primaryColor} radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="out" fill="#525252" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {weeklyData.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center bg-foreground/[0.02] rounded-lg border border-foreground/5">
+                                <div className="text-foreground/40 text-sm mb-1">No data yet</div>
+                                <div className="text-foreground/20 text-xs text-center px-4">Attendance will appear after your first check-in.</div>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer>
+                                <BarChart data={weeklyData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                                    <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} />
+                                    <YAxis stroke="#ffffff40" fontSize={11} />
+                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
+                                    <Bar dataKey="in" fill={brand.primaryColor} radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="out" fill="#525252" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
 
@@ -213,7 +215,7 @@ export default function DashboardClient({ stats, latestAttendance }) {
             </div>
 
             <div className="mt-8 mb-5">
-                <RecentActivityTimeline gymCode={user?.gymCode || 'DEMO'} />
+                <RecentActivityTimeline gymCode={user?.gymCode} />
             </div>
         </DashShell>
     )

@@ -51,7 +51,7 @@ export async function processOwnerRegistration(data) {
             gymType: data.gymType,
             capacity: data.membershipCapacity,
             createdAt: new Date().toISOString(),
-            status: 'Active',
+            status: 'Pending', // Enforced manual SA Approval (Sprint Mandate Step 7)
             ownerUid: user.uid
         });
 

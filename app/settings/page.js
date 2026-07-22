@@ -94,13 +94,13 @@ function App() {
                 </div>
                 <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] p-6 flex flex-col md:flex-row gap-8 items-start">
                   <div className="bg-white p-4 rounded-xl shrink-0">
-                    <QRCode value={`https://gymos.app/checkin/${brand.gymCode || 'DEMO'}`} size={160} />
+                    {brand.gymCode ? <QRCode value={`https://gymos.app/checkin/${brand.gymCode}`} size={160} /> : <div className="h-[160px] w-[160px] bg-foreground/5 flex items-center justify-center text-xs text-foreground/40 text-center px-4">No Code Generated</div>}
                   </div>
                   <div className="flex-1 w-full space-y-4">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <div className="text-foreground/40 text-xs uppercase tracking-widest mb-1">Gym Code</div>
-                        <div className="font-mono font-bold text-lg">{brand.gymCode || 'DEMO'}</div>
+                        <div className="font-mono font-bold text-lg">{brand.gymCode || '—'}</div>
                       </div>
                       <div>
                         <div className="text-foreground/40 text-xs uppercase tracking-widest mb-1">Status</div>

@@ -6,8 +6,11 @@ import { CheckCircle2, Clock, AlertTriangle, IndianRupee, RefreshCw, Eye, XCircl
 import { SuperAdminShell } from '@/components/superadmin-shell'
 import { Button } from '@/components/ui/button'
 import { approveSubscription, rejectSubscription } from '@/actions/db/subscriptions'
-import { SUBSCRIPTION_PLANS, REVENUE_MONTHLY } from '@/lib/superadmin-mock'
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+
+// Dynamic arrays initialized empty for live production mapping
+const REVENUE_MONTHLY = []
+const SUBSCRIPTION_PLANS = []
 
 const SA = '#8b5cf6'
 
@@ -63,24 +66,36 @@ export default function SubscriptionsClient({ initialRequests, stats }) {
                     <div className="text-sm font-medium mb-1">Revenue Trend</div>
                     <div className="text-xs text-foreground/40 mb-4">Monthly subscription revenue</div>
                     <div className="h-56">
-                        <ResponsiveContainer>
-                            <AreaChart data={REVENUE_MONTHLY}>
-                                <defs>
-                                    <linearGradient id="subRevGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SA} stopOpacity={0.4} /><stop offset="100%" stopColor={SA} stopOpacity={0} /></linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
-                                <YAxis stroke="#ffffff40" fontSize={11} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} formatter={v => [`₹${v.toLocaleString()}`, 'Revenue']} />
-                                <Area type="monotone" dataKey="revenue" stroke={SA} fill="url(#subRevGrad)" strokeWidth={2.5} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        {REVENUE_MONTHLY.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center bg-foreground/[0.02] rounded-lg border border-foreground/5">
+                                <div className="text-foreground/40 text-sm mb-1">No revenue data yet</div>
+                                <div className="text-foreground/20 text-xs text-center px-4">Chart will populate upon first transaction processing.</div>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer>
+                                <AreaChart data={REVENUE_MONTHLY}>
+                                    <defs>
+                                        <linearGradient id="subRevGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SA} stopOpacity={0.4} /><stop offset="100%" stopColor={SA} stopOpacity={0} /></linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                                    <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
+                                    <YAxis stroke="#ffffff40" fontSize={11} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
+                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} formatter={v => [`₹${v.toLocaleString()}`, 'Revenue']} />
+                                    <Area type="monotone" dataKey="revenue" stroke={SA} fill="url(#subRevGrad)" strokeWidth={2.5} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
 
                 {/* Plan Highlights */}
                 <div className="space-y-4">
-                    {SUBSCRIPTION_PLANS.map((p, i) => (
+                    {SUBSCRIPTION_PLANS.length === 0 ? (
+                        <div className="bg-foreground/[0.02] p-8 rounded-2xl border border-foreground/5 h-full flex flex-col justify-center text-center">
+                            <div className="text-foreground/40 text-sm mb-1">No plans mapped</div>
+                            <div className="text-foreground/20 text-xs">Awaiting Stripe/Razorpay sync.</div>
+                        </div>
+                    ) : SUBSCRIPTION_PLANS.map((p, i) => (
                         <div key={p.id} className="rounded-2xl border p-4 relative overflow-hidden" style={{ borderColor: `${p.color}40`, background: `linear-gradient(180deg, ${p.color}08, transparent)` }}>
                             <div className="font-display text-lg font-bold">{p.name}</div>
                             <div className="text-sm font-bold mt-0.5" style={{ color: p.color }}>₹{p.price.toLocaleString()}<span className="text-[10px] text-foreground/40 font-normal">/mo</span></div>
