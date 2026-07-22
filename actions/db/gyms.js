@@ -173,8 +173,17 @@ export async function getDashboardStats() {
         }
     }
 
-    // Default Fallback Aggregate
-    return { totalMembers: 520, totalTrainers: 12, todayCheckins: 145 };
+    // Default Fallback Aggregate (Protects Vercel SSR when Firebase is unconfigured)
+    return {
+        totalMembers: 0,
+        totalTrainers: 0,
+        todayCheckins: 0,
+        revenueMtd: '₹ 0.00',
+        zones: [],
+        dist: [],
+        dailyLine: [],
+        insights: []
+    };
 }
 
 export async function regenerateGymCode(gymIdParam) {

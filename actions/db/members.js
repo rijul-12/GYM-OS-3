@@ -70,7 +70,7 @@ export async function getMyProfile() {
             }
         } catch (e) { }
     }
-    return mockMembers[0];
+    return { ...(mockMembers[0] || {}), workout_logs: [], attendance: [], trainers: { name: 'Unassigned' } };
 }
 
 export async function getMemberProfile(memberId) {
