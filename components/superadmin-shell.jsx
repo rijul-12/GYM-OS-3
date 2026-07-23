@@ -8,6 +8,7 @@ import {
     LifeBuoy, ScrollText, Settings, Bell, Search, Menu, X, LogOut, Eye, XCircle
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { FeedbackButton } from '@/components/feedback'
 
 const SA_COLOR = '#8b5cf6'
 
