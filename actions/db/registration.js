@@ -42,6 +42,9 @@ export async function processOwnerRegistration(data) {
         await adminAuth.setCustomUserClaims(user.uid, { role: 'owner', gymCode: uniqueCode });
 
         // 3. Write native Firestore Gym Record
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 14);
+
         await adminDb.collection('gyms').doc(uniqueCode).set({
             gymCode: uniqueCode,
             gymName: data.gymName,
@@ -54,7 +57,11 @@ export async function processOwnerRegistration(data) {
             gymType: data.gymType,
             capacity: data.membershipCapacity,
             createdAt: new Date().toISOString(),
-            status: 'Pending', // Enforced manual SA Approval (Sprint Mandate Step 7)
+            status: 'Active',
+            subscriptionStatus: 'Trial',
+            isTrial: true,
+            trialEndDate: trialEndDate.toISOString(),
+            plan: 'starter-monthly', // Default access tier during trial
             ownerUid: user.uid
         });
 
