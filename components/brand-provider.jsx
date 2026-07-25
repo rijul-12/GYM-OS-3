@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 
 const DEFAULT_BRAND = {
   gymName: 'GymOS',
@@ -56,18 +56,26 @@ export function BrandProvider({ children }) {
     }
   }, [brand, ready])
 
-  const setBrand = (patch) => {
+  const setBrand = useCallback((patch) => {
     setBrandState((prev) => {
+      // Prevent infinite loops if patch is identical or empty
+      if (!patch || Object.keys(patch).length === 0) return prev;
+      let hasChanges = false;
+      for (const key of Object.keys(patch)) {
+        if (prev[key] !== patch[key]) hasChanges = true;
+      }
+      if (!hasChanges) return prev; // Bail out of React render if no values actually changed
+
       const next = { ...prev, ...patch }
       try { localStorage.setItem('gymos_brand', JSON.stringify(next)) } catch { }
       return next
     })
-  }
+  }, [])
 
-  const reset = () => {
+  const reset = useCallback(() => {
     try { localStorage.removeItem('gymos_brand') } catch { }
     setBrandState(DEFAULT_BRAND)
-  }
+  }, [])
 
   return <BrandCtx.Provider value={{ brand, setBrand, reset }}>{children}</BrandCtx.Provider>
 }

@@ -32,13 +32,7 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
   const pathname = usePathname()
   const { brand } = useBrand()
   const { signOut } = useAuth()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => { setMounted(true) }, [])
-
   const doLogout = () => { signOut(); if (typeof window !== 'undefined') window.location.href = '/' }
-
-  if (!mounted) return null
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
