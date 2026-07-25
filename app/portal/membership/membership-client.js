@@ -4,41 +4,31 @@ import { motion } from 'framer-motion'
 import { CreditCard, Calendar, Check, ChevronRight, Sparkles, Shield } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
+import { toast } from 'sonner'
 
 // --- SYNTHETIC FALLBACKS START ---
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
-const WORKOUT_DIST = [{ name: 'Strength', value: 45, color: '#ef4444' }, { name: 'Cardio', value: 30, color: '#3b82f6' }]
-const IMAGES = ['https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg']
-const PLAN_DATA = [{ name: 'Basic', price: 9.99 }, { name: 'Pro', price: 19.99 }]
-const ATTENDANCE_WEEKLY = [{ day: 'Mon', in: 42, out: 38 }, { day: 'Tue', in: 55, out: 51 }]
-const TESTIMONIALS = [{ quote: "Great gym!", author: "User" }]
-const FAQS = [{ q: "Hours?", a: "24/7" }]
-const PLANS = [{ name: 'Premium', price: 19.99, features: ['24/7 Access'] }]
-const MEMBER_INSIGHTS = [{ value: '5:30 AM', detail: 'Quiet tomorrow.' }]
-const ASSIGNED_MEMBERS = [{ id: 't1', name: 'James Wilson', photo: 'https://i.pravatar.cc/150?u=j', checkedIn: true, stage: 'Lifting', todayWorkout: 'Hypertrophy Block A', attendance: 85, progress: 40, status: 'Active' }]
-const PROGRESS = { default: [{ w: 1, bench: 135, squat: 185 }] }
-const CURRENT_TRAINER = { name: "Lead Trainer", role: "Head of PT", rating: 4.9, activeClients: 12, thisMonth: 45, target: 50, joined: "2021", bio: "Expert." }
-const WEEKLY_PLANS = {}
-const WORKOUT_TYPES = ['Hypertrophy', 'Strength', 'Endurance', 'Mobility']
-const ATTENDANCE_CALENDAR = []
-const WORKOUT_HISTORY = []
-const ME = { id: '#102', name: 'James Wilson', plan: 'Premium', joined: 'Jan 2024', expiry: 'Jan 2025' }
-const PERSONAL = { dob: "1994-05-15", gender: "Male", phone: "555-0101", emergency: "Jane Wilson 555-0102" }
-const SCHEDULE = [{ day: 'Mon', type: 'Chest & Triceps', cals: 450 }]
-const NOTIFICATION_PREFS = { push: true, sms: false, email: true }
 // --- SYNTHETIC FALLBACKS END ---
 
-
-export default function MembershipClient({ plans }) {
+export default function MembershipClient({ plans, meProfile }) {
     const { brand } = useBrand()
 
-    // Ensure we have a plan even if DB is empty
-    const defaultLocalPlan = plans.find(p => p.name === ME.plan) || plans[0] || { name: 'Basic Pass', price: 9.99, features: ['Gym Access'] }
+    const me = meProfile || { id: 'M-000', name: 'Member Profile', membership_type: 'Basic', created_at: new Date().toISOString() }
 
-    const qrData = encodeURIComponent(JSON.stringify({ id: ME.id, name: ME.name, plan: ME.plan, gym: brand.gymName, exp: ME.expiry }))
+    // Ensure we have a plan even if DB is empty
+    const currentPlanName = me.membership_type || 'Basic Pass';
+    const defaultLocalPlan = (plans || []).find(p => p.name === currentPlanName) || (plans && plans[0]) || { name: currentPlanName, price: 0, features: ['Gym Access'] }
+
+    // Derive generic dates for visual rendering (future: add true expiry tracking from Stripe)
+    const joinedD = new Date(me.created_at || Date.now());
+    const joinedStr = `${joinedD.toLocaleString('default', { month: 'short' })} ${joinedD.getFullYear()}`;
+    const expiryD = new Date(joinedD.getTime() + (365 * 24 * 60 * 60 * 1000)); // Default +1 Year visual
+    const expiryStr = `${expiryD.toLocaleString('default', { month: 'short' })} ${expiryD.getFullYear()}`;
+
+    const qrData = encodeURIComponent(JSON.stringify({ id: me.id, name: me.name, plan: currentPlanName, gym: brand.gymName, exp: expiryStr }))
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=0&bgcolor=0a0a0a&color=ffffff&data=${qrData}`
 
-    const daysLeft = Math.ceil((new Date(ME.expiry) - new Date()) / (1000 * 60 * 60 * 24))
+    const daysLeft = Math.ceil((expiryD - new Date()) / (1000 * 60 * 60 * 24))
 
     return (
         <PortalShell title="Membership">
@@ -53,20 +43,20 @@ export default function MembershipClient({ plans }) {
                 <div className="absolute inset-0 opacity-30" style={{ background: `radial-gradient(circle at 20% 20%, ${brand.accentColor}80, transparent 40%)` }} />
                 <div className="relative p-6 md:p-8 grid md:grid-cols-2 gap-6 items-center">
                     <div>
-                        <div className="text-[10px] uppercase tracking-widest text-foreground/70">{brand.gymName} · Member Pass</div>
-                        <div className="font-display text-2xl md:text-3xl font-bold mt-2 leading-tight">{ME.name}</div>
-                        <div className="mt-1 text-sm text-foreground/80">ID · {ME.id.toUpperCase()}</div>
+                        <div className="text-[10px] uppercase tracking-widest text-foreground/70">{brand.gymName || 'Gym'} · Member Pass</div>
+                        <div className="font-display text-2xl md:text-3xl font-bold mt-2 leading-tight">{me.name}</div>
+                        <div className="mt-1 text-sm text-foreground/80">ID · {(me.id || '').substring(0, 6).toUpperCase()}</div>
                         <div className="mt-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.15)' }}>
-                            <Sparkles className="h-3 w-3" /> {ME.plan}
+                            <Sparkles className="h-3 w-3" /> {currentPlanName}
                         </div>
                         <div className="mt-6 grid grid-cols-2 gap-3 text-xs">
                             <div>
                                 <div className="text-foreground/50 uppercase text-[9px] tracking-widest">Joined</div>
-                                <div className="text-foreground mt-0.5">{ME.joined}</div>
+                                <div className="text-foreground mt-0.5">{joinedStr}</div>
                             </div>
                             <div>
                                 <div className="text-foreground/50 uppercase text-[9px] tracking-widest">Expires</div>
-                                <div className="text-foreground mt-0.5">{ME.expiry}</div>
+                                <div className="text-foreground mt-0.5">{expiryStr}</div>
                             </div>
                         </div>
                     </div>
@@ -83,7 +73,7 @@ export default function MembershipClient({ plans }) {
             <div className="grid md:grid-cols-2 gap-3 mt-4">
                 <div className="rounded-3xl border border-foreground/5 bg-foreground/[0.02] p-5">
                     <div className="flex items-center gap-2 text-xs text-foreground/50"><Calendar className="h-3.5 w-3.5" /> RENEWAL</div>
-                    <div className="font-display text-3xl font-bold mt-2">{ME.expiry}</div>
+                    <div className="font-display text-3xl font-bold mt-2">{expiryStr}</div>
                     <div className="text-xs text-foreground/50 mt-1">{daysLeft > 0 ? `${daysLeft} days left` : 'Expired'}</div>
                     <div className="mt-4 h-1.5 rounded-full bg-white/5 overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(5, Math.min(100, (daysLeft / 365) * 100))}%` }} transition={{ duration: 1.2 }} className="h-full rounded-full" style={{ background: brand.primaryColor }} />
@@ -93,7 +83,7 @@ export default function MembershipClient({ plans }) {
                     <div className="flex items-center gap-2 text-xs text-foreground/50"><Shield className="h-3.5 w-3.5" /> AUTO RENEW</div>
                     <div className="font-display text-3xl font-bold mt-2">Enabled</div>
                     <div className="text-xs text-foreground/50 mt-1">Charged to Visa ···· 4211</div>
-                    <button className="mt-4 text-xs text-foreground/70 hover:text-foreground flex items-center gap-1">Manage billing <ChevronRight className="h-3 w-3" /></button>
+                    <button onClick={() => toast.info('Coming Soon: Billing integrations are deployed per-tenant')} className="mt-4 text-xs text-foreground/70 hover:text-foreground flex items-center gap-1 opacity-50 cursor-not-allowed">Manage billing <ChevronRight className="h-3 w-3" /></button>
                 </div>
             </div>
 
@@ -108,7 +98,7 @@ export default function MembershipClient({ plans }) {
                             <span className="text-foreground/50 text-sm">/mo</span>
                         </div>
                     </div>
-                    <button className="h-9 px-4 rounded-lg text-xs font-medium text-foreground" style={{ background: brand.primaryColor }}>Upgrade</button>
+                    <button onClick={() => toast.info('Coming Soon: Plan upgrades')} className="h-9 px-4 rounded-lg text-xs font-medium text-foreground opacity-50 cursor-not-allowed" style={{ background: brand.primaryColor }}>Upgrade</button>
                 </div>
                 <ul className="mt-5 grid sm:grid-cols-2 gap-2">
                     {(defaultLocalPlan.features || []).map((f, i) => (

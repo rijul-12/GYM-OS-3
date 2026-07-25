@@ -42,3 +42,41 @@ export async function createPlan(planData) {
     }
     return planData;
 }
+
+export async function updatePlan(id, planData) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            const payload = {
+                name: planData.name,
+                price: parseFloat(planData.price) || 0,
+                color: planData.color || '#ef4444',
+                popular: planData.popular || false,
+                updated_at: new Date().toISOString()
+            }
+            if (typeof planData.features === 'string') {
+                payload.features = planData.features ? planData.features.split(',').map(f => f.trim()) : []
+            } else if (Array.isArray(planData.features)) {
+                payload.features = planData.features
+            }
+            await adminDb.collection('plans').doc(id).update(payload)
+            revalidatePath('/plans')
+            revalidatePath('/portal/membership')
+            return { id, ...payload }
+        }
+    }
+    return planData;
+}
+
+export async function deletePlan(id) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            await adminDb.collection('plans').doc(id).delete()
+            revalidatePath('/plans')
+            revalidatePath('/portal/membership')
+            return true
+        }
+    }
+    return false;
+}

@@ -2,14 +2,13 @@
 import { useState } from 'react'
 import { Bell, Check, Trash2 } from 'lucide-react'
 import { SuperAdminShell } from '@/components/superadmin-shell'
-import { NOTIFICATIONS } from '@/lib/superadmin-mock'
 import { Button } from '@/components/ui/button'
 
 const SA = '#8b5cf6'
 
 export default function NotificationsPage() {
     const [filter, setFilter] = useState('all')
-    const [notifications, setNotifications] = useState(NOTIFICATIONS)
+    const [notifications, setNotifications] = useState([])
 
     const unreadCount = notifications.filter(n => !n.read).length
 

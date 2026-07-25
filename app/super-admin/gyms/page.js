@@ -3,6 +3,8 @@ import GymsClient from './gyms-client'
 import { getGyms } from '@/actions/db/gyms'
 import { CardSkeleton, DataErrorState } from '@/components/ui/skeletons'
 
+export const dynamic = 'force-dynamic'
+
 export default async function GymsPage() {
     try {
         const gyms = await getGyms()
@@ -18,8 +20,9 @@ export default async function GymsPage() {
     } catch (error) {
         return (
             <div className="p-8">
-                <DataErrorState error={error} />
+                <DataErrorState error={{ message: error?.message || 'Server Error' }} />
             </div>
         )
     }
 }
+

@@ -5,6 +5,7 @@ import { Award, Clock, Calendar, Star, Mail, Phone, Edit3, Users, GraduationCap 
 import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 // Mocks eradicated inline with Production Sprint Step 1
 
@@ -25,7 +26,7 @@ export default function TrainerClient({ trainer }) {
   const t = trainer;
 
   return (
-    <TrainerShell title="Profile" subtitle="Your public trainer card" actions={<Button variant="outline" className="h-10 bg-foreground/[0.03] border-foreground/10 text-xs"><Edit3 className="h-3.5 w-3.5 mr-1.5" /> Edit</Button>}>
+    <TrainerShell title="Profile" subtitle="Your public trainer card" actions={<Button onClick={() => toast.info('Coming Soon: Profile editing must be performed by your Gym Owner.')} variant="outline" className="h-10 bg-foreground/[0.03] border-foreground/10 text-xs opacity-50 cursor-not-allowed"><Edit3 className="h-3.5 w-3.5 mr-1.5" /> Edit</Button>}>
 
       {/* Hero */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative rounded-3xl overflow-hidden border border-foreground/10" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}18, transparent 60%)` }}>

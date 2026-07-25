@@ -18,6 +18,7 @@ export default async function AttendancePage() {
       </Suspense>
     )
   } catch (error) {
-    return <div className="p-8"><DataErrorState error={error} /></div>
+    return <div className="p-8"><DataErrorState error={{ message: error?.message || 'Server Error' }} /></div>
   }
 }
+

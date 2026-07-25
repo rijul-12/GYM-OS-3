@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ScrollText, Search, Shield, Bot, Filter } from 'lucide-react'
 import { SuperAdminShell } from '@/components/superadmin-shell'
-import { AUDIT_LOGS } from '@/lib/superadmin-mock'
+import { EmptyState } from '@/components/ui/empty-state'
+
+const AUDIT_LOGS = []
 
 const SA = '#8b5cf6'
 
@@ -50,22 +52,36 @@ export default function AuditPage() {
                                 <th className="text-left px-5 py-3 font-medium">IP Address</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {filtered.map((log, i) => {
-                                const rc = ROLE_COLORS[log.role] || ROLE_COLORS.system
+                        <tbody className="divide-y divide-white/5">
+                            {filtered.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="py-20 text-center">
+                                        <EmptyState icon="shield" title="No Audit Logs" description="There are no system actions recorded matching the criteria." />
+                                    </td>
+                                </tr>
+                            ) : filtered.map((l, i) => {
+                                const rc = ROLE_COLORS[l.role] || ROLE_COLORS.super_admin
                                 return (
-                                    <tr key={log.id} className="border-b border-foreground/5 hover:bg-foreground/[0.02] transition">
-                                        <td className="px-5 py-3 flex items-center gap-2">
-                                            {log.role === 'super_admin' ? <Shield className="h-3.5 w-3.5" style={{ color: SA }} /> : <Bot className="h-3.5 w-3.5 text-foreground/40" />}
-                                            <span className="font-medium">{log.who}</span>
+                                    <tr key={l.id} className="hover:bg-foreground/[0.02] transition-colors group">
+                                        <td className="px-5 py-3.5">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-7 w-7 rounded border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center shrink-0">
+                                                    {l.role === 'system' ? <Bot className="h-3.5 w-3.5 text-foreground/40" /> : <Shield className="h-3.5 w-3.5 text-foreground/40" />}
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-medium leading-none mb-1">{l.who}</div>
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ background: rc.bg, color: rc.color }}>{l.role.replace('_', ' ')}</span>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="px-5 py-3">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: rc.bg, color: rc.color }}>{log.role === 'super_admin' ? 'Admin' : 'System'}</span>
+                                        <td className="px-5 py-3.5"><div className="text-sm font-medium">{l.action}</div></td>
+                                        <td className="px-5 py-3.5"><div className="text-sm font-mono bg-foreground/[0.03] px-2 py-1 rounded inline-block text-foreground/70">{l.target}</div></td>
+                                        <td className="px-5 py-3.5">
+                                            {l.details ? <div className="text-xs text-foreground/50 max-w-[200px] truncate group-hover:whitespace-normal group-hover:break-words">{l.details}</div> : <span className="text-foreground/20">—</span>}
                                         </td>
-                                        <td className="px-5 py-3 text-foreground/80">{log.action}</td>
-                                        <td className="px-5 py-3 text-foreground/60">{log.target}</td>
-                                        <td className="px-5 py-3 text-xs text-foreground/50">{log.when}</td>
-                                        <td className="px-5 py-3 font-mono text-xs text-foreground/40">{log.ip}</td>
+                                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                                            <div className="text-sm">{l.time}</div>
+                                        </td>
                                     </tr>
                                 )
                             })}

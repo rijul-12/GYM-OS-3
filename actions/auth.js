@@ -53,7 +53,11 @@ export async function loginAction({ email, password, role, remember }) {
         }
 
         if (!userRole) return { error: 'Your account has no role assigned. Contact your gym administrator.' }
-        if (role && userRole !== role) return { error: 'This account is registered as a different role.' }
+
+        // Super Admins override UI tab bindings
+        if (userRole !== 'super_admin' && role && userRole !== role) {
+            return { error: 'This account is registered as a different role.' }
+        }
 
         let onboarded = true;
         let gymCode = tokenResult.claims?.gymCode || 'DEMO';

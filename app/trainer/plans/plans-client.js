@@ -52,11 +52,11 @@ export default function TrainerPlansClient({ initialMembers }) {
     }
 
     const duplicate = (mid) => {
-        toast.info('Duplication requires active selection feature coming soon!')
+        toast.info('Coming Soon: Duplication requires active selection feature')
     }
 
     return (
-        <TrainerShell title="Workout Plans" subtitle="Assign, edit, and orchestrate weekly structural programs pushed natively." actions={<Button style={{ background: brand.primaryColor }} className="h-10 text-foreground border-0"><Plus className="h-4 w-4 mr-2" /> New plan</Button>}>
+        <TrainerShell title="Workout Plans" subtitle="Assign, edit, and orchestrate weekly structural programs pushed natively." actions={<Button onClick={() => toast.info('Coming Soon: Plan orchestration requires desktop GymOS.')} style={{ background: brand.primaryColor }} className="h-10 text-foreground border-0 opacity-50 cursor-not-allowed"><Plus className="h-4 w-4 mr-2" /> New plan</Button>}>
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div className="flex gap-1 bg-foreground/[0.03] border border-foreground/10 rounded-lg p-1">

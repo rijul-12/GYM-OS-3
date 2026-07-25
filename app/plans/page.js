@@ -23,8 +23,9 @@ export default async function PlansPage() {
   } catch (error) {
     return (
       <div className="p-8">
-        <DataErrorState error={error} />
+        <DataErrorState error={{ message: error?.message || 'Server Error' }} />
       </div>
     )
   }
 }
+

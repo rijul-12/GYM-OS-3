@@ -2,7 +2,7 @@
 
 
 import { revalidatePath } from 'next/cache'
-import mockMembers from '@/scripts/mock-db-members.json'
+
 import { logActivity } from '@/actions/db/activity'
 
 function isFirebaseConfigured() {
@@ -29,7 +29,7 @@ export async function getMembers() {
     }
 
     // Fallback Mock Return
-    return mockMembers;
+    return [];
 }
 
 export async function getMyProfile() {
@@ -70,7 +70,7 @@ export async function getMyProfile() {
             }
         } catch (e) { }
     }
-    return { ...(mockMembers[0] || {}), workout_logs: [], attendance: [], trainers: { name: 'Unassigned' } };
+    return null;
 }
 
 export async function getMemberProfile(memberId) {
@@ -79,8 +79,7 @@ export async function getMemberProfile(memberId) {
         if (adminDb) {
             const profileDoc = await adminDb.collection('members').doc(memberId).get();
             if (!profileDoc.exists) {
-                const dummy = mockMembers.find((m) => m.id === memberId) || mockMembers[0];
-                return { ...dummy, id: memberId, workout_logs: [], attendance: [] };
+                return null;
             }
 
             const profile = { id: profileDoc.id, ...profileDoc.data() };
@@ -98,8 +97,7 @@ export async function getMemberProfile(memberId) {
         }
     }
 
-    const dummy = mockMembers.find(m => m.id === memberId) || mockMembers[0];
-    return { ...dummy, workout_logs: [], attendance: [] }
+    return null;
 }
 
 export async function createMember(memberData) {

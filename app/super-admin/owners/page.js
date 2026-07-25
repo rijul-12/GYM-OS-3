@@ -3,8 +3,8 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { Search, Users, Building2, CreditCard, Ban, RefreshCw, KeyRound, ArrowLeftRight } from 'lucide-react'
 import { SuperAdminShell } from '@/components/superadmin-shell'
-import { OWNERS } from '@/lib/superadmin-mock'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/ui/empty-state'
 
 const SA = '#8b5cf6'
 
@@ -23,7 +23,7 @@ function formatCurrency(n) {
 export default function OwnersPage() {
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('All')
-    const [owners, setOwners] = useState(OWNERS)
+    const [owners, setOwners] = useState([])
 
     const filtered = owners.filter(o => {
         const matchSearch = !search || o.name.toLowerCase().includes(search.toLowerCase()) || o.email.toLowerCase().includes(search.toLowerCase())
@@ -79,7 +79,13 @@ export default function OwnersPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((o, i) => {
+                            {filtered.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className="py-20 text-center">
+                                        <EmptyState icon="users" title="No Owners Found" description="There are no gym owners matching your criteria." />
+                                    </td>
+                                </tr>
+                            ) : filtered.map((o, i) => {
                                 const sc = STATUS_COLORS[o.status] || STATUS_COLORS.Active
                                 return (
                                     <tr key={o.id} className="border-b border-foreground/5 hover:bg-foreground/[0.02] transition">

@@ -266,7 +266,7 @@ export default function OccupancyClient({ stats }) {
                     <Brain className="h-4 w-4" style={{ color: brand.primaryColor }} />
                     <div className="text-sm font-medium">Zone-based intelligence</div>
                 </div>
-                <ZoneInsightsGrid />
+                <ZoneInsightsGrid insights={AI_INSIGHTS} />
             </div>
         </DashShell>
     )

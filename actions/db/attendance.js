@@ -43,14 +43,7 @@ export async function getAttendanceLogs(limit = 50) {
         }
     }
 
-    // Synthesize fallback offline list natively
-    const names = ['Aarav Sharma', 'Vivaan Singh', 'Aditya Kumar', 'Vihaan Gupta', 'Arjun Patel', 'Sai Chander', 'Kabir Das', 'Reyansh Shetty', 'Rudransh Rao', 'Krishna Iyer', 'Ishaan Menon', 'Shaurya Mathur']
-    return Array.from({ length: limit }).map((_, i) => ({
-        id: `mock-att-${i}`,
-        members: { name: names[i % names.length], photo_url: null, dob: '1995-03-12' },
-        check_in_time: new Date(Date.now() - (Math.random() * 80000000)).toISOString(),
-        method: 'Mock App'
-    })).sort((a, b) => new Date(b.check_in_time) - new Date(a.check_in_time))
+    return [];
 }
 
 export async function checkInMember(memberId, gymId, method = 'App') { return true; }

@@ -76,13 +76,17 @@ function RegisterContent() {
         }
 
         try {
+            let res;
             if (role === 'owner') {
-                const res = await processOwnerRegistration(formData)
+                res = await processOwnerRegistration(formData)
+                if (res.error) throw new Error(res.error)
                 setGymCodeFinal(res.gymCode)
             } else if (role === 'trainer') {
-                await processTrainerRegistration(formData)
+                res = await processTrainerRegistration(formData)
+                if (res.error) throw new Error(res.error)
             } else if (role === 'member') {
-                await processMemberRegistration(formData)
+                res = await processMemberRegistration(formData)
+                if (res.error) throw new Error(res.error)
             }
 
             setStep('success')

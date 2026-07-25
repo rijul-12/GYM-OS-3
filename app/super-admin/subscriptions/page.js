@@ -1,6 +1,5 @@
 import { getSubscriptionRequests } from '@/actions/db/subscriptions'
 import SubscriptionsClient from './subscriptions-client'
-import { SUBSCRIPTION_STATS } from '@/lib/superadmin-mock' // We can keep mock stats if no real DB aggregations are built yet
 
 export default async function SubscriptionsPage() {
     const requests = await getSubscriptionRequests();
@@ -10,9 +9,10 @@ export default async function SubscriptionsPage() {
     const pendingReqs = requests.filter(r => r.status === 'Pending').length;
 
     const stats = {
-        ...SUBSCRIPTION_STATS,
-        active: activeReqs || SUBSCRIPTION_STATS.active,
-        pendingPayments: pendingReqs
+        active: activeReqs || 0,
+        totalMRR: 0,
+        pendingPayments: pendingReqs || 0,
+        upcomingRenewals: 0
     }
 
     return <SubscriptionsClient initialRequests={requests} stats={stats} />

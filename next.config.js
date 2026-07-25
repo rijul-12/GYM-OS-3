@@ -9,7 +9,8 @@ const nextConfig = {
     ],
   },
   // Renamed from experimental.serverComponentsExternalPackages in Next 15
-  serverExternalPackages: ['mongodb'],
+  serverExternalPackages: ['mongodb', '@google-cloud/firestore', '@grpc/grpc-js', '@grpc/proto-loader'],
+  transpilePackages: ['firebase-admin', '@firebase/auth', 'firebase', 'jwks-rsa', 'jose', 'jsonwebtoken'],
   webpack(config, { dev }) {
     if (dev) {
       // Reduce CPU/memory from file watching

@@ -25,14 +25,17 @@ export async function processOwnerRegistration(data) {
     }
 
     // 1. Create Firebase Auth User
-    const user = await adminAuth.createUser({
-        email: data.email,
-        password: data.password,
-        displayName: data.ownerName,
-        phoneNumber: data.phone.startsWith('+') ? data.phone : undefined // Firebase requires E.164
-    }).catch(err => {
-        throw new Error(err.message);
-    });
+    let user;
+    try {
+        user = await adminAuth.createUser({
+            email: data.email,
+            password: data.password,
+            displayName: data.ownerName,
+            phoneNumber: data.phone.startsWith('+') ? data.phone : undefined // Firebase requires E.164
+        });
+    } catch (err) {
+        return { error: err.message };
+    }
 
     try {
         // 2. Set Custom Claim for RBAC
@@ -64,9 +67,26 @@ export async function processOwnerRegistration(data) {
             onboarded: false
         });
 
+        // 5. Dispatch Welcome Email (Strictly bounded to prevent SMTP hangs)
+        try {
+            const { sendEmail } = await import('@/lib/email');
+            const emailPromise = sendEmail({
+                to: data.email,
+                subject: 'GymOS - Registration Successful',
+                headline: `Welcome to GymOS, ${data.ownerName}`,
+                greeting: 'Your Gym Facility has been created!',
+                bodyHtml: `<p>Thank you for partnering with GymOS to manage <strong>${data.gymName}</strong>.</p><p>Your unique Gym Code is: <strong style="color: #ef4444; font-size: 18px;">${uniqueCode}</strong></p><p>Share this code with your Trainers and Members so they can join your facility network.</p>`,
+                button: { text: "Login to Owner Dashboard", url: "https://gymos.app/login" }
+            });
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Email SMTP Timeout')), 4000));
+            await Promise.race([emailPromise, timeoutPromise]);
+        } catch (emailErr) {
+            console.log("Non-critical Warning: Welcome email timed out, but allowing registration.", emailErr.message);
+        }
+
         return { success: true, gymCode: uniqueCode, uid: user.uid };
     } catch (err) {
-        throw new Error("Failed to initialize gym backend. Please contact support.");
+        return { error: "Failed to initialize gym backend. Please contact support." };
     }
 }
 
@@ -81,18 +101,21 @@ export async function processTrainerRegistration(data) {
         // Fallback to checking via field if somehow they aren't matching ID
         const qSnap = await adminDb.collection('gyms').where('gymCode', '==', gymCodeRaw).get();
         if (qSnap.empty) {
-            throw new Error("Invalid Gym Code. Verification failed.");
+            return { error: "Invalid Gym Code. Verification failed." };
         }
     }
 
     // 2. Create Auth User
-    const user = await adminAuth.createUser({
-        email: data.email,
-        password: data.password,
-        displayName: data.trainerName,
-    }).catch(err => {
-        throw new Error(err.message);
-    });
+    let user;
+    try {
+        user = await adminAuth.createUser({
+            email: data.email,
+            password: data.password,
+            displayName: data.trainerName,
+        });
+    } catch (err) {
+        return { error: err.message };
+    }
 
     try {
         // 3. Bind Role & Multitenant Token
@@ -115,9 +138,20 @@ export async function processTrainerRegistration(data) {
             status: 'Pending' // Requires Owner Approval
         });
 
+        // 5. Dispatch Trainer Welcome Email
+        const { sendEmail } = await import('@/lib/email');
+        await sendEmail({
+            to: data.email,
+            subject: 'Welcome to GymOS for Trainers',
+            headline: 'Your Trainer Profile is Ready',
+            greeting: `Hello ${data.trainerName},`,
+            bodyHtml: `<p>You have successfully registered as a Trainer for the gym under code: <strong>${gymCodeRaw}</strong>.</p><p>Your account is currently in <strong>Pending</strong> status until the Gym Owner approves your profile.</p>`,
+            button: { text: "Login to Trainer Portal", url: "https://gymos.app/login" }
+        });
+
         return { success: true, uid: user.uid };
     } catch (err) {
-        throw new Error("Critical failure writing generic profile object.");
+        return { error: "Critical failure writing generic profile object." };
     }
 }
 
@@ -129,16 +163,19 @@ export async function processMemberRegistration(data) {
     const gymCodeRaw = data.gymCode?.trim()?.toUpperCase();
     const gymSnap = await adminDb.collection('gyms').where('gymCode', '==', gymCodeRaw).get();
 
-    if (gymSnap.empty) throw new Error("Invalid Gym Code. Please check with your gym.");
+    if (gymSnap.empty) return { error: "Invalid Gym Code. Please check with your gym." };
 
     // 2. Create Auth User
-    const user = await adminAuth.createUser({
-        email: data.email,
-        password: data.password,
-        displayName: data.name,
-    }).catch(err => {
-        throw new Error(err.message);
-    });
+    let user;
+    try {
+        user = await adminAuth.createUser({
+            email: data.email,
+            password: data.password,
+            displayName: data.name,
+        });
+    } catch (err) {
+        return { error: err.message };
+    }
 
     try {
         // 3. Bind Member Role 
@@ -170,9 +207,19 @@ export async function processMemberRegistration(data) {
             joinedAt: new Date().toISOString(),
             createdAt: new Date().toISOString()
         });
+        // 5. Dispatch Member Welcome Email
+        const { sendEmail } = await import('@/lib/email');
+        await sendEmail({
+            to: data.email,
+            subject: 'Welcome to GymOS Member Portal',
+            headline: 'Your Registration is Complete',
+            greeting: `Hello ${data.name},`,
+            bodyHtml: `<p>You have successfully joined the GymOS network under your gym's tenant code: <strong>${gymCodeRaw}</strong>.</p><p>You can now log in to view your workout schedule, track progress, and manage your health goals.</p>`,
+            button: { text: "Login to Member Portal", url: "https://gymos.app/login" }
+        });
 
         return { success: true, uid: user.uid };
     } catch (err) {
-        throw new Error("Unable to map complex member intelligence matrix.");
+        return { error: "Unable to map complex member intelligence matrix." };
     }
 }

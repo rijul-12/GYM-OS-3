@@ -6,7 +6,7 @@ import { User, Bell, Shield, Calendar, Phone, Mail, AlertCircle, Edit3, ChevronR
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
 import { Switch } from '@/components/ui/switch'
-
+import { toast } from 'sonner'
 
 
 
@@ -64,7 +64,7 @@ function App({ member, globalAttendance, stats }) {
               <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-white/5 text-foreground/70">Coach: {PERSONAL.trainer}</span>
             </div>
           </div>
-          <button className="hidden md:flex h-9 px-3 rounded-lg text-xs items-center gap-1.5 bg-foreground/[0.06] hover:bg-foreground/[0.12]">
+          <button onClick={() => toast.info('Coming Soon: Member profile editing')} className="hidden md:flex h-9 px-3 rounded-lg text-xs items-center gap-1.5 bg-foreground/[0.06] hover:bg-foreground/[0.12] opacity-50 cursor-not-allowed">
             <Edit3 className="h-3.5 w-3.5" /> Edit
           </button>
         </div>

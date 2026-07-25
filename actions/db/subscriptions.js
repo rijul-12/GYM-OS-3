@@ -2,6 +2,50 @@
 
 import { adminDb } from '@/lib/firebase/server'
 import { cookies } from 'next/headers'
+import { sendEmail } from '@/lib/email'
+
+export async function dispatchSubscriptionInstructions({ gymId, planName, planPrice }) {
+    if (!adminDb) return;
+
+    // Retrieve authenticated sender
+    const cookieStore = await cookies()
+    const sessionStr = cookieStore.get('gymos_session')?.value
+    if (!sessionStr) return;
+
+    const session = JSON.parse(sessionStr)
+    if (!session.email) return;
+
+    // Build manual verification HTML
+    const bodyHtml = `
+        <p>Dear Gym Owner,</p>
+        <p>Thank you for choosing to upgrade your GymOS facility to the <strong>${planName}</strong> plan.</p>
+        <div style="background-color: #1a1a1a; padding: 24px; border-radius: 8px; border: 1px solid #333; margin: 24px 0;">
+            <p style="margin-top: 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Subscription Amount</p>
+            <p style="font-size: 28px; font-weight: bold; margin: 8px 0 24px; color: #ef4444;">₹${planPrice}</p>
+            
+            <p style="margin-top: 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Manual Payment Transfer Details</p>
+            <div style="margin-top: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">UPI ID</td><td style="text-align: right; font-family: monospace; font-weight: bold;">rijul0027@oksbi</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">Bank Account</td><td style="text-align: right; font-family: monospace; font-weight: bold;">10099887766</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">IFSC Code</td><td style="text-align: right; font-family: monospace; font-weight: bold;">ICIC0001009</td></tr>
+                    <tr><td style="padding: 8px 0; color: #aaa;">Beneficiary</td><td style="text-align: right; font-family: monospace; font-weight: bold;">GymOS Tech PVT LTD</td></tr>
+                </table>
+            </div>
+        </div>
+        <p>Once you have completed the transaction using the details above, click the button below to submit a verification request or enter your transaction reference ID in your dashboard.</p>
+        <p>Your subscription will be automatically activated upon transaction clearance.</p>
+    `;
+
+    await sendEmail({
+        to: session.email,
+        subject: 'GymOS Subscription Payment Instructions',
+        headline: 'Complete your GymOS Upgrade',
+        greeting: 'Ready to scale your facility?',
+        bodyHtml,
+        button: { text: "I Have Completed Payment", url: "https://gymos.app/dashboard/subscription" }
+    });
+}
 
 // Define the standard Trial duration globally
 const TRIAL_DAYS = 14;
@@ -159,7 +203,7 @@ export async function approveSubscription(requestId) {
     }, { merge: true });
 
     // 3. Send Email
-    const { sendEmail } = await import('@/lib/mail');
+    const { sendEmail } = await import('@/lib/email');
     const settingsDoc = await adminDb.collection('gym_settings').doc(data.gymId).get();
     const email = settingsDoc.exists ? settingsDoc.data().ownerEmail || settingsDoc.data().email : null;
 
@@ -167,7 +211,10 @@ export async function approveSubscription(requestId) {
         await sendEmail({
             to: email,
             subject: 'GymOS - Payment Approved & Subscription Activated',
-            html: `<h3>Your GymOS Subscription is Active!</h3><p>We have successfully verified your payment of ₹${data.amount}. Your ${data.plan} plan is now active for the next 30 days.</p>`
+            headline: 'Your Subscription is Active!',
+            greeting: 'Welcome back to the Pro Tier,',
+            bodyHtml: `<p>We have successfully verified your payment of ₹${data.amount}. Your <strong>${data.plan}</strong> plan is now fully active for the next 30 days.</p>`,
+            button: { text: "Open GymOS Dashboard", url: "https://gymos.app/dashboard" }
         });
     }
 }
@@ -190,7 +237,7 @@ export async function rejectSubscription(requestId) {
     });
 
     // 3. Send Email
-    const { sendEmail } = await import('@/lib/mail');
+    const { sendEmail } = await import('@/lib/email');
     const settingsDoc = await adminDb.collection('gym_settings').doc(data.gymId).get();
     const email = settingsDoc.exists ? settingsDoc.data().ownerEmail || settingsDoc.data().email : null;
 
@@ -198,7 +245,10 @@ export async function rejectSubscription(requestId) {
         await sendEmail({
             to: email,
             subject: 'GymOS - Payment Verification Failed',
-            html: `<h3>Payment Verification Failed</h3><p>We were unable to verify your manual payment reference (${data.referenceNumber}) for ₹${data.amount}. Your account is currently locked in Read-Only mode. Please contact support or retry the payment.</p>`
+            headline: 'Payment Verification Failed',
+            greeting: 'Important update regarding your account,',
+            bodyHtml: `<p>We were unable to verify your manual payment reference (<strong>${data.referenceNumber}</strong>) for ₹${data.amount}.</p><p>Your account is currently locked in Read-Only mode. Please contact support or retry the payment.</p>`,
+            button: { text: "Contact Support", url: "mailto:support@gymos.app" }
         });
     }
 }

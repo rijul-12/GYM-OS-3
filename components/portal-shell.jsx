@@ -108,7 +108,7 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
             const active = pathname === t.href
             return (
               <Link key={t.href} href={t.href} className="relative flex flex-col items-center gap-1 py-2 rounded-lg">
-                {active && <motion.span layoutId="tab-glow" className="absolute -top-1 h-0.5 w-8 rounded-full" style={{ background: brand.primaryColor }} />}
+                {active && <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="absolute -top-1 h-0.5 w-8 rounded-full" style={{ background: brand.primaryColor }} />}
                 <Icon className="h-5 w-5" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.5)' }} />
                 <span className="text-[10px] font-medium" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.5)' }}>{t.label}</span>
               </Link>

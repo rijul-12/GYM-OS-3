@@ -3,8 +3,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Building2, Users, Dumbbell, IndianRupee, TrendingUp, Calendar, CreditCard, AlertTriangle, XCircle, BarChart3, Activity, ArrowUpRight, ChevronRight, Sparkles, RefreshCw, UserPlus } from 'lucide-react'
 import { SuperAdminShell } from '@/components/superadmin-shell'
-import { PLATFORM_HEALTH, REVENUE_MONTHLY, GYM_GROWTH, NOTIFICATIONS, TOP_GYMS } from '@/lib/superadmin-mock'
-import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { EmptyState } from '@/components/ui/empty-state'
 
 const SA = '#8b5cf6'
 
@@ -33,32 +32,40 @@ function formatCurrency(n) {
 export default function SuperAdminClient({ gyms }) {
     // We derive live platform numbers dynamically from our cross-tenant database fetch
     const PLATFORM_STATS = {
-        totalGyms: gyms.length,
-        activeGyms: gyms.filter(g => g.status === 'Active').length || gyms.length,
-        trialGyms: gyms.filter(g => g.status === 'Trial').length || 0,
-        totalMembers: (gyms.length * 150) + 1284, // Simplified aggregation 
-        totalTrainers: (gyms.length * 5) + 32,
-        todayAttendance: (gyms.length * 40) + 318,
-        monthlyRevenue: (gyms.length * 45000),
-        arr: (gyms.length * 45000) * 12,
-        newSignups: 45,
-        renewals: 112,
-        expiringSubscriptions: 14,
-        cancelledGyms: 2
+        totalGyms: gyms?.length || 0,
+        activeGyms: (gyms || []).filter(g => g.status === 'Active').length || gyms?.length || 0,
+        trialGyms: (gyms || []).filter(g => g.status === 'Trial').length || 0,
+        totalMembers: 0, // Awaiting Firebase Aggregation across tenants
+        totalTrainers: 0, // Awaiting Firebase Aggregation
+        todayAttendance: 0, // Awaiting Firebase Aggregation
+        monthlyRevenue: 0, // Awaiting Firebase Aggregation
+        arr: 0,
+        newSignups: 0,
+        renewals: 0,
+        expiringSubscriptions: 0,
+        cancelledGyms: 0
     }
 
     const s = PLATFORM_STATS
-    const h = PLATFORM_HEALTH
-    const unread = NOTIFICATIONS.filter(n => !n.read).length
 
-    // Generate dynamic TOP_GYMS based on actual DB returned gyms
-    const dynamicTopGyms = gyms.length > 0 ? gyms.slice(0, 4).map(g => ({
-        name: g.name,
-        city: g.address?.split(',')[0] || 'Unknown',
-        members: Math.floor(Math.random() * 500) + 100,
-        revenue: Math.floor(Math.random() * 200000) + 50000,
-        growth: '+12%'
-    })) : TOP_GYMS
+    // Replace Mock with empty state logic until a global health API is provisioned
+    const h = { lastIncident: 'System Standby', serverStatus: 'Pending', apiHealth: 'Pending', databaseStatus: 'Pending', uptime: '0%', cpuUsage: 0, storageUsage: '0%' }
+    const unread = 0
+
+    const dynamicTopGyms = gyms && gyms.length > 0 ? gyms.slice(0, 4).map(g => {
+        const trueName = g.gymName || g.name || 'Unnamed Gym';
+        return {
+            name: trueName,
+            city: g.city || (g.address ? g.address.split(',')[0] : 'Unknown'),
+            members: 0,
+            revenue: 0,
+            growth: '0%'
+        };
+    }) : [];
+
+    const REVENUE_MONTHLY = []
+    const GYM_GROWTH = []
+    const NOTIFICATIONS = []
 
     return (
         <SuperAdminShell title="Command Center" subtitle="GymOS Platform Management — Real-time overview">
@@ -119,18 +126,20 @@ export default function SuperAdminClient({ gyms }) {
                         <Link href="/super-admin/analytics" className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1">Full analytics <ChevronRight className="h-3 w-3" /></Link>
                     </div>
                     <div className="h-56">
-                        <ResponsiveContainer>
-                            <AreaChart data={REVENUE_MONTHLY}>
-                                <defs>
-                                    <linearGradient id="saRevGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SA} stopOpacity={0.4} /><stop offset="100%" stopColor={SA} stopOpacity={0} /></linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
-                                <YAxis stroke="#ffffff40" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']} />
-                                <Area type="monotone" dataKey="revenue" stroke={SA} fill="url(#saRevGrad)" strokeWidth={2.5} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        {REVENUE_MONTHLY.length > 0 ? (
+                            <ResponsiveContainer>
+                                <AreaChart data={REVENUE_MONTHLY}>
+                                    <defs>
+                                        <linearGradient id="saRevGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SA} stopOpacity={0.4} /><stop offset="100%" stopColor={SA} stopOpacity={0} /></linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                                    <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
+                                    <YAxis stroke="#ffffff40" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']} />
+                                    <Area type="monotone" dataKey="revenue" stroke={SA} fill="url(#saRevGrad)" strokeWidth={2.5} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : <EmptyState icon="database" title="No Revenue Data" description="Revenue metrics will appear here once cross-tenant transactions are logged." />}
                     </div>
                 </div>
 
@@ -143,16 +152,18 @@ export default function SuperAdminClient({ gyms }) {
                         </div>
                     </div>
                     <div className="h-56">
-                        <ResponsiveContainer>
-                            <BarChart data={GYM_GROWTH}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
-                                <YAxis stroke="#ffffff40" fontSize={11} />
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                <Bar dataKey="newGyms" fill={SA} radius={[4, 4, 0, 0]} name="New Gyms" />
-                                <Bar dataKey="churn" fill="#525252" radius={[4, 4, 0, 0]} name="Churn" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {GYM_GROWTH.length > 0 ? (
+                            <ResponsiveContainer>
+                                <BarChart data={GYM_GROWTH}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                                    <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
+                                    <YAxis stroke="#ffffff40" fontSize={11} />
+                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
+                                    <Bar dataKey="newGyms" fill={SA} radius={[4, 4, 0, 0]} name="New Gyms" />
+                                    <Bar dataKey="churn" fill="#525252" radius={[4, 4, 0, 0]} name="Churn" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : <EmptyState icon="database" title="No Gym Analytics" description="Gym growth data will automatically populate upon new gym deployments." />}
                     </div>
                 </div>
             </div>
@@ -177,7 +188,7 @@ export default function SuperAdminClient({ gyms }) {
                         <div className="space-y-2">
                             {dynamicTopGyms.map((g, i) => (
                                 <div key={i} className="flex items-center gap-3 rounded-xl border border-foreground/5 bg-black/30 p-3">
-                                    <div className="h-10 w-10 rounded-lg flex items-center justify-center font-bold font-display text-sm uppercase" style={{ background: `${SA}20`, border: `1px solid ${SA}40` }}>{g.name[0]}</div>
+                                    <div className="h-10 w-10 rounded-lg flex items-center justify-center font-bold font-display text-sm uppercase" style={{ background: `${SA}20`, border: `1px solid ${SA}40` }}>{g.name ? g.name[0] : 'G'}</div>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-medium truncate">{g.name}</div>
                                         <div className="text-xs text-foreground/50">{g.city} · {g.members} members</div>
@@ -220,17 +231,21 @@ export default function SuperAdminClient({ gyms }) {
                             <div className="flex items-center gap-2"><span className="text-sm font-medium">Recent Alerts</span></div>
                             <Link href="/super-admin/notifications" className="text-xs text-foreground/50 hover:text-foreground">View all</Link>
                         </div>
-                        <div className="space-y-2">
-                            {NOTIFICATIONS.slice(0, 4).map((n) => (
-                                <div key={n.id} className={`flex items-start gap-2.5 rounded-lg p-2 ${!n.read ? 'bg-foreground/[0.03]' : ''}`}>
-                                    <span className="text-base shrink-0 mt-0.5">{n.icon}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-medium truncate">{n.title}</div>
-                                        <div className="text-[10px] text-foreground/40 truncate">{n.time}</div>
+                        <div className="space-y-4">
+                            {NOTIFICATIONS.length === 0 ? (
+                                <div className="py-4"><EmptyState icon="file" title="No Alerts" description="All clear for now." /></div>
+                            ) : (
+                                NOTIFICATIONS.slice(0, 4).map((n) => (
+                                    <div key={n.id} className={`flex items-start gap-2.5 rounded-lg p-2 ${!n.read ? 'bg-foreground/[0.03]' : ''}`}>
+                                        <span className="text-base shrink-0 mt-0.5">{n.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-medium truncate">{n.title}</div>
+                                            <div className="text-[10px] text-foreground/40 truncate">{n.time}</div>
+                                        </div>
+                                        {!n.read && <span className="h-1.5 w-1.5 rounded-full mt-1.5 shrink-0" style={{ background: SA }} />}
                                     </div>
-                                    {!n.read && <span className="h-1.5 w-1.5 rounded-full mt-1.5 shrink-0" style={{ background: SA }} />}
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>

@@ -5,8 +5,9 @@ import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
 import { CheckCircle2, IndianRupee, Shield, Clock, UploadCloud } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { createSubscriptionRequest } from '@/actions/db/subscriptions'
+import { createSubscriptionRequest, dispatchSubscriptionInstructions } from '@/actions/db/subscriptions'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 const PLANS = [
     { id: 'starter', name: 'Starter', price: 2999, features: ['Up to 500 Members', 'Basic Reports', 'Community Support', 'Web Access'] },
@@ -22,14 +23,24 @@ export default function SubscriptionClient({ status, gymId }) {
     const [isPending, startTransition] = useTransition()
     const [refCode, setRefCode] = useState('')
 
-    const initiateUpgrade = (planId) => {
+    const initiateUpgrade = async (planId) => {
         const plan = PLANS.find(p => p.id === planId)
         setSelectedPlan(plan)
+
+        toast.promise(
+            dispatchSubscriptionInstructions({ gymId, planName: plan.name, planPrice: plan.price }),
+            {
+                loading: 'Sending Payment Instructions...',
+                success: 'Instructions sent to your email!',
+                error: 'Could not send email, proceed via dashboard.'
+            }
+        )
+
         setStep('checkout')
     }
 
     const submitPayment = () => {
-        if (!refCode) return alert('Please enter the UPI or Bank Reference Number')
+        if (!refCode) return toast.error('Please enter the UPI or Bank Reference Number')
 
         startTransition(async () => {
             await createSubscriptionRequest({
@@ -87,7 +98,7 @@ export default function SubscriptionClient({ status, gymId }) {
                         <p className="text-sm text-foreground/60 mb-6">GymOS currently utilizes manual verification. Please transfer the exact amount using UPI or Bank Transfer using the details below.</p>
 
                         <div className="bg-black/30 p-4 border border-foreground/5 rounded-xl text-sm space-y-3 mb-6">
-                            <div className="flex justify-between items-center"><span className="text-foreground/50">UPI ID</span><span className="font-mono font-medium">gymos.hq@okicici</span></div>
+                            <div className="flex justify-between items-center"><span className="text-foreground/50">UPI ID</span><span className="font-mono font-medium">rijul0027@oksbi</span></div>
                             <div className="flex justify-between items-center"><span className="text-foreground/50">Bank Account</span><span className="font-mono font-medium">10099887766</span></div>
                             <div className="flex justify-between items-center"><span className="text-foreground/50">IFSC Code</span><span className="font-mono font-medium">ICIC0001009</span></div>
                             <div className="flex justify-between items-center"><span className="text-foreground/50">Beneficiary</span><span className="font-mono font-medium">GymOS Tech PVT LTD</span></div>
@@ -100,7 +111,7 @@ export default function SubscriptionClient({ status, gymId }) {
                             </div>
 
                             <Button disabled={isPending || !refCode} onClick={submitPayment} style={{ background: brand.primaryColor }} className="w-full text-foreground h-12 text-sm font-semibold border-0">
-                                {isPending ? 'Submitting Request...' : 'I have made the payment'}
+                                {isPending ? 'Submitting Request...' : 'I Have Completed Payment'}
                             </Button>
                             <Button variant="outline" className="w-full border-foreground/5 hover:bg-white/5 text-foreground/50 h-10" onClick={() => setStep('overview')}>Cancel Upgrade</Button>
                         </div>
@@ -142,8 +153,8 @@ export default function SubscriptionClient({ status, gymId }) {
                 <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
                     <div className="text-sm font-medium text-foreground/50 mb-4">Quick Actions</div>
                     <div className="space-y-3">
-                        <Button className="w-full bg-white text-black hover:bg-white/90">Contact Billing Support</Button>
-                        <Button variant="outline" className="w-full border-foreground/10 text-foreground hover:bg-white/5">Download Last Invoice</Button>
+                        <Button onClick={() => toast.info('Billing support is handled via the Super Admin platform.')} className="w-full bg-white text-black hover:bg-white/90">Contact Billing Support</Button>
+                        <Button onClick={() => toast.error('No past invoices exist for this account.')} variant="outline" className="w-full border-foreground/10 text-foreground hover:bg-white/5">Download Last Invoice</Button>
                     </div>
                 </div>
             </div>

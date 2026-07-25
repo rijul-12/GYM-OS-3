@@ -2,8 +2,7 @@
 
 
 import { revalidatePath } from 'next/cache'
-import mockGyms from '@/scripts/mock-db-gyms.json'
-import mockTrainers from '@/scripts/mock-db-trainers.json'
+
 
 function isFirebaseConfigured() {
     return !!process.env.FIREBASE_PROJECT_ID;
@@ -13,26 +12,64 @@ export async function getGyms() {
     if (isFirebaseConfigured()) {
         const { adminDb } = await import('@/lib/firebase/server')
         if (adminDb) {
-            const snap = await adminDb.collection('gyms').orderBy('name').get()
+            const snap = await adminDb.collection('gyms').get()
             return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         }
     }
 
     // Offline / Supabase Fallback Bypass
-    return mockGyms;
+    return [];
+}
+
+export async function updateGymStatus(gymId, newStatus) {
+    if (!isFirebaseConfigured()) return false;
+    const { adminDb } = await import('@/lib/firebase/server');
+    if (!adminDb) return false;
+
+    try {
+        await adminDb.collection('gyms').doc(gymId).update({ status: newStatus });
+        revalidatePath('/super-admin/gyms');
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 export async function getGymSettings(gymId) {
     if (isFirebaseConfigured()) {
         const { adminDb } = await import('@/lib/firebase/server')
         if (adminDb) {
-            const doc = await adminDb.collection('gym_settings').doc(gymId).get()
-            if (doc.exists) return { id: doc.id, ...doc.data() }
-            return {}
+            const [settingsDoc, gymDoc] = await Promise.all([
+                adminDb.collection('gym_settings').doc(gymId).get(),
+                adminDb.collection('gyms').doc(gymId).get()
+            ]);
+            let result = {};
+            if (settingsDoc.exists) result = { id: settingsDoc.id, ...settingsDoc.data() };
+            if (gymDoc.exists) {
+                const gData = gymDoc.data();
+                result.gymName = gData.gymName || gData.name;
+                result.ownerName = gData.ownerName;
+            }
+            return result;
         }
     }
     // Fallback Mock
     return {}
+}
+
+export async function deleteGym(gymId) {
+    if (!isFirebaseConfigured()) return false;
+    const { adminDb } = await import('@/lib/firebase/server');
+    if (!adminDb) return false;
+
+    try {
+        await adminDb.collection('gyms').doc(gymId).delete();
+        revalidatePath('/super-admin/gyms');
+        revalidatePath('/super-admin');
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 export async function getTrainers() {
@@ -43,7 +80,7 @@ export async function getTrainers() {
             return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         }
     }
-    return mockTrainers;
+    return [];
 }
 
 export async function getDashboardStats() {
@@ -200,7 +237,11 @@ export async function regenerateGymCode(gymIdParam) {
         if (adminDb && gymId && gymId !== 'DEMO') {
             const gymDoc = await adminDb.collection('gyms').doc(gymId).get()
             const existingData = gymDoc.data() || {}
-            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+
+            const gymName = existingData.name || 'GYM';
+            const suffix = gymName.replace(/[^A-Za-z0-z]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'X');
+            const newCode = `GYM-${suffix}-${Math.floor(1000 + Math.random() * 9000)}`;
+
             const existingCodeDoc = await adminDb.collection('gyms').where('gymCode', '==', newCode).get()
             if (!existingCodeDoc.empty) return regenerateGymCode(gymId)
 

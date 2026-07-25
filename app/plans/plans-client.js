@@ -1,18 +1,38 @@
 'use client'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Users, TrendingUp, RefreshCw, Plus, X } from 'lucide-react'
+import { Check, Users, TrendingUp, RefreshCw, Plus, X, Trash2 } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
 import { Button } from '@/components/ui/button'
-import { createPlan } from '@/actions/db/plans'
+import { createPlan, updatePlan, deletePlan } from '@/actions/db/plans'
 
 export default function PlansClient({ initialPlans, members }) {
     const { brand } = useBrand()
     const [showAdd, setShowAdd] = useState(false)
+    const [editingPlan, setEditingPlan] = useState(null)
     const [isPending, startTransition] = useTransition()
     const [newPlan, setNewPlan] = useState({ name: '', price: '', features: '', color: brand.primaryColor, popular: false })
+
+    const handleEditClick = (p) => {
+        setEditingPlan(p.id)
+        setNewPlan({
+            name: p.name,
+            price: p.price,
+            features: (p.features || []).join(', '),
+            color: p.color || brand.primaryColor,
+            popular: p.popular || false
+        })
+        setShowAdd(true)
+    }
+
+    const handleDeletePlan = async (id) => {
+        if (!confirm('Are you sure you want to permanently delete this plan? This will orphan existing members.')) return;
+        startTransition(async () => {
+            await deletePlan(id)
+        })
+    }
 
     // Strictly map native Firebase payloads with no synthetic data per Phase 15 requirements
     const enhancedPlans = initialPlans;
@@ -34,7 +54,7 @@ export default function PlansClient({ initialPlans, members }) {
             title="Membership Plans"
             subtitle="Configure pricing and track renewals"
             actions={
-                <Button onClick={() => setShowAdd(true)} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
+                <Button onClick={() => { setEditingPlan(null); setNewPlan({ name: '', price: '', features: '', color: brand.primaryColor, popular: false }); setShowAdd(true) }} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
                     <Plus className="h-4 w-4 mr-2" /> New Plan
                 </Button>
             }
@@ -57,7 +77,7 @@ export default function PlansClient({ initialPlans, members }) {
             {enhancedPlans.length === 0 ? (
                 <div className="col-span-3 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-12 text-center mb-8">
                     <div className="text-foreground/40 text-sm mb-4">No active membership plans found in the database.</div>
-                    <Button onClick={() => setShowAdd(true)} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
+                    <Button onClick={() => { setEditingPlan(null); setNewPlan({ name: '', price: '', features: '', color: brand.primaryColor, popular: false }); setShowAdd(true) }} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
                         <Plus className="h-4 w-4 mr-2" /> Create First Plan
                     </Button>
                 </div>
@@ -85,7 +105,10 @@ export default function PlansClient({ initialPlans, members }) {
                                     </li>
                                 ))}
                             </ul>
-                            <Button className={`w-full mt-6 ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground border-0 hover:bg-foreground/[0.12]'}`} style={p.popular ? { background: brand.primaryColor } : {}}>Edit plan</Button>
+                            <div className="flex items-center gap-2 mt-6">
+                                <Button onClick={() => handleEditClick(p)} className={`w-full ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground border-0 hover:bg-foreground/[0.12]'}`} style={p.popular ? { background: brand.primaryColor } : {}}>Edit plan</Button>
+                                <Button variant="outline" onClick={() => handleDeletePlan(p.id)} className="px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/20"><Trash2 className="h-4 w-4" /></Button>
+                            </div>
                         </motion.div>
                     ))}
                 </div>
@@ -138,7 +161,7 @@ export default function PlansClient({ initialPlans, members }) {
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAdd(false)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
                         <motion.div initial={{ y: 400, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 400, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-full bg-card border border-foreground/10 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
-                                <div className="text-lg font-bold">Create New Plan</div>
+                                <div className="text-lg font-bold">{editingPlan ? 'Edit Plan' : 'Create New Plan'}</div>
                                 <button onClick={() => setShowAdd(false)}><X className="h-5 w-5 text-foreground/50 hover:text-foreground" /></button>
                             </div>
                             <div className="space-y-4">
@@ -169,13 +192,18 @@ export default function PlansClient({ initialPlans, members }) {
                                     className="w-full text-foreground border-0 h-11 mt-2 font-medium"
                                     onClick={() => {
                                         startTransition(async () => {
-                                            await createPlan(newPlan);
+                                            if (editingPlan) {
+                                                await updatePlan(editingPlan, newPlan);
+                                            } else {
+                                                await createPlan(newPlan);
+                                            }
                                             setShowAdd(false);
+                                            setEditingPlan(null);
                                             setNewPlan({ name: '', price: '', features: '', color: brand.primaryColor, popular: false });
                                         })
                                     }}
                                 >
-                                    {isPending ? 'Syncing to Registry...' : 'Save Plan Package'}
+                                    {isPending ? 'Syncing to Registry...' : (editingPlan ? 'Save Changes' : 'Save Plan Package')}
                                 </Button>
                             </div>
                         </motion.div>

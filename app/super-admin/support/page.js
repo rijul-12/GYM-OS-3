@@ -2,7 +2,9 @@
 import { useState } from 'react'
 import { LifeBuoy, Search, Bug, Lightbulb, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 import { SuperAdminShell } from '@/components/superadmin-shell'
-import { SUPPORT_TICKETS } from '@/lib/superadmin-mock'
+import { EmptyState } from '@/components/ui/empty-state'
+
+const SUPPORT_TICKETS = []
 
 const SA = '#8b5cf6'
 
@@ -78,7 +80,11 @@ export default function SupportPage() {
 
                 {/* Tickets */}
                 <div className="space-y-2">
-                    {filtered.map((t, i) => {
+                    {filtered.length === 0 ? (
+                        <div className="py-20 max-w-md mx-auto">
+                            <EmptyState icon="file" title="No Support Tickets" description="Support pipeline is currently clear." />
+                        </div>
+                    ) : filtered.map((t, i) => {
                         const pc = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.Low
                         const si = STATUS_ICONS[t.status] || STATUS_ICONS.Open
                         const ci = CATEGORY_ICONS[t.category] || CATEGORY_ICONS['Bug Report']

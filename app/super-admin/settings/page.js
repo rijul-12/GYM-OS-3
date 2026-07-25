@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { Save, Globe, ShieldAlert, Sparkles, RefreshCcw } from 'lucide-react'
 import { SuperAdminShell } from '@/components/superadmin-shell'
-import { FEATURE_FLAGS, PLATFORM_SETTINGS } from '@/lib/superadmin-mock'
 import { AppearanceSettings } from '@/components/appearance-settings'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,8 +11,15 @@ const SA = '#8b5cf6'
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(false)
-    const [flags, setFlags] = useState(FEATURE_FLAGS)
-    const [settings, setSettings] = useState(PLATFORM_SETTINGS)
+    const [flags, setFlags] = useState([])
+    const [settings, setSettings] = useState({
+        platformName: '',
+        supportEmail: '',
+        trialDays: 14,
+        maxGymsPerOwner: 5,
+        maintenanceMode: false,
+        globalNotifications: false
+    })
 
     const toggleFlag = (id) => {
         setFlags(prev => prev.map(f => f.id === id ? { ...f, enabled: !f.enabled } : f))

@@ -1,35 +1,15 @@
-'use client'
 import { motion } from 'framer-motion'
-
-const ZONES = [
-  { id: 'z1', name: 'Cardio', emoji: '🏃‍♂️', demand: 85, trend: '+5%', color: '#ef4444', border: 'rgba(239,68,68,0.2)', bg: 'rgba(239,68,68,0.05)', status: 'Very Busy', members: 42 },
-  { id: 'z2', name: 'Free Weights', emoji: '🏋️‍♂️', demand: 92, trend: '+12%', color: '#3b82f6', border: 'rgba(59,130,246,0.2)', bg: 'rgba(59,130,246,0.05)', status: 'Peak', members: 68 },
-  { id: 'z3', name: 'Machine Floor', emoji: '🦾', demand: 45, trend: '-2%', color: '#10b981', border: 'rgba(16,185,129,0.2)', bg: 'rgba(16,185,129,0.05)', status: 'Clear', members: 15 },
-  { id: 'z4', name: 'Stretching', emoji: '🧘‍♀️', demand: 25, trend: '0%', color: '#f59e0b', border: 'rgba(245,158,11,0.2)', bg: 'rgba(245,158,11,0.05)', status: 'Clear', members: 8 },
-  { id: 'z5', name: 'CrossFit Rig', emoji: '🤸‍♂️', demand: 75, trend: '+8%', color: '#8b5cf6', border: 'rgba(139,92,246,0.2)', bg: 'rgba(139,92,246,0.05)', status: 'Busy', members: 32 },
-  { id: 'z6', name: 'Pool', emoji: '🏊‍♂️', demand: 60, trend: '+1%', color: '#06b6d4', border: 'rgba(6,182,212,0.2)', bg: 'rgba(6,182,212,0.05)', status: 'Moderate', members: 20 },
-]
-
-const CROWD_HEATMAP = [
-  { time: '6 AM', level: 'Low', percent: 12, dot: '🟢', color: '#10b981' },
-  { time: '9 AM', level: 'Busy', percent: 65, dot: '🟡', color: '#f59e0b' },
-  { time: '12 PM', level: 'Moderate', percent: 35, dot: '🟢', color: '#10b981' },
-  { time: '5 PM', level: 'Peak', percent: 95, dot: '🔴', color: '#ef4444' },
-  { time: '8 PM', level: 'Busy', percent: 78, dot: '🟡', color: '#f59e0b' },
-  { time: '10 PM', level: 'Low', percent: 18, dot: '🟢', color: '#10b981' },
-]
-
-const ZONE_INSIGHTS = [
-  { tone: 'critical', icon: '🔥', text: 'Free Weights zone is at 95% capacity', hint: 'Pushing SMS off-peak discounts.' },
-  { tone: 'positive', icon: '✨', text: 'Stretching area is totally clear', hint: 'Perfect time for guided yoga.' },
-  { tone: 'warning', icon: '⚠️', text: 'Treadmills are all booked', hint: 'Recommend adding 3 more machines.' }
-]
+import { EmptyState } from '@/components/ui/empty-state'
 
 // -------- Workout Zone Demand Grid --------
-export function ZoneDemandGrid({ compact = false, zones = ZONES }) {
+export function ZoneDemandGrid({ compact = false, zones = [] }) {
+  if (!zones || zones.length === 0) {
+    return <EmptyState title="No Zone Telemetry" description="No active physical zone metrics derived from live floor tracking yet." />
+  }
+
   return (
     <div className={`grid gap-3 ${compact ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'}`}>
-      {(zones || []).map((z, i) => (
+      {zones.map((z, i) => (
         <motion.div
           key={z.id || i}
           initial={{ opacity: 0, y: 12 }}
@@ -66,11 +46,14 @@ export function ZoneDemandGrid({ compact = false, zones = ZONES }) {
 }
 
 // -------- Crowd Heatmap Horizontal Timeline --------
-export function CrowdHeatmap({ overrideData }) {
-  const data = overrideData || CROWD_HEATMAP;
+export function CrowdHeatmap({ heatmapData = [] }) {
+  if (!heatmapData || heatmapData.length === 0) {
+    return <EmptyState title="Heatmap Unavailable" description="Prediction engine requires at least 24 hours of live check-in data." />
+  }
+
   return (
     <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-      {data.map((h, i) => (
+      {heatmapData.map((h, i) => (
         <motion.div
           key={h.time || i}
           initial={{ opacity: 0, y: 10 }}
@@ -102,11 +85,15 @@ const TONE = {
   info: { color: '#a3a3a3', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.10)' },
 }
 
-export function ZoneInsightsGrid({ limit = 6 }) {
+export function ZoneInsightsGrid({ insights = [], limit = 6 }) {
+  if (!insights || insights.length === 0) {
+    return <EmptyState title="No Insights Detected" description="Physical zone ML models currently have no real-time telemetry to analyze." />
+  }
+
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {ZONE_INSIGHTS.slice(0, limit).map((ins, i) => {
-        const t = TONE[ins.tone]
+      {insights.slice(0, limit).map((ins, i) => {
+        const t = TONE[ins.tone] || TONE.info
         return (
           <motion.div
             key={i}
@@ -118,9 +105,9 @@ export function ZoneInsightsGrid({ limit = 6 }) {
           >
             <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full blur-2xl opacity-30" style={{ background: t.color }} />
             <div className="relative">
-              <div className="text-2xl leading-none">{ins.icon}</div>
-              <div className="mt-3 font-display font-semibold leading-snug">{ins.text}</div>
-              <div className="text-xs text-foreground/55 mt-2">{ins.hint}</div>
+              <div className="text-2xl leading-none">{ins.icon || '✨'}</div>
+              <div className="mt-3 font-display font-semibold leading-snug">{ins.title || ins.text}</div>
+              <div className="text-xs text-foreground/55 mt-2">{ins.detail || ins.hint}</div>
             </div>
           </motion.div>
         )
@@ -128,3 +115,4 @@ export function ZoneInsightsGrid({ limit = 6 }) {
     </div>
   )
 }
+

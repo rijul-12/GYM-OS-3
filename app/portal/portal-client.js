@@ -39,8 +39,7 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
     const { brand } = useBrand()
     const capacity = 80
     const occ = Math.round((insideCount / capacity) * 100)
-    const [sec, setSec] = useState(0)
-    useEffect(() => { const t = setInterval(() => setSec(s => s + 1), 1000); return () => clearInterval(t) }, [])
+
 
     // Real active session mapping
     const isLive = !!activeCheckin

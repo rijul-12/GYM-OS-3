@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
 import { useBrand } from '@/components/brand-provider'
 import { completeOnboarding } from '@/actions/db/onboarding'
+import { toast } from 'sonner'
 
 export default function OnboardingWizard() {
     const router = useRouter()
@@ -94,7 +95,7 @@ export default function OnboardingWizard() {
             await completeOnboarding({ gymInfo, logo, hours, plans, attendanceMode, equipment })
             setBrand({ gymName: gymInfo.name })
             toast.success("Workspace Synthesized.")
-            router.push('/dashboard')
+            window.location.href = '/dashboard'
         } catch (err) {
             toast.error(err.message)
             setLoading(false)
