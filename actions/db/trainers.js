@@ -27,16 +27,36 @@ export async function createTrainer(trainerData) {
     if (isFirebaseConfigured()) {
         const { adminDb } = await import('@/lib/firebase/server')
         if (adminDb) {
+            const { cookies } = await import('next/headers')
+            const cookieStore = await cookies()
+            const sessionStr = cookieStore.get('gymos_session')?.value
+            let gymId = 'DEMO'
+            try { if (sessionStr) gymId = JSON.parse(sessionStr).gymCode || 'DEMO' } catch (e) { }
+
             const payload = {
                 ...trainerData,
+                gymId,
                 created_at: new Date().toISOString(),
-                is_active: true,
-                rating: 5.0,
+                status: 'Pending',
+                is_active: false,
+                rating: 0.0,
                 members: 0,
-                performance: 100,
-                schedule: 'M-F, 9am-5pm'
+                performance: 0,
+                schedule: 'Not Set'
             }
             const docRef = await adminDb.collection('trainers').add(payload)
+
+            if (trainerData.email) {
+                const { sendTrainerInviteEmail } = await import('@/lib/email')
+                sendTrainerInviteEmail({
+                    email: trainerData.email,
+                    name: trainerData.name,
+                    gymCode: gymId,
+                    salary: trainerData.salary,
+                    docId: docRef.id
+                }).catch(e => console.error("Invite Email Failed:", e));
+            }
+
             revalidatePath('/trainers')
             revalidatePath('/dashboard')
             return { id: docRef.id, ...payload }

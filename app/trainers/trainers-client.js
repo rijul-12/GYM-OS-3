@@ -13,7 +13,7 @@ export default function TrainersClient({ initialTrainers }) {
     const [q, setQ] = useState('')
     const [showAdd, setShowAdd] = useState(false)
     const [isPending, startTransition] = useTransition()
-    const [newTrainer, setNewTrainer] = useState({ name: '', specialty: '', email: '' })
+    const [newTrainer, setNewTrainer] = useState({ name: '', specialty: '', email: '', salary: '' })
 
     // Polyfill mapping adding placeholder visual data if missing in DB
     const enhancedTrainers = initialTrainers.map(t => ({
@@ -124,6 +124,10 @@ export default function TrainersClient({ initialTrainers }) {
                                     <label className="text-xs text-foreground/50 uppercase tracking-wider">Specialty / Role</label>
                                     <input type="text" value={newTrainer.specialty} onChange={(e) => setNewTrainer({ ...newTrainer, specialty: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="Head Strength Coach" />
                                 </div>
+                                <div>
+                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Salary Offering (₹/month)</label>
+                                    <input type="number" value={newTrainer.salary} onChange={(e) => setNewTrainer({ ...newTrainer, salary: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="35000" />
+                                </div>
                                 <Button
                                     disabled={isPending || !newTrainer.name || !newTrainer.email}
                                     style={{ background: brand.primaryColor }}
@@ -132,7 +136,7 @@ export default function TrainersClient({ initialTrainers }) {
                                         startTransition(async () => {
                                             await createTrainer(newTrainer);
                                             setShowAdd(false);
-                                            setNewTrainer({ name: '', specialty: '', email: '' });
+                                            setNewTrainer({ name: '', specialty: '', email: '', salary: '' });
                                         })
                                     }}
                                 >
