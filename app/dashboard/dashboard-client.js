@@ -1,4 +1,7 @@
 'use client'
+import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
+import { blastOffPeakSMS } from '@/actions/sms'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Users, LogIn, TrendingUp, DollarSign, Clock, AlertCircle, ArrowUpRight, ArrowDownRight, UserPlus, CalendarPlus, FileText, Zap, Brain, Sparkles, ChevronRight, MapPin } from 'lucide-react'
@@ -18,6 +21,7 @@ const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#
 export default function DashboardClient({ stats, latestAttendance }) {
     const { brand } = useBrand()
     const { user } = useAuth()
+    const [isPending, startTransition] = useTransition()
     const topInsight = stats.insights?.[0] || { tone: 'info', category: 'General', title: 'System Running', detail: 'Operations nominal', confidence: 100, action: 'View' }
 
     // The system now expects `stats.weeklyLine` from Firebase. Fallbacks stripped.
@@ -241,15 +245,43 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             { icon: UserPlus, label: 'Add new member', href: '/members' },
                             { icon: CalendarPlus, label: 'Schedule class', href: '/trainers' },
                             { icon: FileText, label: 'Generate report', href: '/analytics' },
-                            { icon: Zap, label: 'Push off-peak SMS', href: '/settings' },
+                            {
+                                icon: Zap,
+                                label: isPending ? 'Dispatching SMS...' : 'Push off-peak SMS',
+                                action: () => {
+                                    startTransition(async () => {
+                                        toast.loading("Finding offline members...", { id: 'sms' });
+                                        try {
+                                            const res = await blastOffPeakSMS();
+                                            if (res.success) {
+                                                toast.success(`Off-peak promotion sent to ${res.deliveredCount} offline members!`, { id: 'sms' });
+                                            } else {
+                                                toast.error(res.error || "Failed to fetch offline members.", { id: 'sms' });
+                                            }
+                                        } catch (e) {
+                                            toast.error("SMS blast failed.", { id: 'sms' });
+                                        }
+                                    });
+                                }
+                            },
                         ].map((a, i) => (
-                            <Link key={i} href={a.href} className="flex items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] transition">
-                                <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: `${brand.primaryColor}15` }}>
-                                    <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
-                                </div>
-                                <span className="text-sm flex-1">{a.label}</span>
-                                <ArrowUpRight className="h-3.5 w-3.5 text-foreground/30" />
-                            </Link>
+                            a.href ? (
+                                <Link key={i} href={a.href} className="flex items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] transition">
+                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: `${brand.primaryColor}15` }}>
+                                        <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
+                                    </div>
+                                    <span className="text-sm flex-1">{a.label}</span>
+                                    <ArrowUpRight className="h-3.5 w-3.5 text-foreground/30" />
+                                </Link>
+                            ) : (
+                                <button key={i} onClick={a.action} disabled={isPending} className="flex w-full items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] transition text-left cursor-pointer disabled:opacity-50">
+                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: `${brand.primaryColor}15` }}>
+                                        <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
+                                    </div>
+                                    <span className="text-sm flex-1">{a.label}</span>
+                                    {isPending ? <Clock className="h-3.5 w-3.5 text-foreground/30 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-foreground/30" />}
+                                </button>
+                            )
                         ))}
                     </div>
                 </div>
