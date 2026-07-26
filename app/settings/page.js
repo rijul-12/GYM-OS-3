@@ -65,7 +65,7 @@ function App() {
                   <div className="text-xs text-foreground/50">Basic preferences for your gym</div>
                 </div>
                 <Row title="Gym Name" desc="Displayed everywhere on the platform"><Input value={brand.gymName} onChange={e => setBrand({ gymName: e.target.value })} className="w-56 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
-                <Row title="Timezone" desc="Used for reports and check-ins"><select className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option>America/Los_Angeles</option><option>America/New_York</option><option>Europe/London</option></select></Row>
+                <Row title="Timezone" desc="Used for reports and check-ins"><select className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option>Asia/Kolkata</option><option>America/Los_Angeles</option><option>America/New_York</option><option>Europe/London</option></select></Row>
                 <Row title="Currency" desc="For pricing and revenue displays"><select value={brand.currency || '$ USD'} onChange={e => setBrand({ currency: e.target.value })} className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option value="₹ INR">₹ INR</option><option value="$ USD">$ USD</option><option value="€ EUR">€ EUR</option><option value="£ GBP">£ GBP</option></select></Row>
                 <Row title="Language" desc="Interface language"><select className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option>English</option><option>Español</option><option>Français</option></select></Row>
               </>
