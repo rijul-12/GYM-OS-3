@@ -1,5 +1,6 @@
 'use client'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Users, TrendingUp, RefreshCw, Plus, X, Trash2 } from 'lucide-react'
 import { useState, useTransition } from 'react'
@@ -10,10 +11,29 @@ import { createPlan, updatePlan, deletePlan } from '@/actions/db/plans'
 
 export default function PlansClient({ initialPlans, members }) {
     const { brand } = useBrand()
+    const router = useRouter()
     const [showAdd, setShowAdd] = useState(false)
     const [editingPlan, setEditingPlan] = useState(null)
     const [isPending, startTransition] = useTransition()
     const [newPlan, setNewPlan] = useState({ name: '', price: '', features: '', color: brand.primaryColor, popular: false })
+
+    const handleExportCSV = () => {
+        const headers = ['Member Name', 'Membership Plan', 'Expiry Date', 'Status']
+        const csvContent = [
+            headers.join(','),
+            ...enhancedMembers.map(m => `"${m.name || 'Unknown'}","${m.plan}","${m.expiry}","${m.status}"`)
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `Upcoming_Renewals_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
 
     const handleEditClick = (p) => {
         setEditingPlan(p.id)
@@ -120,7 +140,7 @@ export default function PlansClient({ initialPlans, members }) {
                         <div className="flex items-center gap-2"><RefreshCw className="h-4 w-4 text-foreground/50" /><div className="text-sm font-medium">Upcoming renewals</div></div>
                         <div className="text-xs text-foreground/40">Members expiring soon</div>
                     </div>
-                    <Button variant="outline" className="bg-foreground/[0.03] border-foreground/10 text-xs h-9">Export CSV</Button>
+                    <Button onClick={handleExportCSV} variant="outline" className="bg-foreground/[0.03] border-foreground/10 text-xs h-9">Export CSV</Button>
                 </div>
 
                 {enhancedMembers.length === 0 ? (
@@ -146,7 +166,7 @@ export default function PlansClient({ initialPlans, members }) {
                                         <td className="px-2 py-3 text-foreground/60">{m.plan}</td>
                                         <td className="px-2 py-3 text-foreground/60">{m.expiry}</td>
                                         <td className="px-2 py-3"><span className={`text-[10px] px-2 py-0.5 rounded-full ${m.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-foreground/50'}`}>{m.status}</span></td>
-                                        <td className="px-2 py-3 text-right"><button className="text-xs px-3 py-1.5 rounded-md" style={{ background: brand.primaryColor, color: 'white' }}>Manage</button></td>
+                                        <td className="px-2 py-3 text-right"><button onClick={() => router.push('/members')} className="text-xs px-3 py-1.5 rounded-md" style={{ background: brand.primaryColor, color: 'white' }}>Manage</button></td>
                                     </tr>
                                 ))}
                             </tbody>
