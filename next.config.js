@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 // Force server reboot
 const nextConfig = {
+  env: {
+    TZ: 'Asia/Kolkata', // Force Vercel & Node instances to adhere to standard IST 
+  },
   output: 'standalone',
   images: {
     remotePatterns: [
