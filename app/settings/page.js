@@ -73,11 +73,11 @@ function App() {
             {active === 'notifications' && (
               <>
                 <div className="mb-5"><div className="text-lg font-semibold">Notifications</div><div className="text-xs text-foreground/50">Choose how you get alerted</div></div>
-                <Row title="New signups" desc="Alert when a member joins"><Switch defaultChecked /></Row>
-                <Row title="Membership expiring" desc="Notify 7 days before expiry"><Switch defaultChecked /></Row>
-                <Row title="Peak occupancy warning" desc="When gym exceeds 90% capacity"><Switch defaultChecked /></Row>
-                <Row title="Daily revenue summary" desc="Emailed at end of day"><Switch /></Row>
-                <Row title="SMS alerts" desc="Text critical events to admin phone"><Switch /></Row>
+                <Row title="New signups" desc="Alert when a member joins"><Switch defaultChecked onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
+                <Row title="Membership expiring" desc="Notify 7 days before expiry"><Switch defaultChecked onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
+                <Row title="Peak occupancy warning" desc="When gym exceeds 90% capacity"><Switch defaultChecked onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
+                <Row title="Daily revenue summary" desc="Emailed at end of day"><Switch onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
+                <Row title="SMS alerts" desc="Text critical events to admin phone"><Switch onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
               </>
             )}
             {active === 'attendance' && (

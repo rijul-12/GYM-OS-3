@@ -11,6 +11,7 @@ export function AppearanceSettings() {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
     const { user } = useAuth()
+    const { brand, setBrand } = useBrand()
 
     // Future state placeholders for scaling according to Firebase rules
     const [accent, setAccent] = useState("default")
@@ -36,7 +37,11 @@ export function AppearanceSettings() {
 
     const handleUpdateSetting = (key, value) => {
         // Optimistic UI updates
-        if (key === 'accent') setAccent(value)
+        if (key === 'accent') {
+            const colorMap = { default: '#ef4444', blue: '#3b82f6', purple: '#8b5cf6', green: '#10b981', orange: '#f97316', red: '#ef4444' }
+            setAccent(value)
+            setBrand({ primaryColor: colorMap[value] || '#ef4444' })
+        }
         if (key === 'density') setDensity(value)
         if (key === 'sidebar') setSidebar(value)
         if (key === 'language') setLanguage(value)
@@ -103,8 +108,11 @@ export function AppearanceSettings() {
                                 <div
                                     key={color}
                                     onClick={() => handleUpdateSetting('accent', color)}
-                                    className={`h-6 w-6 rounded-full border-2 ${accent === color ? 'border-foreground' : 'border-transparent'} cursor-pointer transition-transform hover:scale-110`}
-                                    style={{ background: color === 'default' ? 'var(--primary)' : color }}
+                                    className={`h-6 w-6 rounded-full border-2 cursor-pointer transition-transform hover:scale-110`}
+                                    style={{
+                                        background: color === 'default' ? '#ef4444' : (color === 'red' ? '#ef4444' : (color === 'blue' ? '#3b82f6' : (color === 'purple' ? '#8b5cf6' : (color === 'green' ? '#10b981' : '#f97316')))),
+                                        borderColor: brand.primaryColor === (color === 'default' || color === 'red' ? '#ef4444' : (color === 'blue' ? '#3b82f6' : (color === 'purple' ? '#8b5cf6' : (color === 'green' ? '#10b981' : '#f97316')))) ? 'hsl(var(--foreground))' : 'transparent'
+                                    }}
                                 />
                             ))}
                         </div>
