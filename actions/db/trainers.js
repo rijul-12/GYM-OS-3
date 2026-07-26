@@ -91,6 +91,17 @@ export async function suspendTrainer(trainerId) {
     }
 }
 
+export async function removeTrainer(trainerId) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            await adminDb.collection('trainers').doc(trainerId).delete()
+            revalidatePath('/trainers')
+            return true;
+        }
+    }
+}
+
 export async function getMyTrainerProfile() {
     if (isFirebaseConfigured()) {
         const { adminDb } = await import('@/lib/firebase/server')

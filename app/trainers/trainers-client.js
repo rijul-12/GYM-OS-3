@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react'
 import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
 import { Button } from '@/components/ui/button'
-import { createTrainer, approveTrainer, suspendTrainer } from '@/actions/db/trainers'
+import { createTrainer, approveTrainer, suspendTrainer, removeTrainer } from '@/actions/db/trainers'
 
 export default function TrainersClient({ initialTrainers }) {
     const { brand } = useBrand()
@@ -92,7 +92,7 @@ export default function TrainersClient({ initialTrainers }) {
                                     <Button disabled={isPending} onClick={() => startTransition(async () => await approveTrainer(t.id))} className="flex-1 h-9 bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 border-0 text-xs">Restore Staff</Button>
                                 ) : (
                                     <>
-                                        <Button disabled={isPending} onClick={() => startTransition(async () => await suspendTrainer(t.id))} variant="outline" className="flex-1 h-9 bg-foreground/[0.03] border-red-500/30 text-red-500 text-[11px] font-bold hover:bg-red-500/10">SUSPEND</Button>
+                                        <Button disabled={isPending} onClick={() => startTransition(async () => await removeTrainer(t.id))} variant="outline" className="flex-1 h-9 bg-foreground/[0.03] border-red-500/30 text-red-500 text-[11px] font-bold hover:bg-red-500/10">REMOVE</Button>
                                         <Button className="flex-1 h-9 text-foreground border-0 text-xs" style={{ background: brand.primaryColor }}>Message</Button>
                                     </>
                                 )}
