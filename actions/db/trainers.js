@@ -48,7 +48,7 @@ export async function createTrainer(trainerData) {
 
             if (trainerData.email) {
                 const { sendTrainerInviteEmail } = await import('@/lib/email')
-                sendTrainerInviteEmail({
+                await sendTrainerInviteEmail({
                     email: trainerData.email,
                     name: trainerData.name,
                     gymCode: gymId,
