@@ -29,7 +29,7 @@ export function FeatureGate({ required, currentPlan = 'starter', currentPhase = 
         );
     }
 
-    const allowed = hasFeature(currentPlan, required);
+    const allowed = currentPhase === 'Trial' || hasFeature(currentPlan, required);
 
     if (allowed) {
         return <>{children}</>;

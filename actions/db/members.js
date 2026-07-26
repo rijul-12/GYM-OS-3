@@ -126,7 +126,7 @@ export async function createMember(memberData) {
                     throw new Error("Subscription Expired. Revert to Read-Only mode.");
                 }
 
-                const limit = getMemberLimit(subStatus.plan);
+                const limit = getMemberLimit(subStatus.plan, subStatus.currentPhase);
                 const querySnap = await adminDb.collection('members')
                     .where('gymId', '==', gymId)
                     .where('status', 'in', ['Active', 'Pending'])
