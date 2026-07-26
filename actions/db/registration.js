@@ -172,6 +172,25 @@ export async function processMemberRegistration(data) {
 
     if (gymSnap.empty) return { error: "Invalid Gym Code. Please check with your gym." };
 
+    // 1b. Validate Member Limits!
+    const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+    const { getMemberLimit } = await import('@/lib/permissions');
+
+    const subStatus = await getSubscriptionStatus(gymCodeRaw);
+    if (subStatus.currentPhase === 'Expired') {
+        return { error: 'Facility subscription has expired. Registrations are paused.' };
+    }
+
+    const limit = getMemberLimit(subStatus.plan);
+    const mSnap = await adminDb.collection('members')
+        .where('gymId', '==', gymCodeRaw)
+        .where('status', 'in', ['Active', 'Pending'])
+        .count().get();
+
+    if (mSnap.data().count >= limit) {
+        return { error: 'You have reached your plan limit.' };
+    }
+
     // 2. Create Auth User
     let user;
     try {

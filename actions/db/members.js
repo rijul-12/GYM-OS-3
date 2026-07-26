@@ -117,6 +117,26 @@ export async function createMember(memberData) {
         } catch (e) { }
 
         if (adminDb) {
+            if (gymId !== 'DEMO') {
+                const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+                const { getMemberLimit } = await import('@/lib/permissions');
+
+                const subStatus = await getSubscriptionStatus(gymId);
+                if (subStatus.currentPhase === 'Expired') {
+                    throw new Error("Subscription Expired. Revert to Read-Only mode.");
+                }
+
+                const limit = getMemberLimit(subStatus.plan);
+                const querySnap = await adminDb.collection('members')
+                    .where('gymId', '==', gymId)
+                    .where('status', 'in', ['Active', 'Pending'])
+                    .count().get();
+
+                if (querySnap.data().count >= limit) {
+                    throw new Error("You have reached your plan limit.");
+                }
+            }
+
             const payload = {
                 ...memberData,
                 gymId: gymId,

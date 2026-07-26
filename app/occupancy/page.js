@@ -4,8 +4,20 @@ import { getOccupancyStats } from '@/actions/db/occupancy'
 import { CardSkeleton, DataErrorState } from '@/components/ui/skeletons'
 
 export default async function OccupancyPage() {
+  const { cookies } = await import('next/headers');
+  const cookieStore = await cookies();
+  const sessionStr = cookieStore.get('gymos_session')?.value;
+  let gymId = 'DEMO';
+  if (sessionStr) {
+    try { gymId = JSON.parse(sessionStr).gymCode || 'DEMO'; } catch (e) { }
+  }
+
   try {
-    const stats = await getOccupancyStats()
+    const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+    const [stats, subscription] = await Promise.all([
+      getOccupancyStats(),
+      getSubscriptionStatus(gymId)
+    ]);
 
     return (
       <Suspense fallback={
@@ -13,7 +25,7 @@ export default async function OccupancyPage() {
           <CardSkeleton /><CardSkeleton />
         </div>
       }>
-        <OccupancyClient stats={stats} />
+        <OccupancyClient stats={stats} subscription={subscription} />
       </Suspense>
     )
   } catch (error) {

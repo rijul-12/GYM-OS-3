@@ -34,8 +34,49 @@ export default function DashboardClient({ stats, latestAttendance }) {
         eta: a.eta || '45m'
     }))
 
+    const sub = stats.subscription || { plan: 'Starter', currentPhase: 'Active', daysRemaining: 0, activeMembers: 0, memberLimit: 75, usageProgressBar: 0, storageUsed: '0 GB' }
+    const usageColor = sub.usageProgressBar > 90 ? '#ef4444' : sub.usageProgressBar > 75 ? '#f59e0b' : '#10b981'
+
     return (
         <DashShell title="Command Center" subtitle="Live intelligence · predictive crowd flow · revenue signals">
+
+            {/* Global Subscription Banner */}
+            <div className="mb-6 rounded-2xl border bg-black/40 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden group shadow-lg" style={{ borderColor: `${brand.primaryColor}30` }}>
+                <div className="absolute inset-0 z-0 bg-gradient-to-r from-transparent to-background/5" style={{ backgroundImage: `linear-gradient(90deg, transparent, ${brand.primaryColor}08)` }} />
+                <div className="relative z-10 flex gap-4">
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${brand.primaryColor}20`, borderColor: `${brand.primaryColor}40` }}>
+                        <Sparkles className="h-6 w-6" style={{ color: brand.primaryColor }} />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="font-display font-bold text-lg uppercase tracking-wide">{sub.plan.replace('-monthly', '').replace('-annual', '')} Tier</span>
+                            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold" style={{ backgroundColor: sub.currentPhase === 'Active' ? '#10b98120' : '#ef444420', color: sub.currentPhase === 'Active' ? '#10b981' : '#ef4444', border: `1px solid ${sub.currentPhase === 'Active' ? '#10b98140' : '#ef444440'}` }}>
+                                {sub.currentPhase}
+                            </span>
+                        </div>
+                        <div className="text-xs text-foreground/50">
+                            {sub.currentPhase === 'Trial' ? `${sub.daysRemaining} days remaining in trial` : `Renews in ${sub.daysRemaining} days`} · {sub.storageUsed} Cloud Storage used
+                        </div>
+                    </div>
+                </div>
+
+                <div className="relative z-10 flex-1 w-full lg:max-w-md bg-background/40 border border-foreground/5 p-4 rounded-xl">
+                    <div className="flex justify-between text-xs mb-2">
+                        <span className="font-medium text-foreground/70">Member Usage</span>
+                        <span className="font-bold">{sub.activeMembers} <span className="opacity-40">/ {sub.memberLimit === 999999 ? 'Unlimited' : sub.memberLimit}</span></span>
+                    </div>
+
+                    <div className="h-2 w-full bg-foreground/10 rounded-full overflow-hidden mb-1">
+                        <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${sub.usageProgressBar}%`, backgroundColor: usageColor, boxShadow: `0 0 10px ${usageColor}80` }} />
+                    </div>
+                    {sub.usageProgressBar >= 80 && (
+                        <div className="text-[10px] flex items-center gap-1 mt-2" style={{ color: usageColor }}>
+                            <AlertCircle className="h-3 w-3" /> Warning: {sub.usageProgressBar}% capacity reached.
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <OperationsInsights />
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-5 mb-5 relative overflow-hidden" style={{ borderColor: `${brand.primaryColor}55`, background: `linear-gradient(135deg, ${brand.primaryColor}12, transparent)` }}>
                 <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full blur-3xl opacity-40" style={{ background: brand.primaryColor }} />

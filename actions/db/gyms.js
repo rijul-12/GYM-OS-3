@@ -93,11 +93,14 @@ export async function getDashboardStats() {
         try { if (sessionStr) gymId = JSON.parse(sessionStr).gymCode || 'DEMO' } catch (e) { }
 
         if (adminDb) {
-            const [memSnap, trnSnap, attSnap, settingsSnap] = await Promise.all([
+            const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+
+            const [memSnap, trnSnap, attSnap, settingsSnap, subStatus] = await Promise.all([
                 adminDb.collection('members').where('gymId', '==', gymId).count().get(),
                 adminDb.collection('trainers').where('gymId', '==', gymId).count().get(),
                 adminDb.collection('attendance').where('gymId', '==', gymId).get(),
-                adminDb.collection('gym_settings').doc(gymId).get()
+                adminDb.collection('gym_settings').doc(gymId).get(),
+                getSubscriptionStatus(gymId)
             ])
 
             const totalMembers = memSnap.data().count;
@@ -205,7 +208,8 @@ export async function getDashboardStats() {
                 zones: ZONES,
                 dist: WORKOUT_DIST,
                 dailyLine: ATTENDANCE_DAILY,
-                insights: AI_INSIGHTS
+                insights: AI_INSIGHTS,
+                subscription: subStatus
             }
         }
     }

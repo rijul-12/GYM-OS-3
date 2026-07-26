@@ -1,3 +1,5 @@
+/** @type {import('next').NextConfig} */
+// Force server reboot
 const nextConfig = {
   output: 'standalone',
   images: {

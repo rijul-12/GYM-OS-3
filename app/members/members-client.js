@@ -110,9 +110,22 @@ export default function MembersClient({ initialMembers }) {
                 <div className="flex items-center gap-3">
                     <GlobalExport data={filtered} filename="members-export.csv" />
                     {!session?.readOnly && (
-                        <Button onClick={() => setShowAdd(true)} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
-                            <Plus className="h-4 w-4 mr-2" /> Add member
-                        </Button>
+                        <div className="relative group">
+                            {enhancedMembers.length >= (session?.memberLimit || 75) ? (
+                                <>
+                                    <Button disabled style={{ background: '#333' }} className="text-foreground/50 border-0 h-10 cursor-not-allowed">
+                                        <Plus className="h-4 w-4 mr-2" /> Limit Reached
+                                    </Button>
+                                    <div className="absolute hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-md shadow-lg pointer-events-none">
+                                        Plan limit reached. Go to Dashboard to upgrade.
+                                    </div>
+                                </>
+                            ) : (
+                                <Button onClick={() => setShowAdd(true)} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
+                                    <Plus className="h-4 w-4 mr-2" /> Add member
+                                </Button>
+                            )}
+                        </div>
                     )}
                 </div>
             }

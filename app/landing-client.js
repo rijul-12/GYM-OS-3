@@ -27,8 +27,9 @@ const TESTIMONIALS = [{ text: "Great gym!", name: "User", role: "Trainer", photo
 const FAQS = [{ q: "Hours?", a: "24/7" }]
 const PLANS = [
   { id: "starter", name: 'Starter', price: '1,999', period: 'month', features: ['Up to 75 Members', 'Full Dashboard Access', 'QR Attendance System', 'Standard Support'] },
-  { id: "pro", popular: true, name: 'Pro', price: '3,999', period: 'month', features: ['Up to 130 Members', 'White-Label Branding', 'AI Member Insights', 'Priority 12hr Support'] },
-  { id: "elite", name: 'Elite', price: '5,999', period: 'month', features: ['Unlimited Members', 'Enterprise API Access', 'Custom Integrations', 'Dedicated Account Manager'] }
+  { id: "pro", popular: true, name: 'Pro', price: '3,999', period: 'month', features: ['Up to 130 Members', 'White-Label Branding', 'Predicted Occupancy', 'Priority 12hr Support'] },
+  { id: "elite", name: 'Elite', price: '5,999', period: 'month', features: ['Up to 220 Members', 'Live Member AI Engine', 'Heatmap Access', 'Dedicated Account Manager'] },
+  { id: "enterprise", name: 'Enterprise', price: 'Custom', period: 'month', features: ['Unlimited Members', 'Enterprise API Access', 'Custom Integrations', '24/7 SLA Support'] }
 ]
 const MEMBER_INSIGHTS = [{ value: '5:30 AM', detail: 'Quiet tomorrow.' }]
 const ASSIGNED_MEMBERS = [{ id: 't1', name: 'James Wilson', photo: 'https://i.pravatar.cc/150?u=j', checkedIn: true, stage: 'Lifting', todayWorkout: 'Hypertrophy Block A', attendance: 85, progress: 40, status: 'Active' }]
@@ -288,22 +289,23 @@ const Pricing = ({ stats }) => {
           <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Membership plans</div>
           <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient">Priced for every gym.</h2>
         </div>
-        <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-7xl mx-auto">
           {PLANS.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className={`relative rounded-2xl border p-8 ${p.popular ? 'border-foreground/20 bg-gradient-to-b from-white/[0.06] to-transparent' : 'border-foreground/5 bg-foreground/[0.02]'}`}>
               {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs font-medium rounded-full text-foreground" style={{ background: brand.primaryColor }}>Most popular</div>}
               <div className="font-display text-xl font-semibold mb-1">{p.name}</div>
               <div className="flex items-baseline gap-1 mb-2">
-                <span className="font-display text-5xl font-bold">₹{p.price}</span>
-                <span className="text-foreground/40 text-sm">/{p.period}</span>
+                <span className="font-display text-4xl lg:text-5xl font-bold">{p.price === 'Custom' ? "Let's Talk" : `₹${p.price}`}</span>
+                {p.price !== 'Custom' && <span className="text-foreground/40 text-sm">/{p.period}</span>}
               </div>
               <div className="text-xs text-foreground/50 mb-6 flex items-center gap-2">
-                <span>Registration Fee:</span>
-                {isFounding ? (
+                {p.price !== 'Custom' && <span>Registration Fee:</span>}
+                {p.price !== 'Custom' && isFounding ? (
                   <span className="flex items-center gap-1.5"><span className="line-through text-foreground/30">₹2999</span> <span className="text-emerald-500 font-medium">Waived (Founding)</span></span>
                 ) : (
-                  <span>₹2999</span>
+                  p.price !== 'Custom' && <span>₹2999</span>
                 )}
+                {p.price === 'Custom' && <span>Custom solutions for enterprise.</span>}
               </div>
               <ul className="space-y-3 mb-8">
                 {p.features.map((f, j) => (
@@ -312,9 +314,9 @@ const Pricing = ({ stats }) => {
                   </li>
                 ))}
               </ul>
-              <Link href="/dashboard">
+              <Link href={p.price === 'Custom' ? "mailto:sales@gymos.com" : "/dashboard"}>
                 <Button className={`w-full ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.12] border-0'}`} style={p.popular ? { background: brand.primaryColor } : {}}>
-                  Start with {p.name}
+                  {p.price === 'Custom' ? 'Contact Sales' : `Start with ${p.name}`}
                 </Button>
               </Link>
             </motion.div>

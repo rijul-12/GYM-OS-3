@@ -34,6 +34,19 @@ export async function createRazorpayOrder(planId, gymId, isFirstPayment = false)
     let baseAmount = PLAN_MAP[planId];
     if (!baseAmount) return { error: 'Invalid plan selected' };
 
+    // Pre-flight Check: Prevent Downgrading Below Member Limits
+    if (isFirebaseConfigured() && adminDb) {
+        const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+        const { getMemberLimit } = await import('@/lib/permissions');
+
+        const sub = await getSubscriptionStatus(gymId);
+        const targetLimit = getMemberLimit(planId);
+
+        if (targetLimit < sub.activeMembers) {
+            return { error: `Cannot downgrade. You have ${sub.activeMembers} active members, exceeding the ${targetLimit} limit of the selected plan.` };
+        }
+    }
+
     // Registration Fee Fallback
     if (isFirstPayment) {
         baseAmount += 2999;

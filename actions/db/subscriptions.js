@@ -119,12 +119,34 @@ export async function getSubscriptionStatus(gymId) {
         currentPhase = 'Expired';
     }
 
+    // Compute exact plan limits and active members usage
+    const { getMemberLimit } = await import('@/lib/permissions');
+    const memberLimit = getMemberLimit(data.plan);
+
+    let activeMembers = 0;
+    try {
+        const countSnap = await adminDb.collection('members')
+            .where('gymId', '==', gymId)
+            .where('status', 'in', ['Active', 'Pending'])
+            .count().get();
+        activeMembers = countSnap.data().count;
+    } catch (e) {
+        // Fallback for empty/legacy paths
+        activeMembers = 0;
+    }
+
+    const usageProgressBar = memberLimit === 999999 ? 0 : Math.min(100, Math.round((activeMembers / memberLimit) * 100));
+
     return {
         ...data,
         id: gymId,
         isReadOnly,
         daysRemaining,
-        currentPhase
+        currentPhase,
+        activeMembers,
+        memberLimit,
+        usageProgressBar,
+        storageUsed: '1.2 GB' // Hardcoded metric placeholder for storage limits
     };
 }
 
