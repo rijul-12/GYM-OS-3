@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { Monitor, Moon, Sun, Check, Layout, Paintbrush, MousePointer2, Languages } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth"
+import { useBrand } from "@/components/brand-provider"
 
 export function AppearanceSettings() {
     const { theme, setTheme } = useTheme()
