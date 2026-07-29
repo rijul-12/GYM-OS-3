@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Logo } from '@/components/logo'
 import { useBrand } from '@/components/brand-provider'
-import { useAuth, ROLES, DEMO_CREDS } from '@/lib/auth'
+import { useAuth, ROLES } from '@/lib/auth'
 import { toast } from 'sonner'
 
 // --- SYNTHETIC FALLBACKS START ---
@@ -73,8 +73,8 @@ function LoginContent() {
 
   const pickRole = (r) => {
     setRole(r)
-    setEmail(`${r}@gymos.com`)
-    setPassword('123456')
+    setEmail('')
+    setPassword('')
     setError('')
     setStep('creds')
   }

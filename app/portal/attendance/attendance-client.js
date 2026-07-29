@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Calendar, Clock, Flame, TrendingUp, Trophy } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 
 
 
@@ -57,6 +58,7 @@ function App({ member, globalAttendance, stats }) {
 
   return (
     <PortalShell title="Attendance">
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Attendance Analytics" feature="V2 Feature" description="Historical timeline generation is isolated to V2." fallbackRoute="/portal" />
       <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>
         <Calendar className="h-3 w-3" /> Your visit history
       </div>

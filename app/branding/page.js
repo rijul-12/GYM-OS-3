@@ -11,19 +11,20 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Logo } from '@/components/logo'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 
 // --- SYNTHETIC FALLBACKS START ---
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
-const WORKOUT_DIST = [ { name: 'Strength', value: 45, color: '#ef4444' }, { name: 'Cardio', value: 30, color: '#3b82f6' } ]
+const WORKOUT_DIST = [{ name: 'Strength', value: 45, color: '#ef4444' }, { name: 'Cardio', value: 30, color: '#3b82f6' }]
 const IMAGES = ['https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg']
 const PLAN_DATA = [{ name: 'Basic', price: 9.99 }, { name: 'Pro', price: 19.99 }]
 const ATTENDANCE_WEEKLY = [{ day: 'Mon', in: 42, out: 38 }, { day: 'Tue', in: 55, out: 51 }]
 const TESTIMONIALS = [{ quote: "Great gym!", author: "User" }]
 const FAQS = [{ q: "Hours?", a: "24/7" }]
-const PLANS = [{name: 'Premium', price: 19.99, features: ['24/7 Access']}]
+const PLANS = [{ name: 'Premium', price: 19.99, features: ['24/7 Access'] }]
 const MEMBER_INSIGHTS = [{ value: '5:30 AM', detail: 'Quiet tomorrow.' }]
 const ASSIGNED_MEMBERS = [{ id: 't1', name: 'James Wilson', photo: 'https://i.pravatar.cc/150?u=j', checkedIn: true, stage: 'Lifting', todayWorkout: 'Hypertrophy Block A', attendance: 85, progress: 40, status: 'Active' }]
-const PROGRESS = { default: [{w:1,bench:135,squat:185}] }
+const PROGRESS = { default: [{ w: 1, bench: 135, squat: 185 }] }
 const CURRENT_TRAINER = { name: "Lead Trainer", role: "Head of PT", rating: 4.9, activeClients: 12, thisMonth: 45, target: 50, joined: "2021", bio: "Expert." }
 const WEEKLY_PLANS = {}
 const WORKOUT_TYPES = ['Hypertrophy', 'Strength', 'Endurance', 'Mobility']
@@ -46,16 +47,18 @@ const PRESETS = [
 ]
 
 function App() {
-  const { brand, setBrand, reset } = useBrand()
+  const { brand } = useBrand()
   const [local, setLocal] = useState(brand)
+  const [comingSoon, setComingSoon] = useState(false)
 
   const update = (patch) => setLocal((p) => ({ ...p, ...patch }))
-  const save = () => { setBrand(local); toast.success('Branding saved. Whole platform updated.') }
-  const doReset = () => { reset(); setLocal({ gymName: 'GymOS', logoText: 'G', primaryColor: '#ef4444', accentColor: '#f87171', phone: '+1 (415) 555-0100', email: 'hello@gymos.io', address: '250 Market Street, San Francisco, CA', banner: 'Elevate your gym. Elevate your brand.', footer: '© 2025 GymOS. Built for the world\'s best gyms.', favicon: '' }); toast.success('Reset to defaults') }
+  const save = () => setComingSoon(true)
+  const doReset = () => setComingSoon(true)
 
   return (
     <DashShell title="White Label" subtitle="Rebrand the entire platform in seconds — no code required"
       actions={<div className="flex gap-2"><Button onClick={doReset} variant="outline" className="bg-foreground/[0.03] border-foreground/10 h-10 text-xs"><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset</Button><Button onClick={save} style={{ background: local.primaryColor }} className="text-foreground border-0 h-10"><Save className="h-4 w-4 mr-2" /> Save changes</Button></div>}>
+      <ComingSoonModal open={comingSoon} onOpenChange={setComingSoon} title="White-Label Deployment" feature="Custom App Binaries & Global Branding" description="Deep white-labeling requires generating custom iOS and Android app binaries to App Store Connect. This enterprise feature will be unlocked in GymOS V2 along with advanced agency capabilities." />
       <div className="grid lg:grid-cols-5 gap-5">
         {/* Form */}
         <div className="lg:col-span-3 space-y-5">
@@ -101,7 +104,7 @@ function App() {
               <div className="text-xs text-foreground/60 mb-2">Quick presets</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {PRESETS.map((p) => (
-                  <button key={p.name} onClick={() => update({ primaryColor: p.primary, accentColor: p.accent })} className="flex items-center gap-2 rounded-lg border border-foreground/5 bg-black/40 p-2.5 hover:border-foreground/20 transition">
+                  <button key={p.name} onClick={() => setComingSoon(true)} className="flex items-center gap-2 rounded-lg border border-foreground/5 bg-black/40 p-2.5 hover:border-foreground/20 transition">
                     <div className="h-5 w-5 rounded-md" style={{ background: `linear-gradient(135deg, ${p.primary}, ${p.accent})` }} />
                     <span className="text-xs">{p.name}</span>
                   </button>
@@ -150,7 +153,7 @@ function App() {
           <div className="flex items-center gap-2 mb-3"><Eye className="h-4 w-4 text-foreground/50" /><div className="text-sm font-medium">Live preview</div></div>
           <motion.div layout className="rounded-2xl border border-foreground/10 overflow-hidden shadow-2xl">
             <div className="relative h-40">
-              <Image src={IMAGES.feature1} className="absolute inset-0 w-full h-full object-cover" alt=""  width={120} height={120} />
+              <Image src={IMAGES.feature1} className="absolute inset-0 w-full h-full object-cover" alt="" width={120} height={120} />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
               <div className="absolute top-4 left-4 flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-foreground font-display" style={{ background: `linear-gradient(135deg, ${local.primaryColor}, ${local.accentColor})` }}>{local.logoText || local.gymName[0]}</div>

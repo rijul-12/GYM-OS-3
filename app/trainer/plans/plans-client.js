@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { ClipboardList, Copy, Edit3, Plus, Calendar, Check } from 'lucide-react'
 import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { updateWorkoutPlan } from '@/actions/db/trainer_operations'
@@ -56,7 +57,8 @@ export default function TrainerPlansClient({ initialMembers }) {
     }
 
     return (
-        <TrainerShell title="Workout Plans" subtitle="Assign, edit, and orchestrate weekly structural programs pushed natively." actions={<Button onClick={() => toast.info('Coming Soon: Plan orchestration requires desktop GymOS.')} style={{ background: brand.primaryColor }} className="h-10 text-foreground border-0 opacity-50 cursor-not-allowed"><Plus className="h-4 w-4 mr-2" /> New plan</Button>}>
+        <TrainerShell title="Workout Plans" subtitle="Assign, edit, and orchestrate weekly structural programs pushed natively." actions={<Button onClick={() =>
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="AI Plan Generation" feature="V2 Feature" description="Intelligent multi-week matrix generation is in closed Beta." fallbackRoute="/trainer" /> toast.info('Coming Soon: Plan orchestration requires desktop GymOS.')} style={{ background: brand.primaryColor }} className="h-10 text-foreground border-0 opacity-50 cursor-not-allowed"><Plus className="h-4 w-4 mr-2" /> New plan</Button>}>
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div className="flex gap-1 bg-foreground/[0.03] border border-foreground/10 rounded-lg p-1">

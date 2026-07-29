@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Activity, Calendar, ChevronRight, X, Phone, Mail, AlertCircle, MapPin, Timer, TrendingUp, Trophy, Ruler, Weight, StickyNote, Plus, Flame, ClipboardList, Check, XCircle } from 'lucide-react'
 import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 import { Button } from '@/components/ui/button'
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { toast } from 'sonner'
@@ -92,6 +93,7 @@ export default function TrainerMembersClient({ initialMembers }) {
 
     return (
         <TrainerShell title="Assigned Members" subtitle={`${members.length} clients · manage and track all your active participants`}>
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Trainer Client Roster" feature="V2 Feature" description="Advanced roster management and progress mapping is migrating to a dedicated service." fallbackRoute="/trainer" />
             <div className="flex flex-wrap gap-3 mb-6">
                 <div className="flex items-center gap-2 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-3 py-2 flex-1 min-w-[220px]">
                     <Search className="h-4 w-4 text-foreground/40" />

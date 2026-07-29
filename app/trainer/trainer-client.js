@@ -7,6 +7,8 @@ import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { StatCard } from '@/components/ui/stat-card'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
+import { useState } from 'react'
 
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
 const WORKOUT_DIST = [
@@ -24,6 +26,7 @@ const STATUS_STYLE = {
 
 export default function TrainerClient({ members }) {
     const { brand } = useBrand()
+    const [comingSoon, setComingSoon] = useState(false)
 
     // Transform DB rows into the expected shapes for this dashboard
     const assigned = members.map((m, i) => ({
@@ -49,6 +52,8 @@ export default function TrainerClient({ members }) {
 
     return (
         <TrainerShell title="Trainer Dashboard" subtitle="Your assigned members, live floor, and today's sessions">
+            <ComingSoonModal open={comingSoon} onOpenChange={setComingSoon} title="Trainer AI Workflows" feature="Intelligent Coaching Core" description="GymOS V2 will introduce ML-driven adaptive training plans, connected floor tracking, and in-depth client metrics mapped natively for your gym's coaching staff." />
+
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <StatCard icon={Users} label="Assigned members" value={assigned.length} sub="active clients" />
                 <StatCard icon={LogIn} label="Currently inside" value={inside.length} sub="live now" tone="#22c55e" />
@@ -73,7 +78,7 @@ export default function TrainerClient({ members }) {
                             <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-foreground/50" /><div className="text-sm font-medium">Today’s schedule</div></div>
                             <div className="text-xs text-foreground/40">{todaySchedule.length} sessions</div>
                         </div>
-                        <Link href="/trainer/members" className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1">See members <ChevronRight className="h-3 w-3" /></Link>
+                        <button onClick={() => setComingSoon(true)} className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1">See members <ChevronRight className="h-3 w-3" /></button>
                     </div>
                     <div className="space-y-2">
                         {!todaySchedule.length ? (
@@ -129,13 +134,13 @@ export default function TrainerClient({ members }) {
                                 { icon: Flame, label: 'Log completed session', href: '/trainer/progress' },
                                 { icon: Users, label: 'Review pending updates', href: '/trainer/members' },
                             ].map((a, i) => (
-                                <Link key={i} href={a.href} className="flex items-center gap-3 rounded-lg border border-foreground/5 bg-black/30 px-3 py-2 hover:bg-foreground/[0.06] transition">
-                                    <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ background: `${brand.primaryColor}18` }}>
+                                <button key={i} onClick={() => setComingSoon(true)} className="flex w-full items-center gap-3 rounded-lg border border-foreground/5 bg-black/30 px-3 py-2 hover:bg-foreground/[0.06] transition text-left relative">
+                                    <div className="h-7 w-7 shrink-0 rounded-md flex items-center justify-center" style={{ background: `${brand.primaryColor}18` }}>
                                         <a.icon className="h-3.5 w-3.5" style={{ color: brand.primaryColor }} />
                                     </div>
                                     <span className="text-xs flex-1">{a.label}</span>
-                                    <ArrowUpRight className="h-3 w-3 text-foreground/30" />
-                                </Link>
+                                    <ArrowUpRight className="h-3 w-3 shrink-0 text-foreground/30" />
+                                </button>
                             ))}
                         </div>
                     </div>
@@ -148,7 +153,7 @@ export default function TrainerClient({ members }) {
                         <div className="flex items-center gap-2"><Users className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm font-medium">Your clients currently inside</div></div>
                         <div className="text-xs text-foreground/40">{inside.length} of {assigned.length} training now</div>
                     </div>
-                    <Link href="/trainer/live" className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1">Full live view <ChevronRight className="h-3 w-3" /></Link>
+                    <button onClick={() => setComingSoon(true)} className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1">Full live view <ChevronRight className="h-3 w-3" /></button>
                 </div>
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {!inside.length ? (

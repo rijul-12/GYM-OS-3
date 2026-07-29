@@ -6,6 +6,7 @@ import { TrainerShell } from '@/components/trainer-shell'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { ZoneDemandGrid, CrowdHeatmap } from '@/components/zone-demand'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
 const MEMBER_STATUS = [
@@ -33,6 +34,7 @@ export default function LiveClient({ stats, attendance, members }) {
 
   return (
     <TrainerShell title="Live Gym" subtitle="Everything happening on the floor — your clients highlighted">
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Live Telemetry" feature="V2 Feature" description="Connected machine hardware tracking requires V2 IoT bridges." fallbackRoute="/trainer" />
 
       <div className="grid lg:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-1 rounded-2xl border border-foreground/5 bg-gradient-to-br from-white/[0.06] to-white/[0.01] p-6 relative overflow-hidden">

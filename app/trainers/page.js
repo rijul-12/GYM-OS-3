@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+// Cache buster comment
 import TrainersClient from './trainers-client'
 import { getTrainers } from '@/actions/db/trainers'
 import { CardSkeleton, DataErrorState } from '@/components/ui/skeletons'

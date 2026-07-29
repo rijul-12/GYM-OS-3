@@ -1,24 +1,33 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Rocket, X, Zap } from 'lucide-react'
+import { Rocket, X, Zap, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useBrand } from '@/components/brand-provider'
+import { useRouter } from 'next/navigation'
 
-export function ComingSoonModal({ open, onOpenChange, title = "Feature Coming Soon", feature = "This feature", description = "We're currently building out this module for the next major release of GymOS. Stay tuned for updates via your platform admin." }) {
+export function ComingSoonModal({ open, onOpenChange, title = "Feature Coming Soon", feature = "This feature", description = "We're currently building out this module for the next major release of GymOS. Stay tuned for updates via your platform admin.", fallbackRoute }) {
     const { brand } = useBrand()
+    const router = useRouter()
+
+    const handleClose = () => {
+        onOpenChange(false)
+        if (fallbackRoute) router.push(fallbackRoute)
+    }
 
     return (
         <AnimatePresence>
             {open && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
                     <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="relative w-full max-w-md bg-card border border-foreground/10 rounded-2xl shadow-2xl overflow-hidden overflow-y-auto max-h-[90vh]">
 
-                        <div className="absolute top-4 right-4 z-10">
-                            <button onClick={() => onOpenChange(false)} className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-foreground/70 hover:text-foreground transition">
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
+                        {!fallbackRoute && (
+                            <div className="absolute top-4 right-4 z-10">
+                                <button onClick={handleClose} className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-foreground/70 hover:text-foreground transition">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
 
                         <div className="h-32 relative flex items-center justify-center overflow-hidden">
                             <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(135deg, ${brand.primaryColor} 0%, transparent 100%)` }} />
@@ -41,8 +50,8 @@ export function ComingSoonModal({ open, onOpenChange, title = "Feature Coming So
                                 {description}
                             </p>
 
-                            <Button onClick={() => onOpenChange(false)} style={{ background: brand.primaryColor }} className="w-full text-foreground border-0 h-11 hover:opacity-90">
-                                Understood
+                            <Button onClick={handleClose} style={{ background: brand.primaryColor }} className="w-full text-foreground border-0 h-11 hover:opacity-90">
+                                {fallbackRoute ? <><ArrowLeft className="h-4 w-4 mr-2" /> Go Back</> : 'Understood'}
                             </Button>
                         </div>
 

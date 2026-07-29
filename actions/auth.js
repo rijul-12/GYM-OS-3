@@ -2,17 +2,6 @@
 
 import { cookies } from 'next/headers'
 
-// -----------------------------------------------------------------------
-// Demo Mode credentials — used as fallback when Supabase is not configured.
-// This lets the app run fully for demos without a live database.
-// -----------------------------------------------------------------------
-const DEMO_CREDS = {
-    'superadmin@gymos.com': { role: 'super_admin', password: '123456', name: 'Platform Admin', photo: 'https://i.pravatar.cc/150?img=68' },
-    'owner@gymos.com': { role: 'owner', password: '123456', name: 'James Holloway', photo: 'https://i.pravatar.cc/150?img=60' },
-    'trainer@gymos.com': { role: 'trainer', password: '123456', name: 'Ryan Blackwood', photo: 'https://i.pravatar.cc/150?img=13' },
-    'member@gymos.com': { role: 'member', password: '123456', name: 'Alexander Cross', photo: 'https://i.pravatar.cc/150?img=12' },
-}
-
 const GYMOS_COOKIE = 'gymos_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 // 24 hours
 
@@ -29,121 +18,83 @@ function isFirebaseConfigured() {
 export async function loginAction({ email, password, role, remember }) {
     const emailNorm = email?.toLowerCase()?.trim()
 
-    if (isFirebaseConfigured()) {
-        // --- FIREBASE AUTH PATH ---
-        const { auth } = await import('@/lib/firebase/client')
-        const { signInWithEmailAndPassword } = await import('firebase/auth')
+    if (!isFirebaseConfigured()) return { error: 'Production identity services unavailable. Check environment keys.' }
 
-        let credential;
-        try {
-            credential = await signInWithEmailAndPassword(auth, emailNorm, password)
-        } catch (err) {
-            return { error: 'Invalid credentials. Please verify your email and password.' }
-        }
+    // --- FIREBASE AUTH PATH ---
+    const { auth } = await import('@/lib/firebase/client')
+    const { signInWithEmailAndPassword } = await import('firebase/auth')
 
-        const user = credential.user
-        const tokenResult = await user.getIdTokenResult()
-
-        // Magically empower the absolute super admin dynamically to bypass needing strict Firebase claims written initially!
-        let userRole = tokenResult.claims?.role;
-        if (!userRole) {
-            // Since this is a local demo running locally, if the database doesn't know who you are,
-            // we will just instantly make you whatever role you clicked on the frontend tabs!
-            userRole = role || (emailNorm === 'superadmin@gymos.com' ? 'super_admin' : 'member');
-        }
-
-        if (!userRole) return { error: 'Your account has no role assigned. Contact your gym administrator.' }
-
-        // Super Admins override UI tab bindings
-        if (userRole !== 'super_admin' && role && userRole !== role) {
-            return { error: 'This account is registered as a different role.' }
-        }
-
-        let onboarded = true;
-        let gymCode = tokenResult.claims?.gymCode || 'DEMO';
-        let subStatus = { isReadOnly: false, currentPhase: 'Active', daysRemaining: 999 };
-
-        if (userRole === 'owner') {
-            const { adminDb } = await import('@/lib/firebase/server');
-
-            // Check Gym Approval Status (Step 7)
-            const gymSnap = await adminDb.collection('gyms').doc(gymCode).get();
-            if (gymSnap.exists && gymSnap.data().status === 'Pending') {
-                const { signOut } = await import('firebase/auth');
-                if (auth) await signOut(auth)
-                return { error: 'Your gym registration is pending Super Admin approval. We will notify you once verified.' }
-            }
-
-            const settings = await adminDb.collection('gym_settings').doc(gymCode).get();
-            if (settings.exists && settings.data().onboarded === false) {
-                onboarded = false;
-            }
-        }
-
-        if (userRole === 'trainer') {
-            const { adminDb } = await import('@/lib/firebase/server');
-            if (adminDb) {
-                const trainerSnap = await adminDb.collection('trainers').doc(user.uid).get();
-                if (trainerSnap.exists && trainerSnap.data().status === 'Pending') {
-                    const { signOut } = await import('firebase/auth');
-                    if (auth) await signOut(auth)
-                    return { error: 'Your trainer profile is pending Gym Owner approval.' }
-                }
-            }
-        }
-
-        // Compute strict subscription boundaries
-        if (userRole === 'owner' || userRole === 'trainer' || userRole === 'super_admin') {
-            const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
-            subStatus = await getSubscriptionStatus(gymCode);
-        }
-
-        const session = {
-            role: userRole,
-            gymCode: gymCode,
-            email: emailNorm,
-            name: user.displayName ?? emailNorm,
-            photo: user.photoURL ?? `https://i.pravatar.cc/150?u=${emailNorm}`,
-            loginAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + (remember ? SESSION_TTL_MS * 30 : SESSION_TTL_MS)).toISOString(),
-            firebase: true, // Flag that this is a real Firebase session
-            onboarded: onboarded,
-            readOnly: subStatus.isReadOnly,
-            subscriptionPhase: subStatus.currentPhase,
-            daysRemaining: subStatus.daysRemaining
-        }
-
-        const cookieStore = await cookies()
-        cookieStore.set(GYMOS_COOKIE, JSON.stringify(session), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/',
-            expires: new Date(session.expiresAt),
-        })
-
-        return session
+    let credential;
+    try {
+        credential = await signInWithEmailAndPassword(auth, emailNorm, password)
+    } catch (err) {
+        return { error: 'Invalid credentials. Please verify your email and password.' }
     }
 
-    // --- DEMO MODE PATH (no Supabase configured) ---
-    await new Promise(r => setTimeout(r, 600)) // Simulate latency
+    const user = credential.user
+    const tokenResult = await user.getIdTokenResult()
 
-    const rec = DEMO_CREDS[emailNorm]
-    if (!rec) return { error: 'No account found with that email. Turn on Firebase to use live accounts.' }
-    if (rec.password !== password) return { error: 'Incorrect password. Try 123456 for the demo mode.' }
+    let userRole = tokenResult.claims?.role;
 
-    // Super Admin is hidden from frontend tabs, so we ignore the tab selection mismatch for them
-    if (role && rec.role !== role && rec.role !== 'super_admin') return { error: 'This account is a restricted role.' }
+    if (!userRole) return { error: 'Your account has no role assigned. Contact your gym administrator.' }
+
+    // Super Admins override UI tab bindings
+    if (userRole !== 'super_admin' && role && userRole !== role) {
+        return { error: 'This account is registered as a different role.' }
+    }
+
+    let onboarded = true;
+    let gymCode = tokenResult.claims?.gymCode || 'DEMO';
+    let subStatus = { isReadOnly: false, currentPhase: 'Active', daysRemaining: 999 };
+
+    if (userRole === 'owner') {
+        const { adminDb } = await import('@/lib/firebase/server');
+
+        // Check Gym Approval Status (Step 7)
+        const gymSnap = await adminDb.collection('gyms').doc(gymCode).get();
+        if (gymSnap.exists && gymSnap.data().status === 'Pending') {
+            const { signOut } = await import('firebase/auth');
+            if (auth) await signOut(auth)
+            return { error: 'Your gym registration is pending Super Admin approval. We will notify you once verified.' }
+        }
+
+        const settings = await adminDb.collection('gym_settings').doc(gymCode).get();
+        if (settings.exists && settings.data().onboarded === false) {
+            onboarded = false;
+        }
+    }
+
+    if (userRole === 'trainer') {
+        const { adminDb } = await import('@/lib/firebase/server');
+        if (adminDb) {
+            const trainerSnap = await adminDb.collection('trainers').doc(user.uid).get();
+            if (trainerSnap.exists && trainerSnap.data().status === 'Pending') {
+                const { signOut } = await import('firebase/auth');
+                if (auth) await signOut(auth)
+                return { error: 'Your trainer profile is pending Gym Owner approval.' }
+            }
+        }
+    }
+
+    // Compute strict subscription boundaries
+    if (userRole === 'owner' || userRole === 'trainer' || userRole === 'super_admin') {
+        const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
+        subStatus = await getSubscriptionStatus(gymCode);
+    }
 
     const session = {
-        role: rec.role,
-        gymCode: 'DEMO',
+        role: userRole,
+        gymCode: gymCode,
         email: emailNorm,
-        name: rec.name,
-        photo: rec.photo,
+        name: user.displayName ?? emailNorm,
+        photo: user.photoURL ?? `https://i.pravatar.cc/150?u=${emailNorm}`,
         loginAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + (remember ? SESSION_TTL_MS * 30 : SESSION_TTL_MS)).toISOString(),
-        supabase: false,
+        firebase: true, // Flag that this is a real Firebase session
+        onboarded: onboarded,
+        readOnly: subStatus.isReadOnly,
+        subscriptionPhase: subStatus.currentPhase,
+        daysRemaining: subStatus.daysRemaining
     }
 
     const cookieStore = await cookies()
@@ -157,7 +108,6 @@ export async function loginAction({ email, password, role, remember }) {
 
     return session
 }
-
 // -----------------------------------------------------------------------
 // Logout Action
 // -----------------------------------------------------------------------
@@ -180,16 +130,12 @@ export async function logoutAction() {
 export async function resetPasswordAction(email) {
     const emailNorm = email?.toLowerCase()?.trim()
 
-    if (isFirebaseConfigured()) {
-        const { auth } = await import('@/lib/firebase/client')
-        const { sendPasswordResetEmail } = await import('firebase/auth')
+    if (!isFirebaseConfigured()) return { error: 'Production identity services unavailable' }
 
-        await sendPasswordResetEmail(auth, emailNorm)
-            .catch(err => { throw new Error(err.message) })
-        return true
-    }
+    const { auth } = await import('@/lib/firebase/client')
+    const { sendPasswordResetEmail } = await import('firebase/auth')
 
-    // Demo Mode — always succeed
-    await new Promise(r => setTimeout(r, 800))
+    await sendPasswordResetEmail(auth, emailNorm)
+        .catch(err => { throw new Error(err.message) })
     return true
 }

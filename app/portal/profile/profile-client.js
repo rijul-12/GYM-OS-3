@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { User, Bell, Shield, Calendar, Phone, Mail, AlertCircle, Edit3, ChevronRight, Award } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 
@@ -47,6 +48,7 @@ function App({ member, globalAttendance, stats }) {
 
   return (
     <PortalShell title="Profile">
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Profile Editing" feature="V2 Feature" description="Client-side profile mutation is paused during tenant migrations." fallbackRoute="/portal" />
       <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>
         <User className="h-3 w-3" /> Your profile
       </div>

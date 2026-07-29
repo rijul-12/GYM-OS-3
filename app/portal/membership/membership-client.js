@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import { CreditCard, Calendar, Check, ChevronRight, Sparkles, Shield } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
-import { toast } from 'sonner'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
+import { useState } from 'react'
 
 // --- SYNTHETIC FALLBACKS START ---
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
@@ -12,6 +13,7 @@ const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#
 
 export default function MembershipClient({ plans, meProfile }) {
     const { brand } = useBrand()
+    const [comingSoon, setComingSoon] = useState(false)
 
     const me = meProfile || { id: 'M-000', name: 'Member Profile', membership_type: 'Basic', created_at: new Date().toISOString() }
 
@@ -32,6 +34,7 @@ export default function MembershipClient({ plans, meProfile }) {
 
     return (
         <PortalShell title="Membership">
+            <ComingSoonModal open={comingSoon} onOpenChange={setComingSoon} title="Billing Restructuring" feature="Payments & Plans" description="GymOS member billing is currently being mapped to tenant-specific payment gateways. Plan migrations are temporarily disabled." />
             <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>
                 <CreditCard className="h-3 w-3" /> Your pass
             </div>
@@ -83,7 +86,7 @@ export default function MembershipClient({ plans, meProfile }) {
                     <div className="flex items-center gap-2 text-xs text-foreground/50"><Shield className="h-3.5 w-3.5" /> AUTO RENEW</div>
                     <div className="font-display text-3xl font-bold mt-2">Enabled</div>
                     <div className="text-xs text-foreground/50 mt-1">Charged to Visa ···· 4211</div>
-                    <button onClick={() => toast.info('Coming Soon: Billing integrations are deployed per-tenant')} className="mt-4 text-xs text-foreground/70 hover:text-foreground flex items-center gap-1 opacity-50 cursor-not-allowed">Manage billing <ChevronRight className="h-3 w-3" /></button>
+                    <button onClick={() => setComingSoon(true)} className="mt-4 text-xs text-foreground/70 hover:text-foreground flex items-center gap-1 opacity-50 cursor-not-allowed">Manage billing <ChevronRight className="h-3 w-3" /></button>
                 </div>
             </div>
 
@@ -98,7 +101,7 @@ export default function MembershipClient({ plans, meProfile }) {
                             <span className="text-foreground/50 text-sm">/mo</span>
                         </div>
                     </div>
-                    <button onClick={() => toast.info('Coming Soon: Plan upgrades')} className="h-9 px-4 rounded-lg text-xs font-medium text-foreground opacity-50 cursor-not-allowed" style={{ background: brand.primaryColor }}>Upgrade</button>
+                    <button onClick={() => setComingSoon(true)} className="h-9 px-4 rounded-lg text-xs font-medium text-foreground opacity-50 cursor-not-allowed" style={{ background: brand.primaryColor }}>Upgrade</button>
                 </div>
                 <ul className="mt-5 grid sm:grid-cols-2 gap-2">
                     {(defaultLocalPlan.features || []).map((f, i) => (

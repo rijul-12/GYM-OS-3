@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Award, Clock, Calendar, Star, Mail, Phone, Edit3, Users, GraduationCap } from 'lucide-react'
 import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -15,6 +16,7 @@ export default function TrainerClient({ trainer }) {
   if (!trainer) {
     return (
       <TrainerShell title="Profile" subtitle="Your public trainer card">
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Trainer Settings" feature="V2 Feature" description="Trainer profile overrides are currently restricted to SuperAdmin accounts." fallbackRoute="/trainer" />
         <div className="mt-8 text-center bg-foreground/[0.02] p-10 rounded-2xl border border-foreground/5 h-[400px] flex flex-col items-center justify-center">
           <div className="text-foreground/40 text-lg mb-2">No data yet</div>
           <div className="text-foreground/20 text-sm">Your trainer profile has not been configured by the Gym Owner.</div>

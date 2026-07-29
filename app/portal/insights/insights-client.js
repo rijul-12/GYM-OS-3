@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Sparkles, Clock, Users, Timer, TrendingUp, HeartPulse } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 
 
 
@@ -59,6 +60,7 @@ function App({ member, globalAttendance, stats }) {
 
   return (
     <PortalShell title="AI Insights">
+            <ComingSoonModal open={true} onOpenChange={()=>{}} title="AI Insights" feature="V2 Feature" description="Machine-learning powered engagement heatmaps are scheduled for V2 rollout." fallbackRoute="/portal" />
       <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>
         <Sparkles className="h-3 w-3" /> Personalized for you
       </div>
