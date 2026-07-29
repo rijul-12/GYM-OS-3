@@ -24,7 +24,16 @@ const IMAGES = {
 const PLAN_DATA = [{ name: 'Basic', price: 9.99 }, { name: 'Pro', price: 19.99 }]
 const ATTENDANCE_WEEKLY = [{ day: 'Mon', in: 42, out: 38 }, { day: 'Tue', in: 55, out: 51 }]
 const TESTIMONIALS = [{ text: "Great gym!", name: "User", role: "Trainer", photo: "https://i.pravatar.cc/150?img=1" }]
-const FAQS = [{ q: "Hours?", a: "24/7" }]
+const FAQS = [
+  { q: "How does the Free Trial work?", a: "You get 14 days of full access to all GymOS features. No credit card is required to sign up. After the trial, you can choose a plan that fits your gym's size." },
+  { q: "How do you track live floor traffic?", a: "GymOS combines biometric scans, QR check-ins, and schedule data to accurately show how many members are on the floor and predict peak hours." },
+  { q: "Is the QR Attendance system reliable?", a: "Yes, our QR system generates dynamically refreshing codes for members, which prevents unauthorized sharing and provides instant check-in sync." },
+  { q: "How do members access their data?", a: "Every member gets a dedicated Member Portal where they can view their assigned workouts, check live gym occupancy, and track their attendance history." },
+  { q: "Can I switch or cancel my subscription?", a: "Absolutely. You can upgrade, downgrade, or cancel your GymOS subscription at any time." },
+  { q: "What payment methods do you support?", a: "We sync directly with Razorpay to support UPI, credit/debit cards, and net banking seamlessly in India." },
+  { q: "Is my gym data secure?", a: "We use enterprise-grade cloud security, strict authentication, and granular Role-Based Access Control to ensure your data stays private." },
+  { q: "What kind of customer support do you offer?", a: "We provide email and phone support from Monday to Saturday, 10 AM to 8 PM IST. Premium plans receive priority response times." }
+]
 const PLANS = [
   { id: "starter", name: 'Starter', price: '1,999', period: 'month', features: ['Up to 75 Members', 'Full Dashboard Access', 'QR Attendance System', 'Standard Support'] },
   { id: "pro", popular: true, name: 'Pro', price: '3,999', period: 'month', features: ['Up to 130 Members', 'White-Label Branding', 'Predicted Occupancy', 'Priority 12hr Support'] },
@@ -365,9 +374,9 @@ const Contact = () => {
           <a href={`mailto:${brand.email}`}><Button size="lg" variant="outline" className="h-12 px-6 bg-transparent border-foreground/10 text-foreground hover:bg-foreground/[0.06]">Contact sales</Button></a>
         </div>
         <div className="grid sm:grid-cols-3 gap-4 text-sm text-foreground/50">
-          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">EMAIL</div><div className="text-foreground">{brand.email}</div></div>
-          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">PHONE</div><div className="text-foreground">{brand.phone}</div></div>
-          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">HQ</div><div className="text-foreground">{brand.address}</div></div>
+          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">EMAIL</div><div className="text-foreground font-medium">rijul0027@gmail.com</div></div>
+          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">PHONE</div><div className="text-foreground font-medium">+91 9304449915</div></div>
+          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">SUPPORT</div><div className="text-foreground font-medium">Mon–Sat<br />10:00 AM – 8:00 PM IST</div></div>
         </div>
       </div>
     </section>
@@ -397,13 +406,17 @@ const Footer = () => {
   const { brand } = useBrand()
   return (
     <footer className="border-t border-foreground/5 py-12">
-      <div className="max-w-7xl mx-auto px-6 flex flex-wrap gap-6 items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row gap-6 items-center justify-between">
         <Logo />
-        <div className="text-xs text-foreground/40">{brand.footer}</div>
-        <div className="flex gap-6 text-xs text-foreground/50">
-          <a href="#" className="hover:text-foreground">Privacy</a>
-          <a href="#" className="hover:text-foreground">Terms</a>
-          <a href="#" className="hover:text-foreground">Security</a>
+        <div className="text-xs text-foreground/40 text-center md:text-left leading-relaxed">
+          <span className="font-semibold text-foreground/60">GymOS</span><br />
+          The Operating System for Modern Gyms.<br />
+          Built in India 🇮🇳
+        </div>
+        <div className="flex gap-6 text-xs font-medium text-foreground/50">
+          <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+          <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms of Service</Link>
+          <Link href="/security" className="hover:text-foreground transition-colors">Security</Link>
         </div>
       </div>
     </footer>
