@@ -45,44 +45,47 @@ export default function DashboardClient({ stats, latestAttendance }) {
         <DashShell title="Command Center" subtitle="Live intelligence · predictive crowd flow · revenue signals">
 
             {/* Global Subscription Banner */}
-            <div className="mb-6 rounded-2xl border bg-black/40 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden group shadow-lg" style={{ borderColor: `${brand.primaryColor}30` }}>
-                <div className="absolute inset-0 z-0 bg-gradient-to-r from-transparent to-background/5" style={{ backgroundImage: `linear-gradient(90deg, transparent, ${brand.primaryColor}08)` }} />
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="mb-6 rounded-2xl border bg-black/40 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden group shadow-lg hover:shadow-2xl hover:border-foreground/20 transition-all duration-500" style={{ borderColor: `${brand.primaryColor}30` }}>
+                <motion.div className="absolute inset-0 z-0 bg-gradient-to-r from-transparent to-background/5" style={{ backgroundImage: `linear-gradient(90deg, transparent, ${brand.primaryColor}08)` }} animate={{ backgroundPosition: ["0% 0%", "100% 0%", "0% 0%"] }} transition={{ duration: 15, ease: "linear", repeat: Infinity }} />
                 <div className="relative z-10 flex gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${brand.primaryColor}20`, borderColor: `${brand.primaryColor}40` }}>
+                    <motion.div initial={{ scale: 0.8, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", delay: 0.2 }} className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${brand.primaryColor}20`, borderColor: `${brand.primaryColor}40` }}>
                         <Sparkles className="h-6 w-6" style={{ color: brand.primaryColor }} />
-                    </div>
+                    </motion.div>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="font-display font-bold text-lg uppercase tracking-wide">{sub.plan.replace('-monthly', '').replace('-annual', '')} Tier</span>
+                            <span className="font-display font-bold text-lg uppercase tracking-wide text-foreground group-hover:text-white transition-colors">{sub.plan.replace('-monthly', '').replace('-annual', '')} Tier</span>
                             <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold" style={{ backgroundColor: sub.currentPhase === 'Active' ? '#10b98120' : '#ef444420', color: sub.currentPhase === 'Active' ? '#10b981' : '#ef4444', border: `1px solid ${sub.currentPhase === 'Active' ? '#10b98140' : '#ef444440'}` }}>
                                 {sub.currentPhase}
                             </span>
                         </div>
-                        <div className="text-xs text-foreground/50">
+                        <div className="text-xs text-foreground/50 group-hover:text-foreground/70 transition-colors">
                             {sub.currentPhase === 'Trial' ? `${sub.daysRemaining} days remaining in trial` : `Renews in ${sub.daysRemaining} days`} · {sub.storageUsed} Cloud Storage used
                         </div>
                     </div>
                 </div>
 
-                <div className="relative z-10 flex-1 w-full lg:max-w-md bg-background/40 border border-foreground/5 p-4 rounded-xl">
+                <div className="relative z-10 flex-1 w-full lg:max-w-md bg-background/40 border border-foreground/5 p-4 rounded-xl group-hover:bg-background/60 transition-colors">
                     <div className="flex justify-between text-xs mb-2">
                         <span className="font-medium text-foreground/70">Member Usage</span>
                         <span className="font-bold">{sub.activeMembers} <span className="opacity-40">/ {sub.memberLimit === 999999 ? 'Unlimited' : sub.memberLimit}</span></span>
                     </div>
 
-                    <div className="h-2 w-full bg-foreground/10 rounded-full overflow-hidden mb-1">
-                        <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${sub.usageProgressBar}%`, backgroundColor: usageColor, boxShadow: `0 0 10px ${usageColor}80` }} />
+                    <div className="h-2 w-full bg-foreground/10 rounded-full overflow-hidden mb-1 relative">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${sub.usageProgressBar}%` }} transition={{ duration: 1.2, delay: 0.3, ease: [0.16, 1, 0.3, 1] }} className="h-full rounded-full" style={{ backgroundColor: usageColor, boxShadow: `0 0 10px ${usageColor}80` }} />
                     </div>
                     {sub.usageProgressBar >= 80 && (
-                        <div className="text-[10px] flex items-center gap-1 mt-2" style={{ color: usageColor }}>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="text-[10px] flex items-center gap-1 mt-2 font-medium" style={{ color: usageColor }}>
                             <AlertCircle className="h-3 w-3" /> Warning: {sub.usageProgressBar}% capacity reached.
-                        </div>
+                        </motion.div>
                     )}
                 </div>
-            </div>
+            </motion.div>
 
-            <OperationsInsights />
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-5 mb-5 relative overflow-hidden" style={{ borderColor: `${brand.primaryColor}55`, background: `linear-gradient(135deg, ${brand.primaryColor}12, transparent)` }}>
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
+                <OperationsInsights />
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} whileHover={{ scale: 1.005, transition: { duration: 0.2 } }} className="rounded-2xl border p-5 mb-5 relative overflow-hidden group hover:shadow-2xl transition-all" style={{ borderColor: `${brand.primaryColor}55`, background: `linear-gradient(135deg, ${brand.primaryColor}12, transparent)` }}>
                 <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full blur-3xl opacity-40" style={{ background: brand.primaryColor }} />
                 <div className="relative flex flex-wrap items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1 min-w-[280px]">
@@ -105,28 +108,32 @@ export default function DashboardClient({ stats, latestAttendance }) {
                 </div>
             </motion.div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <StatCard icon={Users} label="Total Members" value={stats.totalMembers || '0'} delta="Live" />
-                <StatCard icon={LogIn} label="Staff/Trainers" value={stats.totalTrainers || '0'} delta="Live" tone="#22c55e" />
-                <StatCard icon={TrendingUp} label="Today's Check -ins" value={stats.todayCheckins || '0'} delta="Live DB" />
-                <StatCard icon={DollarSign} label="Revenue MTD" value={stats.revenueMtd} delta={stats.totalMembers > 0 ? "+4.2%" : "0%"} />
-                <StatCard icon={AlertCircle} label="Expiring Soon" value={stats.expiringMembers || "0"} delta={stats.totalMembers > 0 ? "-3" : "0"} positive={false} tone="#f97316" />
-                <StatCard icon={Clock} label="Avg Wait Time" value={stats.todayCheckins > 0 ? "3.4m" : "0m"} delta={stats.todayCheckins > 0 ? "-12%" : "0%"} positive={false} tone="#a3a3a3" />
-            </div>
+            <motion.div
+                initial="hidden" animate="show"
+                variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.2 } } }}
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+            >
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={Users} label="Total Members" value={stats.totalMembers || '0'} delta="Live" /></motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={LogIn} label="Staff/Trainers" value={stats.totalTrainers || '0'} delta="Live" tone="#22c55e" /></motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={TrendingUp} label="Today's Check -ins" value={stats.todayCheckins || '0'} delta="Live DB" /></motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={DollarSign} label="Revenue MTD" value={stats.revenueMtd} delta={stats.totalMembers > 0 ? "+4.2%" : "0%"} /></motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={AlertCircle} label="Expiring Soon" value={stats.expiringMembers || "0"} delta={stats.totalMembers > 0 ? "-3" : "0"} positive={false} tone="#f97316" /></motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={Clock} label="Avg Wait Time" value={stats.todayCheckins > 0 ? "3.4m" : "0m"} delta={stats.todayCheckins > 0 ? "-12%" : "0%"} positive={false} tone="#a3a3a3" /></motion.div>
+            </motion.div>
 
-            <div className="mt-6">
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }} className="mt-6">
                 <div className="flex items-center justify-between mb-3">
                     <div>
                         <div className="flex items-center gap-2"><MapPin className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm font-medium">Workout Zone Demand</div></div>
                         <div className="text-xs text-foreground/40">Schedule + attendance derived — most crowded workout right now</div>
                     </div>
-                    <Link href="/occupancy" className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1">Full breakdown <ChevronRight className="h-3 w-3" /></Link>
+                    <Link href="/occupancy" className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1 group">Full breakdown <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" /></Link>
                 </div>
                 <ZoneDemandGrid zones={stats.zones} />
-            </div>
+            </motion.div>
 
-            <div className="grid lg:grid-cols-3 gap-4 mt-5">
-                <div className="lg:col-span-2 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
+            <motion.div initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.2 } } }} className="grid lg:grid-cols-3 gap-4 mt-5">
+                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.005, transition: { duration: 0.2 } }} className="lg:col-span-2 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <div className="text-sm text-foreground/70 font-medium">Attendance today · actual vs forecast</div>
@@ -153,10 +160,11 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
-                    <div className="flex items-center gap-2"><Sparkles className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm text-foreground/70 font-medium">Live now on the floor</div></div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.005, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all group">
+                    <div className="flex items-center gap-2 mb-1"><Sparkles className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm text-foreground/70 font-medium">Live now on the floor</div></div>
+                    <div className="h-[1px] w-full bg-gradient-to-r from-foreground/5 to-transparent mb-4" />
 
                     {inside.length === 0 ? (
                         <div className="mt-8 text-center bg-foreground/[0.02] p-5 rounded-lg border border-foreground/5">
@@ -184,16 +192,16 @@ export default function DashboardClient({ stats, latestAttendance }) {
                                     </div>
                                 ))}
                             </div>
-                            <Link href="/occupancy" className="mt-4 flex items-center gap-1 text-xs hover:gap-2 transition-all flex-row justify-end" style={{ color: brand.primaryColor }}>
+                            <Link href="/occupancy" className="mt-6 flex items-center gap-1 text-xs hover:gap-2 transition-all flex-row justify-end group-hover:opacity-100 opacity-60" style={{ color: brand.primaryColor }}>
                                 View live intelligence <ChevronRight className="h-3 w-3" />
                             </Link>
                         </>
                     )}
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
 
-            <div className="grid lg:grid-cols-3 gap-4 mt-5">
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
+            <motion.div initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.35 } } }} className="grid lg:grid-cols-3 gap-4 mt-5">
+                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.01, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
                     <div className="text-sm text-foreground/70 font-medium mb-1">Weekly attendance</div>
                     <div className="text-xs text-foreground/40 mb-4">Ins vs outs</div>
                     <div className="h-52">
@@ -215,9 +223,10 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             </ResponsiveContainer>
                         )}
                     </div>
-                </div>
+                    </div>
+                </motion.div>
 
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
+                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.01, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
                     <div className="text-sm text-foreground/70 font-medium mb-1">Workout distribution</div>
                     <div className="text-xs text-foreground/40 mb-4">Right now on the floor</div>
                     <div className="h-52 flex items-center">
@@ -235,9 +244,10 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             <div key={w.name} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: w.color }} /> {w.name}</div>
                         ))}
                     </div>
-                </div>
+                    </div>
+                </motion.div>
 
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
+                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl transition-shadow flex flex-col">
                     <div className="text-sm text-foreground/70 font-medium mb-1">Quick Actions</div>
                     <div className="text-xs text-foreground/40 mb-5">One click to optimize</div>
                     <div className="space-y-2">
@@ -266,30 +276,34 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             },
                         ].map((a, i) => (
                             a.href ? (
-                                <Link key={i} href={a.href} className="flex items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] transition">
-                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: `${brand.primaryColor}15` }}>
-                                        <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
-                                    </div>
-                                    <span className="text-sm flex-1">{a.label}</span>
-                                    <ArrowUpRight className="h-3.5 w-3.5 text-foreground/30" />
-                                </Link>
+                                <motion.div key={i} whileHover={{ scale: 1.03, x: 4 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+                                    <Link href={a.href} className="flex items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] hover:border-foreground/10 transition-colors shadow-sm">
+                                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${brand.primaryColor}15` }}>
+                                            <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
+                                        </div>
+                                        <span className="text-sm flex-1 truncate">{a.label}</span>
+                                        <ArrowUpRight className="h-3.5 w-3.5 text-foreground/30 shrink-0" />
+                                    </Link>
+                                </motion.div>
                             ) : (
-                                <button key={i} onClick={a.action} disabled={isPending} className="flex w-full items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] transition text-left cursor-pointer disabled:opacity-50">
-                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: `${brand.primaryColor}15` }}>
-                                        <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
-                                    </div>
-                                    <span className="text-sm flex-1">{a.label}</span>
-                                    {isPending ? <Clock className="h-3.5 w-3.5 text-foreground/30 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-foreground/30" />}
-                                </button>
+                                <motion.div key={i} whileHover={{ scale: 1.03, x: 4 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+                                    <button onClick={a.action} disabled={isPending} className="flex w-full items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] hover:border-foreground/10 transition-colors text-left cursor-pointer disabled:opacity-50 shadow-sm">
+                                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${brand.primaryColor}15` }}>
+                                            <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
+                                        </div>
+                                        <span className="text-sm flex-1 truncate">{a.label}</span>
+                                        {isPending ? <Clock className="h-3.5 w-3.5 text-foreground/30 animate-spin shrink-0" /> : <Zap className="h-3.5 w-3.5 text-foreground/30 shrink-0" />}
+                                    </button>
+                                </motion.div>
                             )
                         ))}
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div >
 
-            <div className="mt-8 mb-5">
-                <RecentActivityTimeline gymCode={user?.gymCode} />
-            </div>
-        </DashShell>
+        <div className="mt-8 mb-5">
+            <RecentActivityTimeline gymCode={user?.gymCode} />
+        </div>
+        </DashShell >
     )
 }

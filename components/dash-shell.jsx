@@ -52,16 +52,19 @@ export function DashShell({ children, title, subtitle, actions }) {
             const active = pathname === item.href
             const Icon = item.icon
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'
-                  }`}
-              >
-                <Icon className={`h-4 w-4 ${active ? '' : 'text-foreground/40 group-hover:text-foreground/70'}`} style={active ? { color: brand.primaryColor } : {}} />
-                <span className="font-medium">{item.label}</span>
-                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />}
-              </Link>
+              <motion.div key={item.href} whileHover={{ x: 3 }} whileTap={{ scale: 0.98 }}>
+                <Link
+                  href={item.href}
+                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all shadow-sm hover:shadow ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'
+                    }`}
+                >
+                  <motion.div whileHover={{ rotate: active ? 0 : [0, -10, 10, -10, 0] }} transition={{ duration: 0.4 }}>
+                    <Icon className={`h-4 w-4 transition-colors ${active ? '' : 'text-foreground/40 group-hover:text-foreground/70'}`} style={active ? { color: brand.primaryColor } : {}} />
+                  </motion.div>
+                  <span className="font-medium">{item.label}</span>
+                  {active && <motion.span layoutId="activeNavIndicator" className="ml-auto h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />}
+                </Link>
+              </motion.div>
             )
           })}
         </nav>
@@ -108,18 +111,18 @@ export function DashShell({ children, title, subtitle, actions }) {
               <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight truncate">{title}</h1>
               {subtitle && <p className="text-xs sm:text-sm text-foreground/50 truncate">{subtitle}</p>}
             </div>
-            <div className="hidden md:flex items-center gap-2 bg-foreground/[0.04] border border-foreground/5 rounded-lg px-3 py-2 w-64">
+            <div className="hidden md:flex items-center gap-2 bg-foreground/[0.02] border border-foreground/5 rounded-lg px-3 py-2 w-64 hover:bg-foreground/[0.06] transition-colors focus-within:ring-1 focus-within:ring-primary/30">
               <Search className="h-4 w-4 text-foreground/40" />
-              <input placeholder="Search members, trainers..." className="bg-transparent outline-none text-sm flex-1 placeholder:text-foreground/30" />
+              <input placeholder="Search members, trainers..." className="bg-transparent outline-none text-sm flex-1 placeholder:text-foreground/30 transition-all font-medium" />
             </div>
-            <button className="relative h-10 w-10 rounded-lg bg-foreground/[0.04] border border-foreground/5 flex items-center justify-center hover:bg-foreground/[0.08]">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative h-10 w-10 rounded-lg bg-foreground/[0.04] border border-foreground/5 flex items-center justify-center hover:bg-foreground/[0.08] transition-colors">
               <Bell className="h-4 w-4" />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full" style={{ background: brand.primaryColor }} />
-            </button>
+            </motion.button>
             {actions}
-            <div className="h-10 w-10 rounded-lg overflow-hidden ring-1 ring-white/10">
-              <Image src="https://i.pravatar.cc/80?img=68" alt="admin" className="h-full w-full object-cover" width={120} height={120} />
-            </div>
+            <motion.div whileHover={{ scale: 1.05, rotate: 2 }} whileTap={{ scale: 0.95 }} className="h-10 w-10 rounded-lg overflow-hidden ring-1 ring-white/10 shadow-lg cursor-pointer hover:shadow-xl transition-shadow">
+              <Image src="https://i.pravatar.cc/80?img=68" alt="admin" className="h-full w-full object-cover origin-center" width={120} height={120} />
+            </motion.div>
           </div>
         </header>
 

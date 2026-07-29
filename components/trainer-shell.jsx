@@ -52,23 +52,27 @@ export function TrainerShell({ children, title, subtitle, actions }) {
             const active = pathname === n.href
             const Icon = n.icon
             return (
-              <Link key={n.href} href={n.href} className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'}`}>
-                <Icon className="h-4 w-4" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.4)' }} />
-                <span className="font-medium">{n.label}</span>
-                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />}
-              </Link>
+              <motion.div key={n.href} whileHover={{ x: 3 }} whileTap={{ scale: 0.98 }}>
+                <Link href={n.href} className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all shadow-sm hover:shadow ${active ? 'bg-foreground/[0.06] text-foreground' : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'}`}>
+                  <motion.div whileHover={{ rotate: active ? 0 : [0, -10, 10, -10, 0] }} transition={{ duration: 0.4 }}>
+                    <Icon className="h-4 w-4" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.4)' }} />
+                  </motion.div>
+                  <span className="font-medium">{n.label}</span>
+                  {active && <motion.span layoutId="trainerNav" className="ml-auto h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />}
+                </Link>
+              </motion.div>
             )
           })}
         </nav>
         <div className="p-3 border-t border-foreground/5">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-foreground/[0.03]">
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-colors border border-transparent hover:border-foreground/10 cursor-pointer">
             <Image src={me.photo} className="h-9 w-9 rounded-full object-cover ring-1 ring-white/10" alt="" width={120} height={120} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{me.name?.split(' ')[0]}</div>
               <div className="text-[10px] text-foreground/40">Trainer</div>
             </div>
-            <button onClick={doLogout} className="text-foreground/40 hover:text-foreground"><LogOut className="h-4 w-4" /></button>
-          </div>
+            <button onClick={doLogout} className="text-foreground/40 hover:text-foreground hover:bg-foreground/5 p-1 rounded-md transition-colors"><LogOut className="h-4 w-4" /></button>
+          </motion.div>
         </div>
       </aside>
 

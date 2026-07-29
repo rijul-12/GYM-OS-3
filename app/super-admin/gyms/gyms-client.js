@@ -136,74 +136,78 @@ export default function GymsClient({ initialGyms }) {
 
             {/* Gym Cards Grid */}
             {filtered.length === 0 ? (
-                <div className="py-20 max-w-md mx-auto">
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="py-20 max-w-md mx-auto">
                     <EmptyState icon="database" title="No Gyms Found" description="There are no gyms deployed on the platform yet. Click Create Gym to provision." />
-                </div>
+                </motion.div>
             ) : (
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filtered.map((gym, i) => {
-                        const s = STATUS_COLORS[gym.status] || STATUS_COLORS.Active
-                        return (
-                            <div key={gym.id} className="rounded-2xl border border-foreground/5 bg-gradient-to-b from-white/[0.03] to-transparent p-5 card-hover">
-                                {/* Header */}
-                                <div className="flex items-start gap-3 mb-4">
-                                    <div className="h-12 w-12 rounded-xl flex items-center justify-center font-bold font-display text-lg shrink-0 uppercase" style={{ background: `${SA}20`, border: `1px solid ${SA}30` }}>{gym.logo}</div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-display font-semibold truncate">{gym.name}</div>
-                                        <div className="text-xs text-foreground/50 truncate">{gym.owner}</div>
-                                        <div className="flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3 text-foreground/30" /><span className="text-[10px] text-foreground/40">{gym.city}, {gym.country}</span></div>
+                <motion.div layout className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <AnimatePresence mode="popLayout">
+                        {filtered.map((gym, i) => {
+                            const s = STATUS_COLORS[gym.status] || STATUS_COLORS.Active
+                            return (
+                                <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ type: "spring", stiffness: 200, damping: 20, delay: i * 0.05 }} whileHover={{ y: -4 }} key={gym.id} className="rounded-2xl border border-foreground/5 bg-gradient-to-b from-white/[0.03] to-transparent p-5 hover:shadow-xl hover:border-foreground/10 transition-all group">
+                                    {/* Header */}
+                                    <div className="flex items-start gap-3 mb-4">
+                                        <motion.div whileHover={{ scale: 1.05, rotate: -2 }} className="h-12 w-12 rounded-xl flex items-center justify-center font-bold font-display text-lg shrink-0 uppercase shadow-sm group-hover:shadow-md transition-shadow" style={{ background: `${SA}20`, border: `1px solid ${SA}30` }}>{gym.logo}</motion.div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-display font-semibold truncate">{gym.name}</div>
+                                            <div className="text-xs text-foreground/50 truncate">{gym.owner}</div>
+                                            <div className="flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3 text-foreground/30" /><span className="text-[10px] text-foreground/40">{gym.city}, {gym.country}</span></div>
+                                        </div>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: s.bg, color: s.color }}>{gym.status}</span>
                                     </div>
-                                    <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: s.bg, color: s.color }}>{gym.status}</span>
-                                </div>
 
-                                {/* Stats Grid */}
-                                <div className="grid grid-cols-3 gap-2 mb-4">
-                                    <div className="text-center rounded-lg bg-foreground/[0.03] py-2">
-                                        <div className="text-[9px] text-foreground/40 uppercase">Members</div>
-                                        <div className="font-display text-sm font-bold">{gym.members}</div>
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-3 gap-2 mb-4">
+                                        <div className="text-center rounded-lg bg-foreground/[0.03] py-2">
+                                            <div className="text-[9px] text-foreground/40 uppercase">Members</div>
+                                            <div className="font-display text-sm font-bold">{gym.members}</div>
+                                        </div>
+                                        <div className="text-center rounded-lg bg-foreground/[0.03] py-2">
+                                            <div className="text-[9px] text-foreground/40 uppercase">Trainers</div>
+                                            <div className="font-display text-sm font-bold">{gym.trainers}</div>
+                                        </div>
+                                        <div className="text-center rounded-lg bg-foreground/[0.03] py-2">
+                                            <div className="text-[9px] text-foreground/40 uppercase">Revenue</div>
+                                            <div className="font-display text-sm font-bold">{formatCurrency(gym.revenue)}</div>
+                                        </div>
                                     </div>
-                                    <div className="text-center rounded-lg bg-foreground/[0.03] py-2">
-                                        <div className="text-[9px] text-foreground/40 uppercase">Trainers</div>
-                                        <div className="font-display text-sm font-bold">{gym.trainers}</div>
+
+                                    {/* Meta Row */}
+                                    <div className="flex items-center gap-3 text-[10px] text-foreground/40 mb-4">
+                                        <span className="flex items-center gap-1"><CreditCard className="h-3 w-3" /> {gym.plan}</span>
+                                        <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {gym.attendanceToday} today</span>
+                                        <span className="flex items-center gap-1">
+                                            {gym.biometricStatus === 'Connected' ? <Wifi className="h-3 w-3 text-emerald-400" /> : <WifiOff className="h-3 w-3 text-red-400" />}
+                                            {gym.connectedDevices} devices
+                                        </span>
                                     </div>
-                                    <div className="text-center rounded-lg bg-foreground/[0.03] py-2">
-                                        <div className="text-[9px] text-foreground/40 uppercase">Revenue</div>
-                                        <div className="font-display text-sm font-bold">{formatCurrency(gym.revenue)}</div>
-                                    </div>
-                                </div>
 
-                                {/* Meta Row */}
-                                <div className="flex items-center gap-3 text-[10px] text-foreground/40 mb-4">
-                                    <span className="flex items-center gap-1"><CreditCard className="h-3 w-3" /> {gym.plan}</span>
-                                    <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {gym.attendanceToday} today</span>
-                                    <span className="flex items-center gap-1">
-                                        {gym.biometricStatus === 'Connected' ? <Wifi className="h-3 w-3 text-emerald-400" /> : <WifiOff className="h-3 w-3 text-red-400" />}
-                                        {gym.connectedDevices} devices
-                                    </span>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-1.5">
-                                    <button onClick={() => handleImpersonate(gym)} className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-foreground/5 bg-foreground/[0.03] px-2 py-2 text-[10px] font-medium hover:bg-foreground/[0.08] transition" title="Login as this gym's owner">
-                                        <Eye className="h-3 w-3" style={{ color: SA }} /> Open as Owner
-                                    </button>
-
-                                    {gym.status === 'Pending' ? (
-                                        <button onClick={() => handleActivate(gym)} className="flex-1 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-2 text-[10px] text-blue-400 font-bold transition">
-                                            Approve Gym
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-1.5">
+                                        <button onClick={() => handleImpersonate(gym)} className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-foreground/5 bg-foreground/[0.03] px-2 py-2 text-[10px] font-medium hover:bg-foreground/[0.08] transition" title="Login as this gym's owner">
+                                            <Eye className="h-3 w-3" style={{ color: SA }} /> Open as Owner
                                         </button>
-                                    ) : gym.status === 'Suspended' ? (
-                                        <button onClick={() => handleActivate(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-emerald-500/20 transition" title="Activate"><Play className="h-3 w-3 text-emerald-400" /></button>
-                                    ) : (
-                                        <button onClick={() => handleSuspend(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-orange-500/20 transition" title="Suspend"><Pause className="h-3 w-3 text-orange-400" /></button>
-                                    )}
-                                    <button onClick={() => handleDelete(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-red-500/20 transition" title="Delete"><Trash2 className="h-3 w-3 text-red-400" /></button>
+
+                                        {gym.status === 'Pending' ? (
+                                            <button onClick={() => handleActivate(gym)} className="flex-1 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-2 text-[10px] text-blue-400 font-bold transition">
+                                                Approve Gym
+                                            </button>
+                                        ) : gym.status === 'Suspended' ? (
+                                            <button onClick={() => handleActivate(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-emerald-500/20 transition" title="Activate"><Play className="h-3 w-3 text-emerald-400" /></button>
+                                        ) : (
+                                            <button onClick={() => handleSuspend(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-orange-500/20 transition" title="Suspend"><Pause className="h-3 w-3 text-orange-400" /></button>
+                                        )}
+                                        <button onClick={() => handleDelete(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-red-500/20 transition" title="Delete"><Trash2 className="h-3 w-3 text-red-400" /></button>
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
-        </SuperAdminShell>
+                            </motion.div>
+            )
+            })}
+        </AnimatePresence>
+                </motion.div >
+            )
+}
+        </SuperAdminShell >
     )
 }
