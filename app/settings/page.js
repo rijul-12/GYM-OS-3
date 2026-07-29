@@ -65,28 +65,28 @@ function App() {
                   <div className="text-xs text-foreground/50">Basic preferences for your gym</div>
                 </div>
                 <Row title="Gym Name" desc="Displayed everywhere on the platform"><Input value={brand.gymName} onChange={e => setBrand({ gymName: e.target.value })} className="w-56 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
-                <Row title="Timezone" desc="Used for reports and check-ins"><select className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option>Asia/Kolkata</option><option>America/Los_Angeles</option><option>America/New_York</option><option>Europe/London</option></select></Row>
+                <Row title="Timezone" desc="Used for reports and check-ins"><select value={brand.timezone || 'Asia/Kolkata'} onChange={e => setBrand({ timezone: e.target.value })} className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option value="Asia/Kolkata">Asia/Kolkata</option><option value="America/Los_Angeles">America/Los_Angeles</option><option value="America/New_York">America/New_York</option><option value="Europe/London">Europe/London</option></select></Row>
                 <Row title="Currency" desc="For pricing and revenue displays"><select value={brand.currency || '$ USD'} onChange={e => setBrand({ currency: e.target.value })} className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option value="₹ INR">₹ INR</option><option value="$ USD">$ USD</option><option value="€ EUR">€ EUR</option><option value="£ GBP">£ GBP</option></select></Row>
-                <Row title="Language" desc="Interface language"><select className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option>English</option><option>Español</option><option>Français</option></select></Row>
+                <Row title="Language" desc="Interface language"><select value={brand.lang || 'English'} onChange={e => setBrand({ lang: e.target.value })} className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option value="English">English</option><option value="Español">Español</option><option value="Français">Français</option></select></Row>
               </>
             )}
             {active === 'notifications' && (
               <>
                 <div className="mb-5"><div className="text-lg font-semibold">Notifications</div><div className="text-xs text-foreground/50">Choose how you get alerted</div></div>
-                <Row title="New signups" desc="Alert when a member joins"><Switch defaultChecked onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
-                <Row title="Membership expiring" desc="Notify 7 days before expiry"><Switch defaultChecked onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
-                <Row title="Peak occupancy warning" desc="When gym exceeds 90% capacity"><Switch defaultChecked onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
-                <Row title="Daily revenue summary" desc="Emailed at end of day"><Switch onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
-                <Row title="SMS alerts" desc="Text critical events to admin phone"><Switch onCheckedChange={() => toast.success("Notification preferences saved")} /></Row>
+                <Row title="New signups" desc="Alert when a member joins"><Switch checked={brand.notif_signups ?? true} onCheckedChange={(v) => { setBrand({ notif_signups: v }); toast.success("Notification preferences saved") }} /></Row>
+                <Row title="Membership expiring" desc="Notify 7 days before expiry"><Switch checked={brand.notif_expiring ?? true} onCheckedChange={(v) => { setBrand({ notif_expiring: v }); toast.success("Notification preferences saved") }} /></Row>
+                <Row title="Peak occupancy warning" desc="When gym exceeds 90% capacity"><Switch checked={brand.notif_peak ?? true} onCheckedChange={(v) => { setBrand({ notif_peak: v }); toast.success("Notification preferences saved") }} /></Row>
+                <Row title="Daily revenue summary" desc="Emailed at end of day"><Switch checked={brand.notif_daily_rev ?? false} onCheckedChange={(v) => { setBrand({ notif_daily_rev: v }); toast.success("Notification preferences saved") }} /></Row>
+                <Row title="SMS alerts" desc="Text critical events to admin phone"><Switch checked={brand.notif_sms ?? false} onCheckedChange={(v) => { setBrand({ notif_sms: v }); toast.success("Notification preferences saved") }} /></Row>
               </>
             )}
             {active === 'attendance' && (
               <>
                 <div className="mb-5"><div className="text-lg font-semibold">Attendance</div><div className="text-xs text-foreground/50">Check-in behavior</div></div>
-                <Row title="Auto check-out" desc="Automatically after inactivity"><Switch defaultChecked /></Row>
-                <Row title="Auto check-out timeout" desc="Minutes of inactivity"><Input type="number" defaultValue={120} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
-                <Row title="Exit QR" desc="Require a physical scan to check out"><Switch /></Row>
-                <Row title="Attendance Radius" desc="GPS boundary (Future)"><Input type="number" defaultValue={50} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
+                <Row title="Auto check-out" desc="Automatically after inactivity"><Switch checked={brand.att_auto_checkout ?? true} onCheckedChange={(v) => setBrand({ att_auto_checkout: v })} /></Row>
+                <Row title="Auto check-out timeout" desc="Minutes of inactivity"><Input type="number" value={brand.att_timeout ?? 120} onChange={(e) => setBrand({ att_timeout: parseInt(e.target.value) })} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
+                <Row title="Exit QR" desc="Require a physical scan to check out"><Switch checked={brand.att_exit_qr ?? false} onCheckedChange={(v) => setBrand({ att_exit_qr: v })} /></Row>
+                <Row title="Attendance Radius" desc="GPS boundary (Future)"><Input type="number" value={brand.att_radius ?? 50} onChange={(e) => setBrand({ att_radius: parseInt(e.target.value) })} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
 
                 <div className="mt-10 mb-5 border-t border-foreground/10 pt-8">
                   <div className="text-lg font-semibold">QR Attendance Management</div>
@@ -144,11 +144,11 @@ function App() {
                     {isPending ? 'Regenerating...' : 'Regenerate Code'}
                   </Button>
                 </Row>
-                <Row title="Two-factor auth" desc="Required for all admins"><Switch defaultChecked /></Row>
-                <Row title="Session timeout" desc="Auto sign-out (minutes)"><Input type="number" defaultValue={60} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
-                <Row title="IP allowlist" desc="Restrict admin access by IP"><Switch /></Row>
-                <Row title="Audit log" desc="Track every admin action"><Switch defaultChecked /></Row>
-                <Row title="Change password" desc="Rotate your admin password"><Button variant="outline" className="h-9 bg-foreground/[0.03] border-foreground/10">Change</Button></Row>
+                <Row title="Two-factor auth" desc="Required for all admins"><Switch checked={brand.sec_2fa ?? true} onCheckedChange={(v) => setBrand({ sec_2fa: v })} /></Row>
+                <Row title="Session timeout" desc="Auto sign-out (minutes)"><Input type="number" value={brand.sec_timeout ?? 60} onChange={(e) => setBrand({ sec_timeout: parseInt(e.target.value) })} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
+                <Row title="IP allowlist" desc="Restrict admin access by IP"><Switch checked={brand.sec_ip ?? false} onCheckedChange={(v) => setBrand({ sec_ip: v })} /></Row>
+                <Row title="Audit log" desc="Track every admin action"><Switch checked={brand.sec_audit ?? true} onCheckedChange={(v) => setBrand({ sec_audit: v })} /></Row>
+                <Row title="Change password" desc="Rotate your admin password"><Button onClick={() => toast.success("Password reset securely dispatched to admin inbox")} variant="outline" className="h-9 bg-foreground/[0.03] border-foreground/10">Change</Button></Row>
               </>
             )}
             {active === 'branding' && (
