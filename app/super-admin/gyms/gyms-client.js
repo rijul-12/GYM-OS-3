@@ -200,14 +200,12 @@ export default function GymsClient({ initialGyms }) {
                                         )}
                                         <button onClick={() => handleDelete(gym)} className="h-8 w-8 rounded-lg border border-foreground/5 bg-foreground/[0.03] flex items-center justify-center hover:bg-red-500/20 transition" title="Delete"><Trash2 className="h-3 w-3 text-red-400" /></button>
                                     </div>
-                                </div>
-                            </motion.div>
-            )
-            })}
-        </AnimatePresence>
-                </motion.div >
-            )
-}
-        </SuperAdminShell >
+                                </motion.div>
+                            )
+                        })}
+                    </AnimatePresence>
+                </motion.div>
+            )}
+        </SuperAdminShell>
     )
 }

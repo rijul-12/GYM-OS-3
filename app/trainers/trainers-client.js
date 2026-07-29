@@ -98,59 +98,57 @@ export default function TrainersClient({ initialTrainers }) {
                                         </>
                                     )}
                                 </div>
-                            </div>
                             </motion.div>
-            ))}
-        </AnimatePresence>
-                </motion.div >
-            )
-}
+                        ))}
+                    </AnimatePresence>
+                </motion.div>
+            )}
 
-<AnimatePresence>
-    {showAdd && (
-        <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAdd(false)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
-            <motion.div initial={{ y: 400, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 400, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-full bg-card border border-foreground/10 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="text-lg font-bold">Hire New Trainer</div>
-                    <button onClick={() => setShowAdd(false)}><X className="h-5 w-5 text-foreground/50 hover:text-foreground" /></button>
-                </div>
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-xs text-foreground/50 uppercase tracking-wider">Full Name</label>
-                        <input value={newTrainer.name} onChange={(e) => setNewTrainer({ ...newTrainer, name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="David Goggins" />
-                    </div>
-                    <div>
-                        <label className="text-xs text-foreground/50 uppercase tracking-wider">Email Address</label>
-                        <input type="email" value={newTrainer.email} onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="david@gymos.com" />
-                    </div>
-                    <div>
-                        <label className="text-xs text-foreground/50 uppercase tracking-wider">Specialty / Role</label>
-                        <input type="text" value={newTrainer.specialty} onChange={(e) => setNewTrainer({ ...newTrainer, specialty: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="Head Strength Coach" />
-                    </div>
-                    <div>
-                        <label className="text-xs text-foreground/50 uppercase tracking-wider">Salary Offering (₹/month)</label>
-                        <input type="number" value={newTrainer.salary} onChange={(e) => setNewTrainer({ ...newTrainer, salary: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="35000" />
-                    </div>
-                    <Button
-                        disabled={isPending || !newTrainer.name || !newTrainer.email}
-                        style={{ background: brand.primaryColor }}
-                        className="w-full text-foreground border-0 h-11 mt-2 font-medium"
-                        onClick={() => {
-                            startTransition(async () => {
-                                await createTrainer(newTrainer);
-                                setShowAdd(false);
-                                setNewTrainer({ name: '', specialty: '', email: '', salary: '' });
-                            })
-                        }}
-                    >
-                        {isPending ? 'Processing Onboarding...' : 'Send Invite'}
-                    </Button>
-                </div>
-            </motion.div>
-        </>
-    )}
-</AnimatePresence>
+            <AnimatePresence>
+                {showAdd && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAdd(false)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
+                        <motion.div initial={{ y: 400, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 400, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-full bg-card border border-foreground/10 rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="text-lg font-bold">Hire New Trainer</div>
+                                <button onClick={() => setShowAdd(false)}><X className="h-5 w-5 text-foreground/50 hover:text-foreground" /></button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Full Name</label>
+                                    <input value={newTrainer.name} onChange={(e) => setNewTrainer({ ...newTrainer, name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="David Goggins" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Email Address</label>
+                                    <input type="email" value={newTrainer.email} onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="david@gymos.com" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Specialty / Role</label>
+                                    <input type="text" value={newTrainer.specialty} onChange={(e) => setNewTrainer({ ...newTrainer, specialty: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="Head Strength Coach" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Salary Offering (₹/month)</label>
+                                    <input type="number" value={newTrainer.salary} onChange={(e) => setNewTrainer({ ...newTrainer, salary: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="35000" />
+                                </div>
+                                <Button
+                                    disabled={isPending || !newTrainer.name || !newTrainer.email}
+                                    style={{ background: brand.primaryColor }}
+                                    className="w-full text-foreground border-0 h-11 mt-2 font-medium"
+                                    onClick={() => {
+                                        startTransition(async () => {
+                                            await createTrainer(newTrainer);
+                                            setShowAdd(false);
+                                            setNewTrainer({ name: '', specialty: '', email: '', salary: '' });
+                                        })
+                                    }}
+                                >
+                                    {isPending ? 'Processing Onboarding...' : 'Send Invite'}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </DashShell >
     )
 }

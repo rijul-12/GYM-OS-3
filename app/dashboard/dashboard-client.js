@@ -223,7 +223,6 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             </ResponsiveContainer>
                         )}
                     </div>
-                    </div>
                 </motion.div>
 
                 <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.01, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
@@ -243,7 +242,6 @@ export default function DashboardClient({ stats, latestAttendance }) {
                         {(stats?.dist || []).map((w) => (
                             <div key={w.name} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: w.color }} /> {w.name}</div>
                         ))}
-                    </div>
                     </div>
                 </motion.div>
 
@@ -301,9 +299,9 @@ export default function DashboardClient({ stats, latestAttendance }) {
                 </motion.div>
             </motion.div >
 
-        <div className="mt-8 mb-5">
-            <RecentActivityTimeline gymCode={user?.gymCode} />
-        </div>
+            <div className="mt-8 mb-5">
+                <RecentActivityTimeline gymCode={user?.gymCode} />
+            </div>
         </DashShell >
     )
 }
