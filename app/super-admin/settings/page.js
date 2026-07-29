@@ -34,12 +34,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <SuperAdminShell title="Platform Settings" subtitle="Global configuration and feature flags" actions={
-            <Button onClick={saveSettings} disabled={loading} style={{ background: SA }} className="h-9 text-foreground border-0 text-xs shadow-lg shadow-purple-500/20">
-                {loading ? <RefreshCcw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                Save Changes
-            </Button>
-        }>
+        <SuperAdminShell title="Platform Settings" subtitle="Global configuration and feature flags">
             <div className="grid lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
 
                 {/* Left Column: General & Notification Settings */}

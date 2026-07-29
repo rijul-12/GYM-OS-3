@@ -117,13 +117,7 @@ function App() {
                         <div className="font-medium">{brand.qrLastResetDate ? new Date(brand.qrLastResetDate).toLocaleDateString() : 'Never'}</div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-4">
-                      <Button onClick={() => toast.success('Downloaded as PNG')} variant="outline" className="h-8 text-xs bg-foreground/[0.03] border-foreground/10"><Download className="h-3.5 w-3.5 mr-1.5" /> Download PNG</Button>
-                      <Button onClick={() => toast.success('Downloaded as PDF')} variant="outline" className="h-8 text-xs bg-foreground/[0.03] border-foreground/10"><Download className="h-3.5 w-3.5 mr-1.5" /> Download PDF</Button>
-                      <Button onClick={() => toast.success('Sent to printer')} variant="outline" className="h-8 text-xs bg-foreground/[0.03] border-foreground/10"><Printer className="h-3.5 w-3.5 mr-1.5" /> Print QR</Button>
-                      <Button onClick={() => toast.success('Link copied')} variant="outline" className="h-8 text-xs bg-foreground/[0.03] border-foreground/10"><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link</Button>
-                    </div>
-                    <div className="pt-2">
+                    <div className="pt-4">
                       <Button onClick={() => setResetModal(true)} variant="destructive" className="h-8 text-xs w-full bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20">Reset QR Code</Button>
                     </div>
                   </div>
@@ -148,7 +142,7 @@ function App() {
                 <Row title="Session timeout" desc="Auto sign-out (minutes)"><Input type="number" value={brand.sec_timeout ?? 60} onChange={(e) => setBrand({ sec_timeout: parseInt(e.target.value) })} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
                 <Row title="IP allowlist" desc="Restrict admin access by IP"><Switch checked={brand.sec_ip ?? false} onCheckedChange={(v) => setBrand({ sec_ip: v })} /></Row>
                 <Row title="Audit log" desc="Track every admin action"><Switch checked={brand.sec_audit ?? true} onCheckedChange={(v) => setBrand({ sec_audit: v })} /></Row>
-                <Row title="Change password" desc="Rotate your admin password"><Button onClick={() => toast.success("Password reset securely dispatched to admin inbox")} variant="outline" className="h-9 bg-foreground/[0.03] border-foreground/10">Change</Button></Row>
+                <Row title="Change password" desc="Rotate your admin password"><a href="/forgot-password"><Button variant="outline" className="h-9 bg-foreground/[0.03] border-foreground/10">Change Password</Button></a></Row>
               </>
             )}
             {active === 'branding' && (
@@ -160,10 +154,6 @@ function App() {
             {active === 'appearance' && (
               <AppearanceSettings />
             )}
-            <div className="pt-6 flex justify-end gap-2">
-              <Button variant="outline" className="bg-foreground/[0.03] border-foreground/10">Cancel</Button>
-              <Button onClick={() => toast.success('Settings saved')} style={{ background: brand.primaryColor }} className="text-foreground border-0">Save changes</Button>
-            </div>
           </motion.div>
         </div>
       </div>
