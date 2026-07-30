@@ -22,6 +22,8 @@ const ROLES = {
     member: { label: 'Member', icon: <Search /> },
 }
 
+const MUSCLES = ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core', 'Cardio', 'Mobility', 'Full Body', 'Other']
+
 const ROLE_LIST = [
     { id: 'owner', accent: '#ef4444', title: 'Gym Owner', tagline: 'Create a new GymOS Workspace', points: ['Generate Gym Code', 'Full Command Center'] },
     { id: 'trainer', accent: '#f59e0b', title: 'Trainer', tagline: 'Join an existing Gym', points: ['Requires Gym Code', 'Training dashboard'] },
@@ -49,7 +51,8 @@ function RegisterContent() {
         // Member
         name: '', age: '', gender: 'Male', height: '', weight: '', fitnessGoal: '', medicalConditions: 'None', emergencyContact: '',
         workoutSchedule: 'Morning', preferredWorkoutTime: '6:00 AM', trainingDays: '5 Days', primaryWorkoutSplit: 'Push Pull Legs', preferredWorkoutDuration: '60 min',
-        weeklySchedule: { Monday: 'Chest', Tuesday: 'Back', Wednesday: 'Rest', Thursday: 'Legs', Friday: 'Shoulders & Arms', Saturday: 'Cardio', Sunday: 'Rest' }
+        noFixedSchedule: false,
+        weeklySchedule: { Monday: ['Chest'], Tuesday: ['Back'], Wednesday: [], Thursday: ['Legs'], Friday: ['Shoulders', 'Triceps'], Saturday: ['Cardio'], Sunday: [] }
     })
 
     const [gymCodeFinal, setGymCodeFinal] = useState('')
@@ -381,14 +384,45 @@ function RegisterContent() {
                                                 <div className="col-span-2 pt-4 border-t border-foreground/10 mt-2">
                                                     <h3 className="text-xs uppercase tracking-widest text-[#22c55e] font-bold">5. Daily Structural Schedule</h3>
                                                     <p className="text-[10px] text-foreground/40 mb-3 mt-1">Map your target muscle groups per day to power our live occupancy prediction engine allowing others to see live demand capacities accurately.</p>
-                                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                                        {Object.keys(formData.weeklySchedule).map(day => (
-                                                            <div key={day} className="bg-foreground/[0.02] border border-foreground/5 p-2 rounded-lg">
-                                                                <label className="text-[10px] text-foreground/50 block mb-1 font-semibold">{day}</label>
-                                                                <input value={formData.weeklySchedule[day]} onChange={e => setFormData({ ...formData, weeklySchedule: { ...formData.weeklySchedule, [day]: e.target.value } })} className="w-full bg-transparent outline-none text-xs text-foreground font-medium focus:text-[#22c55e] transition" placeholder="e.g. Chest" />
-                                                            </div>
-                                                        ))}
-                                                    </div>
+
+                                                    <label className="flex items-center gap-3 mb-6 p-4 rounded-xl border border-foreground/10 bg-foreground/[0.02] cursor-pointer hover:border-[#22c55e]/50 transition">
+                                                        <div className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${formData.noFixedSchedule ? 'bg-[#22c55e] border-[#22c55e]' : 'border-foreground/20'}`}>
+                                                            {formData.noFixedSchedule && <Check className="h-3.5 w-3.5 text-black" />}
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={formData.noFixedSchedule === true} onChange={e => setFormData({ ...formData, noFixedSchedule: e.target.checked })} />
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-foreground">No Fixed Schedule</div>
+                                                            <div className="text-[10px] text-foreground/50 mt-0.5">I train different muscles at different times each week without a strict routine.</div>
+                                                        </div>
+                                                    </label>
+
+                                                    {!formData.noFixedSchedule && (
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                            {Object.keys(formData.weeklySchedule).map(day => (
+                                                                <div key={day} className="bg-foreground/[0.015] border border-foreground/5 p-4 rounded-xl">
+                                                                    <div className="text-xs text-foreground block mb-3 font-bold uppercase tracking-wider">{day}</div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {MUSCLES.map(muscle => {
+                                                                            const isSelected = formData.weeklySchedule[day].includes(muscle);
+                                                                            return (
+                                                                                <label key={muscle} className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium cursor-pointer transition-colors ${isSelected ? 'bg-[#22c55e]/10 border-[#22c55e]/30 text-[#22c55e]' : 'bg-transparent border-foreground/10 text-foreground/60 hover:bg-foreground/[0.05]'}`}>
+                                                                                    <input type="checkbox" className="hidden" checked={isSelected} onChange={(e) => {
+                                                                                        const isChecked = e.target.checked;
+                                                                                        let newDaySchedule = [...formData.weeklySchedule[day]];
+                                                                                        if (isChecked) newDaySchedule.push(muscle);
+                                                                                        else newDaySchedule = newDaySchedule.filter(m => m !== muscle);
+                                                                                        setFormData({ ...formData, weeklySchedule: { ...formData.weeklySchedule, [day]: newDaySchedule } });
+                                                                                    }} />
+                                                                                    {isSelected && <Check className="h-3 w-3" />}
+                                                                                    {muscle}
+                                                                                </label>
+                                                                            )
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </motion.div>

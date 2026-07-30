@@ -1,28 +1,51 @@
+import { Logo } from '@/components/logo'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-
-export const metadata = {
-    title: 'Terms of Service | GymOS',
-}
+import { Button } from '@/components/ui/button'
 
 export default function TermsOfService() {
     return (
-        <div className="min-h-screen bg-background text-foreground py-20 px-6">
-            <div className="max-w-3xl mx-auto">
-                <Link href="/" className="inline-flex items-center text-sm font-medium text-foreground/50 hover:text-foreground mb-12 transition-colors">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Home
-                </Link>
-                <h1 className="font-display text-4xl md:text-5xl font-bold mb-8">Terms of Service</h1>
-                <div className="space-y-6 text-foreground/80 leading-relaxed text-lg">
-                    <p>Welcome to GymOS. These terms outline the rules and responsibilities when using our platform to run your fitness facility.</p>
-                    <h2 className="text-2xl font-semibold text-foreground mt-10 mb-4">Account Responsibilities</h2>
-                    <p>As a gym owner, you are responsible for maintaining the confidentiality of your account credentials. You agree to ensure that any staff members granted access use the platform responsibly and lawfully.</p>
-                    <h2 className="text-2xl font-semibold text-foreground mt-10 mb-4">Acceptable Use</h2>
-                    <p>GymOS is designed to operate gyms. You agree not to reverse engineer the platform, attempt unauthorized access to other gyms&apos; data, or use our services for any illegal activities.</p>
-                    <h2 className="text-2xl font-semibold text-foreground mt-10 mb-4">Subscription & Cancellation</h2>
-                    <p>GymOS is a subscription service. You may cancel at any time through the Super Admin panel. Upon cancellation, your access will remain active until the end of the current billing cycle, after which your account will be downgraded.</p>
-                    <h2 className="text-2xl font-semibold text-foreground mt-10 mb-4">Updates to Terms</h2>
-                    <p>We may update these terms occasionally as we release new features. We will always notify you of any significant changes via the platform or email.</p>
+        <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-20 px-6">
+            <div className="w-full max-w-3xl space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                <div className="flex items-center justify-between mb-12">
+                    <Logo size="lg" />
+                    <Link href="/">
+                        <Button variant="outline" className="h-10 px-4"><ArrowLeft className="h-4 w-4 mr-2" /> Back to Home</Button>
+                    </Link>
+                </div>
+
+                <div className="space-y-4">
+                    <h1 className="text-4xl md:text-5xl font-display font-bold tracking-tight">Terms of Service</h1>
+                    <p className="text-foreground/60 text-sm">Last updated: {new Date().toLocaleDateString()}</p>
+                </div>
+
+                <div className="space-y-8 text-foreground/80 leading-relaxed font-medium">
+                    <section>
+                        <h2 className="text-2xl font-bold text-foreground mb-3">1. Agreement to Terms</h2>
+                        <p>By using GymOS, you agree to these clear and simple terms. If you do not agree with them, please do not use our platform.</p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-2xl font-bold text-foreground mb-3">2. Acceptable Use</h2>
+                        <p>You agree to use GymOS solely for managing and tracking your fitness journey or facility operations. Attempting to bypass security, manipulate QR codes, or scrape platform data is strictly forbidden.</p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-2xl font-bold text-foreground mb-3">3. Subscriptions</h2>
+                        <p>Gym owners are billed on a recurring basis as outlined at checkout. If a payment fails, your operations dashboard may be temporarily suspended until the balance is paid.</p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-2xl font-bold text-foreground mb-3">4. Limitation of Liability</h2>
+                        <p>GymOS provides software. We are not responsible for injuries occurring at the gym, disputes between gym members and owners, or the actual health guidance provided by trainers.</p>
+                    </section>
+
+                    <section>
+                        <div className="p-6 rounded-2xl bg-foreground/[0.03] border border-foreground/10 text-center mt-12">
+                            <h3 className="font-bold mb-2">Need Help?</h3>
+                            <p className="text-sm text-foreground/60">Contact us at <a href="mailto:rijul0027@gmail.com" className="text-emerald-500 hover:underline">rijul0027@gmail.com</a></p>
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>

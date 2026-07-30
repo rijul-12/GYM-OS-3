@@ -49,7 +49,7 @@ export async function getAttendanceLogs(limit = 50) {
 export async function checkInMember(memberId, gymId, method = 'App') { return true; }
 export async function checkOutMember(attendanceId) { return true; }
 
-export async function markQrAttendance(gymCode) {
+export async function getAttendancePreCheck(gymCode) {
     const { cookies } = await import('next/headers')
     const sessionStr = (await cookies()).get('gymos_session')?.value
     if (!sessionStr) return { error: 'Not logged in', requireLogin: true }
@@ -91,8 +91,67 @@ export async function markQrAttendance(gymCode) {
                 .get()
 
             if (!activeLogs.empty) {
-                // Already checked in perfectly validly, but we shouldn't crash, just show welcome!
                 return { success: true, message: 'Already checked in', gymId }
+            }
+
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            const todayName = dayNames[new Date().getDay()]
+
+            let plannedWorkout = []
+            if (member.weeklySchedule && member.weeklySchedule[todayName]) {
+                const s = member.weeklySchedule[todayName]
+                plannedWorkout = Array.isArray(s) ? s : [s].filter(Boolean)
+            }
+
+            return {
+                success: true,
+                gymId,
+                memberId: memberDoc.id,
+                plannedWorkout,
+                noFixedSchedule: member.noFixedSchedule === true
+            }
+        }
+    }
+
+    // DEMO BYPASS
+    if (gymCode === 'DEMO-CODE') return { success: true, gymId: 'DEMO', plannedWorkout: ['Chest'], noFixedSchedule: false }
+    return { error: 'This QR Code is no longer valid. Please contact your gym.' }
+}
+
+export async function markQrAttendance(gymCode, actualWorkout = [], plannedWorkout = []) {
+    const { cookies } = await import('next/headers')
+    const sessionStr = (await cookies()).get('gymos_session')?.value
+    if (!sessionStr) return { error: 'Not logged in', requireLogin: true }
+
+    let user;
+    try { user = JSON.parse(sessionStr) } catch (e) { return { error: 'Invalid session' } }
+
+    if (!user || user.role !== 'member') {
+        return { error: 'Only members can check-in via QR' }
+    }
+
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            // Check Gym validity by QR Code
+            const gyms = await adminDb.collection('gyms').where('gymCode', '==', gymCode).limit(1).get()
+            if (gyms.empty) return { error: 'This QR Code is no longer valid. Please contact your gym.' }
+
+            const gymId = gyms.docs[0].id
+
+            // Identify Member
+            const members = await adminDb.collection('members').where('email', '==', user.email).limit(1).get()
+            if (members.empty) return { error: 'Member profile not found.' }
+            const memberDoc = members.docs[0]
+
+            // Duplicate check-in
+            const activeLogs = await adminDb.collection('attendance')
+                .where('member_id', '==', memberDoc.id)
+                .where('check_out_time', '==', null)
+                .get()
+
+            if (!activeLogs.empty) {
+                return { success: true, message: 'Already checked in', gymId, actualWorkout }
             }
 
             await adminDb.collection('attendance').add({
@@ -101,16 +160,18 @@ export async function markQrAttendance(gymCode) {
                 check_in_time: new Date().toISOString(),
                 check_out_time: null,
                 method: 'QR',
-                status: 'Active'
+                status: 'Active',
+                actual_workout: actualWorkout,
+                planned_workout: plannedWorkout
             })
 
             revalidatePath('/dashboard')
-            return { success: true, gymId }
+            return { success: true, gymId, actualWorkout }
         }
     }
 
     // DEMO BYPASS
-    if (gymCode === 'DEMO-CODE') return { success: true, gymId: 'DEMO' }
+    if (gymCode === 'DEMO-CODE') return { success: true, gymId: 'DEMO', actualWorkout }
     return { error: 'This QR Code is no longer valid. Please contact your gym.' }
 }
 

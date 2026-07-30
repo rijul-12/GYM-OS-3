@@ -28,7 +28,7 @@ const FAQS = [
   { q: "How does the Free Trial work?", a: "You get 14 days of full access to all GymOS features. No credit card is required to sign up. After the trial, you can choose a plan that fits your gym's size." },
   { q: "How do you track live floor traffic?", a: "GymOS combines biometric scans, QR check-ins, and schedule data to accurately show how many members are on the floor and predict peak hours." },
   { q: "Is the QR Attendance system reliable?", a: "Yes, our QR system generates dynamically refreshing codes for members, which prevents unauthorized sharing and provides instant check-in sync." },
-  { q: "How do members access their data?", a: "Every member gets a dedicated Member Portal where they can view their assigned workouts, check live gym occupancy, and track their attendance history." },
+  { q: "How does Member Registration work?", a: "Members can easily register using your secure facility Gym Code. They can set up flexible or fixed workout schedules directly matching their goals." },
   { q: "Can I switch or cancel my subscription?", a: "Absolutely. You can upgrade, downgrade, or cancel your GymOS subscription at any time." },
   { q: "What payment methods do you support?", a: "We sync directly with Razorpay to support UPI, credit/debit cards, and net banking seamlessly in India." },
   { q: "Is my gym data secure?", a: "We use enterprise-grade cloud security, strict authentication, and granular Role-Based Access Control to ensure your data stays private." },
@@ -417,6 +417,7 @@ const Footer = () => {
           <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
           <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms of Service</Link>
           <Link href="/security" className="hover:text-foreground transition-colors">Security</Link>
+          <Link href="/refund" className="hover:text-foreground transition-colors">Refund Policy</Link>
         </div>
       </div>
     </footer>

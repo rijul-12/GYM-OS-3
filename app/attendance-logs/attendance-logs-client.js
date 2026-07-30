@@ -24,30 +24,27 @@ export default function AttendanceLogsClient({ initialLogs }) {
     const rows = useMemo(() => {
         const syntheticLogs = []
         initialLogs.forEach(a => {
-            // Create a theoretical checkin visual log
             syntheticLogs.push({
                 id: a.id + '-in',
                 member: a.members?.name || 'Unknown',
-                time: new Date(a.check_in_time).toLocaleTimeString(),
+                time: new Date(a.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                date: new Date(a.check_in_time).toLocaleDateString(),
                 type: 'Check In',
-                source: 'RFID Gate',
-                sourceColor: '#ef4444',
-                device: 'Entry-01',
+                plannedWorkout: Array.isArray(a.planned_workout) ? a.planned_workout.filter(Boolean).join(', ') : (a.planned_workout || '-'),
+                actualWorkout: Array.isArray(a.actual_workout) ? a.actual_workout.filter(Boolean).join(', ') : (a.actual_workout || '-'),
                 status: 'Success',
-                reason: null
             })
             // If checked out, append a checkout visual log
             if (a.check_out_time) {
                 syntheticLogs.push({
                     id: a.id + '-out',
                     member: a.members?.name || 'Unknown',
-                    time: new Date(a.check_out_time).toLocaleTimeString(),
+                    time: new Date(a.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    date: new Date(a.check_out_time).toLocaleDateString(),
                     type: 'Check Out',
-                    source: 'System Auto',
-                    sourceColor: '#3b82f6',
-                    device: 'System',
+                    plannedWorkout: Array.isArray(a.planned_workout) ? a.planned_workout.filter(Boolean).join(', ') : (a.planned_workout || '-'),
+                    actualWorkout: Array.isArray(a.actual_workout) ? a.actual_workout.filter(Boolean).join(', ') : (a.actual_workout || '-'),
                     status: 'Success',
-                    reason: null
                 })
             }
         })
@@ -107,13 +104,13 @@ export default function AttendanceLogsClient({ initialLogs }) {
                     <table className="w-full text-sm min-w-[900px]">
                         <thead className="text-xs font-semibold text-foreground/50 border-b border-foreground/10 sticky top-0 bg-background">
                             <tr>
-                                <th className="text-left px-4 py-3 font-medium">Timestamp</th>
+                                <th className="text-left px-4 py-3 font-medium">Date</th>
+                                <th className="text-left px-4 py-3 font-medium">Time</th>
                                 <th className="text-left px-4 py-3 font-medium">Member</th>
+                                <th className="text-left px-4 py-3 font-medium">Planned Workout</th>
+                                <th className="text-left px-4 py-3 font-medium">Actual Workout</th>
                                 <th className="text-left px-4 py-3 font-medium">Type</th>
-                                <th className="text-left px-4 py-3 font-medium">Source</th>
-                                <th className="text-left px-4 py-3 font-medium">Device</th>
                                 <th className="text-left px-4 py-3 font-medium">Status</th>
-                                <th className="text-left px-4 py-3 font-medium">Reason</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -130,8 +127,17 @@ export default function AttendanceLogsClient({ initialLogs }) {
                                         const SIcon = S.icon
                                         return (
                                             <motion.tr key={r.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border-t border-foreground/5 hover:bg-foreground/[0.02]">
+                                                <td className="px-4 py-3 text-foreground/70 font-mono text-xs">{r.date}</td>
                                                 <td className="px-4 py-3 text-foreground/70 font-mono text-xs">{r.time}</td>
                                                 <td className="px-4 py-3">{r.member}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs text-foreground/60">{r.plannedWorkout || 'Rest Day'}</span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs font-semibold" style={{ color: (r.actualWorkout === r.plannedWorkout && r.actualWorkout) ? '#22c55e' : brand.primaryColor }}>
+                                                        {r.actualWorkout || 'Rest Day'}
+                                                    </span>
+                                                </td>
                                                 <td className="px-4 py-3">
                                                     <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-foreground/[0.05] text-foreground/80">
                                                         {r.type === 'Check In' ? <LogIn className="h-3 w-3" /> : <LogOut className="h-3 w-3" />}
@@ -139,18 +145,10 @@ export default function AttendanceLogsClient({ initialLogs }) {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className="inline-flex items-center gap-1.5 text-xs">
-                                                        <span className="h-2 w-2 rounded-sm" style={{ background: r.sourceColor }} />
-                                                        {r.source}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-foreground/60 font-mono text-xs">{r.device}</td>
-                                                <td className="px-4 py-3">
                                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ background: S.bg, color: S.color }}>
                                                         <SIcon className={`h-3 w-3 ${r.status === 'Retry' ? 'animate-spin' : ''}`} /> {r.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-foreground/50 text-xs">{r.reason || '—'}</td>
                                             </motion.tr>
                                         )
                                     })}

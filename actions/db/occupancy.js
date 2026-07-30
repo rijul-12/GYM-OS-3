@@ -39,25 +39,33 @@ export async function getOccupancyStats() {
                 return 'Rest';
             }
 
-            const activeMembers = activeCheckins.map(a => {
-                const mId = a.memberId || a.member_id || (a.members && a.members.id);
-                return members.find(m => m.id === mId || m.name === (a.members && a.members.name)) || { workout: 'Rest' };
-            });
-
             // Tally physical zone requests
             let chest = 0, back = 0, legs = 0, shoulders = 0, arms = 0, core = 0, cardio = 0, yoga = 0;
-            activeMembers.forEach(m => {
-                const w = getWorkoutForToday(m).toLowerCase();
-                if (w.includes('chest') || w.includes('push')) chest++;
-                if (w.includes('back') || w.includes('pull')) back++;
-                if (w.includes('leg')) legs++;
-                if (w.includes('shoulder')) shoulders++;
-                if (w.includes('arm') || w.includes('bicep') || w.includes('tricep')) arms++;
-                if (w.includes('core') || w.includes('abs')) core++;
-                if (w.includes('cardio') || w.includes('hiit')) cardio++;
-                if (w.includes('yoga') || w.includes('flex')) yoga++;
-                if (w.includes('full body')) { chest++; back++; legs++; shoulders++; core++; }
-                if (w.includes('powerlifting')) { chest++; back++; legs++; }
+            activeCheckins.forEach(a => {
+                let workoutArray = [];
+                if (a.actual_workout && Array.isArray(a.actual_workout) && a.actual_workout.length > 0) {
+                    workoutArray = a.actual_workout;
+                } else if (a.actual_workout && typeof a.actual_workout === 'string') {
+                    workoutArray = [a.actual_workout];
+                } else {
+                    const mId = a.memberId || a.member_id || (a.members && a.members.id);
+                    const m = members.find(mbr => mbr.id === mId || mbr.name === (a.members && a.members.name)) || { workout: 'Rest' };
+                    const w = getWorkoutForToday(m);
+                    workoutArray = Array.isArray(w) ? w : [String(w)];
+                }
+
+                const wStr = workoutArray.join(' ').toLowerCase();
+
+                if (wStr.includes('chest') || wStr.includes('push')) chest++;
+                if (wStr.includes('back') || wStr.includes('pull')) back++;
+                if (wStr.includes('leg')) legs++;
+                if (wStr.includes('shoulder')) shoulders++;
+                if (wStr.includes('arm') || wStr.includes('bicep') || wStr.includes('tricep')) arms++;
+                if (wStr.includes('core') || wStr.includes('abs')) core++;
+                if (wStr.includes('cardio') || wStr.includes('hiit')) cardio++;
+                if (wStr.includes('yoga') || wStr.includes('flex')) yoga++;
+                if (wStr.includes('full body')) { chest++; back++; legs++; shoulders++; core++; }
+                if (wStr.includes('powerlifting')) { chest++; back++; legs++; }
             });
 
             const strength = chest + back + legs + shoulders + arms;

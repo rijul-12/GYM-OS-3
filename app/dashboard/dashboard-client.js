@@ -27,16 +27,25 @@ export default function DashboardClient({ stats, latestAttendance }) {
     // The system now expects `stats.weeklyLine` from Firebase. Fallbacks stripped.
     const weeklyData = stats?.weeklyLine || [];
 
-    // Transform attendance generic rows into the UI expectations
-    const inside = (latestAttendance || []).map(a => ({
-        id: a.id,
-        name: a.members?.name || 'Unknown Member',
-        photo: a.members?.photo_url || `https://i.pravatar.cc/150?u=${a.member_id}`,
-        stage: a.stage || 'Floor',
-        progress: a.progress || 50,
-        workout: a.workout || 'General Fitness',
-        eta: a.eta || '45m'
-    }))
+    const inside = (latestAttendance || []).map(a => {
+        let w = 'General Fitness';
+        if (a.actual_workout && Array.isArray(a.actual_workout)) {
+            w = a.actual_workout.length > 0 ? a.actual_workout.join(', ') : 'Rest';
+        } else if (a.actual_workout) {
+            w = a.actual_workout;
+        } else if (a.workout) {
+            w = a.workout;
+        }
+        return {
+            id: a.id,
+            name: a.members?.name || 'Unknown Member',
+            photo: a.members?.photo_url || `https://i.pravatar.cc/150?u=${a.member_id}`,
+            stage: a.stage || 'Floor',
+            progress: a.progress || 50,
+            workout: w,
+            eta: a.eta || '45m'
+        }
+    })
 
     const sub = stats.subscription || { plan: 'Starter', currentPhase: 'Active', daysRemaining: 0, activeMembers: 0, memberLimit: 75, usageProgressBar: 0, storageUsed: '0 GB' }
     const usageColor = sub.usageProgressBar > 90 ? '#ef4444' : sub.usageProgressBar > 75 ? '#f59e0b' : '#10b981'
