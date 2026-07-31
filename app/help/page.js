@@ -40,13 +40,13 @@ export default function HelpCenter() {
                     <h3 className="font-semibold mb-4">Documentation Categories</h3>
                     <div className="grid sm:grid-cols-2 gap-3">
                         {categories.map(c => (
-                            <Link href="#" key={c.title} className="flex items-center gap-4 p-3 rounded-xl hover:bg-foreground/[0.02] border border-transparent hover:border-border transition-all">
+                            <div key={c.title} className="flex items-center gap-4 p-3 rounded-xl hover:bg-foreground/[0.02] border border-transparent hover:border-border transition-all cursor-not-allowed opacity-50 grayscale" title="Documentation rolling out soon">
                                 <div className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${c.bg}`}>
                                     <c.icon className={`h-5 w-5 ${c.color}`} />
                                 </div>
                                 <div className="flex-1 font-medium text-sm">{c.title}</div>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </Link>
+                            </div>
                         ))}
                     </div>
                 </div>

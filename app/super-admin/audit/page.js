@@ -44,12 +44,11 @@ export default function AuditPage() {
                     <table className="w-full text-sm">
                         <thead className="text-xs font-semibold text-foreground/50 bg-background sticky top-0 border-b border-foreground/10">
                             <tr>
-                                <th className="text-left px-5 py-3 font-medium">Who</th>
-                                <th className="text-left px-5 py-3 font-medium">Role</th>
+                                <th className="text-left px-5 py-3 font-medium">Who & Role</th>
                                 <th className="text-left px-5 py-3 font-medium">Action</th>
                                 <th className="text-left px-5 py-3 font-medium">Target</th>
+                                <th className="text-left px-5 py-3 font-medium">Details</th>
                                 <th className="text-left px-5 py-3 font-medium">When</th>
-                                <th className="text-left px-5 py-3 font-medium">IP Address</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
