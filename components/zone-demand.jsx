@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 // -------- Workout Zone Demand Grid --------
 export function ZoneDemandGrid({ compact = false, zones = [] }) {
   if (!zones || zones.length === 0) {
-    return <EmptyState title="No Zone Telemetry" description="No active physical zone metrics derived from live floor tracking yet." />
+    return <EmptyState title="No Zone Traffic" description="Add physical facilities in Settings to begin predicting AI Live Traffic estimations." />
   }
 
   return (

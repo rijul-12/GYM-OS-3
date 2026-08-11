@@ -146,7 +146,20 @@ export async function getDashboardStats() {
                 return 'Rest';
             }
 
-            let chest = 0, back = 0, legs = 0, shoulders = 0, arms = 0, core = 0, cardio = 0, yoga = 0;
+            const widgets = settingsSnap.exists && settingsSnap.data().widgets ? settingsSnap.data().widgets : [
+                { id: 'w1', name: 'Chest Zone', capacity: 10, muscleGroup: 'Chest', isActive: true, emoji: '💪', color: '#ef4444' },
+                { id: 'w2', name: 'Back Zone', capacity: 10, muscleGroup: 'Back', isActive: true, emoji: '🏋️', color: '#f97316' },
+                { id: 'w3', name: 'Leg Zone', capacity: 10, muscleGroup: 'Legs', isActive: true, emoji: '🦵', color: '#22c55e' },
+                { id: 'w4', name: 'Shoulder Zone', capacity: 10, muscleGroup: 'Shoulders', isActive: true, emoji: '🎯', color: '#eab308' },
+                { id: 'w5', name: 'Arms Zone', capacity: 10, muscleGroup: 'Arms', isActive: true, emoji: '💥', color: '#84cc16' },
+                { id: 'w6', name: 'Core Zone', capacity: 10, muscleGroup: 'Core', isActive: true, emoji: '🏃', color: '#3b82f6' }
+            ];
+
+            const activeWidgets = widgets.filter(w => w.isActive !== false);
+            activeWidgets.forEach(w => w._count = 0);
+
+            let str = 0, cardioCount = 0, yogaCount = 0, coreCount = 0;
+
             activeCheckins.forEach(a => {
                 let workoutArray = [];
                 if (a.actual_workout && Array.isArray(a.actual_workout) && a.actual_workout.length > 0) {
@@ -162,37 +175,56 @@ export async function getDashboardStats() {
 
                 const wStr = workoutArray.join(' ').toLowerCase();
 
-                if (wStr.includes('chest') || wStr.includes('push')) chest++;
-                if (wStr.includes('back') || wStr.includes('pull')) back++;
-                if (wStr.includes('leg')) legs++;
-                if (wStr.includes('shoulder')) shoulders++;
-                if (wStr.includes('arm') || wStr.includes('bicep') || wStr.includes('tricep')) arms++;
-                if (wStr.includes('core') || wStr.includes('abs')) core++;
-                if (wStr.includes('cardio') || wStr.includes('hiit')) cardio++;
-                if (wStr.includes('yoga') || wStr.includes('flex')) yoga++;
-                if (wStr.includes('full body')) { chest++; back++; legs++; shoulders++; core++; }
-                if (wStr.includes('powerlifting')) { chest++; back++; legs++; }
+                if (wStr.includes('cardio') || wStr.includes('hiit') || wStr.includes('treadmill')) cardioCount++;
+                if (wStr.includes('yoga') || wStr.includes('flex')) yogaCount++;
+                if (wStr.includes('core') || wStr.includes('abs')) coreCount++;
+                if (wStr.includes('chest') || wStr.includes('back') || wStr.includes('leg') || wStr.includes('shoulder') || wStr.includes('arm')) str++;
+                if (wStr.includes('full body')) { str += 1; coreCount += 1; }
+
+                activeWidgets.forEach(w => {
+                    if (!w.muscleGroup) return;
+                    const mg = w.muscleGroup.toLowerCase();
+                    if (mg === 'multiple' || mg === 'multi' || mg === 'full body') {
+                        if (wStr.includes('full body') || wStr.includes('crossfit')) w._count++;
+                    } else if (mg === 'chest' && (wStr.includes('chest') || wStr.includes('push'))) w._count++;
+                    else if (mg === 'back' && (wStr.includes('back') || wStr.includes('pull'))) w._count++;
+                    else if (mg === 'legs' && wStr.includes('leg')) w._count++;
+                    else if (mg === 'shoulders' && wStr.includes('shoulder')) w._count++;
+                    else if (mg === 'arms' && (wStr.includes('arm') || wStr.includes('bicep') || wStr.includes('tricep'))) w._count++;
+                    else if (mg === 'core' && (wStr.includes('core') || wStr.includes('abs'))) w._count++;
+                    else if (mg === 'cardio' && (wStr.includes('cardio') || wStr.includes('hiit') || wStr.includes('treadmill') || wStr.includes('run'))) w._count++;
+                    else if (mg === 'yoga' && (wStr.includes('yoga') || wStr.includes('stretch') || wStr.includes('flex'))) w._count++;
+                    else if (mg === 'swimming' && (wStr.includes('swim') || wStr.includes('pool'))) w._count++;
+                    else if (wStr.includes(mg)) w._count++;
+                });
             });
 
-            // Map Zone Demands strictly for the GymOS Live Intelligence constraint!
-            const max = Math.max(1, chest, back, legs, shoulders, arms, core, cardio);
-            const getDem = (v) => Math.floor((v / Math.max(1, insideCount)) * 100);
-            const getStatus = (v) => v > (insideCount * 0.4) && v > 1 ? 'Busy' : (v > 0 ? 'Medium' : 'Empty');
+            const getDem = (count, maxCap) => Math.min(100, Math.floor((count / Math.max(1, maxCap)) * 100));
+            const getStatus = (count, maxCap) => count > (maxCap * 0.7) ? 'Busy' : (count > (maxCap * 0.3) ? 'Medium' : 'Empty');
 
-            const ZONES = [
-                { id: 'z1', name: 'Chest Zone', members: chest, demand: getDem(chest), emoji: '💪', color: '#ef4444', status: getStatus(chest), bg: 'rgba(239,68,68,0.03)', border: 'rgba(239,68,68,0.1)' },
-                { id: 'z2', name: 'Back Zone', members: back, demand: getDem(back), emoji: '🏋️', color: '#f97316', status: getStatus(back), bg: 'rgba(249,115,22,0.03)', border: 'rgba(249,115,22,0.1)' },
-                { id: 'z3', name: 'Leg Zone', members: legs, demand: getDem(legs), emoji: '🦵', color: '#22c55e', status: getStatus(legs), bg: 'rgba(34,197,94,0.03)', border: 'rgba(34,197,94,0.1)' },
-                { id: 'z4', name: 'Shoulder Zone', members: shoulders, demand: getDem(shoulders), emoji: '🎯', color: '#eab308', status: getStatus(shoulders), bg: 'rgba(234,179,8,0.03)', border: 'rgba(234,179,8,0.1)' },
-                { id: 'z5', name: 'Arms Zone', members: arms, demand: getDem(arms), emoji: '💥', color: '#84cc16', status: getStatus(arms), bg: 'rgba(132,204,22,0.03)', border: 'rgba(132,204,22,0.1)' },
-                { id: 'z6', name: 'Core Zone', members: core, demand: getDem(core), emoji: '🏃', color: '#3b82f6', status: getStatus(core), bg: 'rgba(59,130,246,0.03)', border: 'rgba(59,130,246,0.1)' },
-            ];
+            const ZONES = activeWidgets.map((w, idx) => {
+                let badgeColor = w.color || '#3b82f6';
+                let hex = badgeColor;
+                if (!hex.startsWith('#')) hex = '#3b82f6';
+                let r = 59, g = 130, b = 246;
+                if (hex.length === 7) { r = parseInt(hex.slice(1, 3), 16); g = parseInt(hex.slice(3, 5), 16); b = parseInt(hex.slice(5, 7), 16); }
+                return {
+                    id: w.id || `w${idx}`,
+                    name: w.name,
+                    members: w._count,
+                    demand: getDem(w._count, w.capacity || 10),
+                    emoji: w.emoji || '✓',
+                    color: hex,
+                    status: getStatus(w._count, w.capacity || 10),
+                    bg: `rgba(${r},${g},${b},0.03)`,
+                    border: `rgba(${r},${g},${b},0.1)`
+                }
+            });
 
-            const str = chest + back + legs + shoulders + arms;
             const WORKOUT_DIST = [
                 { name: 'Strength Training', value: str || 0, color: '#ef4444' },
-                { name: 'Cardio Core', value: (cardio + core) || 0, color: '#3b82f6' },
-                { name: 'Flexibility / Yoga', value: yoga || 0, color: '#10b981' }
+                { name: 'Cardio Core', value: (cardioCount + coreCount) || 0, color: '#3b82f6' },
+                { name: 'Flexibility / Yoga', value: yogaCount || 0, color: '#10b981' }
             ].filter(d => d.value > 0);
             if (WORKOUT_DIST.length === 0) WORKOUT_DIST.push({ name: 'Idle', value: 1, color: '#64748b' });
 
@@ -288,4 +320,28 @@ export async function regenerateGymCode(gymIdParam) {
         }
     }
     return null;
+}
+
+export async function saveGymWidgets(gymIdParam, widgets) {
+    if (!isFirebaseConfigured()) return false;
+    const { adminDb } = await import('@/lib/firebase/server');
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const sessionStr = cookieStore.get('gymos_session')?.value;
+    let sessionGymId = null;
+    try { if (sessionStr) sessionGymId = JSON.parse(sessionStr).gymCode; } catch (e) { }
+
+    const gymId = gymIdParam || sessionGymId;
+    if (!adminDb || !gymId) return false;
+
+    try {
+        await adminDb.collection('gym_settings').doc(gymId).set({ widgets }, { merge: true });
+        revalidatePath('/settings');
+        revalidatePath('/portal');
+        revalidatePath('/portal/live');
+        revalidatePath('/super-admin');
+        return true;
+    } catch (e) {
+        return false;
+    }
 }

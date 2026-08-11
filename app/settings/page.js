@@ -12,10 +12,13 @@ import { toast } from 'sonner'
 import { regenerateGymCode } from '@/actions/db/gyms'
 import QRCode from 'react-qr-code'
 import { AppearanceSettings } from '@/components/appearance-settings'
+import { WidgetBuilder } from '@/components/widget-builder'
+import { MapPin } from 'lucide-react'
 
 const SECTIONS = [
   { id: 'general', label: 'General', icon: Globe },
   { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'widgets', label: 'Facilities / Zones', icon: MapPin },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'attendance', label: 'Attendance', icon: Clock },
   { id: 'security', label: 'Security', icon: Shield },
@@ -153,6 +156,9 @@ function App() {
             )}
             {active === 'appearance' && (
               <AppearanceSettings />
+            )}
+            {active === 'widgets' && (
+              <WidgetBuilder />
             )}
           </motion.div>
         </div>
