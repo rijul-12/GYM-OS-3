@@ -6,7 +6,8 @@ import { useState, useTransition } from 'react'
 import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
 import { Button } from '@/components/ui/button'
-import { createTrainer, approveTrainer, suspendTrainer, removeTrainer } from '@/actions/db/trainers'
+import { getInitials, getAvatarColor } from '@/lib/avatar'
+import { createTrainer, approveTrainer, suspendTrainer, removeTrainer, updateTrainerProfile } from '@/actions/db/trainers'
 
 export default function TrainersClient({ initialTrainers }) {
     const { brand } = useBrand()
@@ -14,15 +15,27 @@ export default function TrainersClient({ initialTrainers }) {
     const [showAdd, setShowAdd] = useState(false)
     const [isPending, startTransition] = useTransition()
     const [newTrainer, setNewTrainer] = useState({ name: '', specialty: '', email: '', salary: '' })
+    const [editingTrainer, setEditingTrainer] = useState(null)
+    const [editForm, setEditForm] = useState({})
+
+    const handleSaveEdit = () => {
+        startTransition(async () => {
+            await updateTrainerProfile(editingTrainer.id, editForm);
+            setEditingTrainer(null);
+            // Revalidation will refresh the client naturally
+        });
+    }
 
     // Polyfill mapping adding placeholder visual data if missing in DB
     const enhancedTrainers = initialTrainers.map(t => ({
         ...t,
-        photo: t.photo || `https://i.pravatar.cc/150?u=${t.id}`,
+        photo: t.photo || null,
         rating: t.rating || 5.0,
         members: t.members || 0,
         performance: t.performance || 100,
-        schedule: t.schedule || 'M-F, 9am-5pm'
+        schedule: t.schedule || 'M-F, 9am-5pm',
+        status: t.status || 'Active',
+        phone: t.phone || 'Not provided'
     }))
 
     const filtered = enhancedTrainers.filter(t => t.name.toLowerCase().includes(q.toLowerCase()) || t.specialty?.toLowerCase().includes(q.toLowerCase()))
@@ -57,8 +70,15 @@ export default function TrainersClient({ initialTrainers }) {
                             <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ type: "spring", stiffness: 200, damping: 20, delay: i * 0.05 }} key={t.id} whileHover={{ y: -4 }} className="rounded-2xl border border-foreground/5 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 hover:shadow-xl hover:border-foreground/10 transition-all group">
                                 <div className="flex items-start gap-4">
                                     <motion.div whileHover={{ scale: 1.05 }} className="relative shrink-0">
-                                        <Image src={t.photo} alt={t.name} className="h-16 w-16 rounded-2xl object-cover ring-2 ring-white/10 group-hover:ring-white/20 transition-all" width={120} height={120} />
-                                        <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-black" />
+                                        {t.photo ? (
+                                            <Image src={t.photo} alt={t.name} className="h-16 w-16 rounded-2xl object-cover ring-2 ring-white/10 group-hover:ring-white/20 transition-all" width={120} height={120} />
+                                        ) : (
+                                            <div className="h-16 w-16 rounded-2xl flex items-center justify-center font-display font-bold text-xl ring-2 ring-white/10 group-hover:ring-white/20 transition-all" style={{ backgroundColor: getAvatarColor(t.name), color: '#fff' }}>
+                                                {getInitials(t.name)}
+                                            </div>
+                                        )}
+                                        {t.status === 'Active' && <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-black" />}
+                                        {t.status === 'Suspended' && <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-orange-500 border-2 border-black" />}
                                     </motion.div>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-display text-lg font-semibold truncate">{t.name}</div>
@@ -93,7 +113,7 @@ export default function TrainersClient({ initialTrainers }) {
                                         <Button disabled={isPending} onClick={() => startTransition(async () => await approveTrainer(t.id))} className="flex-1 h-9 bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 border-0 text-xs">Restore Staff</Button>
                                     ) : (
                                         <>
-                                            <Button disabled={isPending} onClick={() => startTransition(async () => await removeTrainer(t.id))} variant="outline" className="flex-1 h-9 bg-foreground/[0.03] border-red-500/30 text-red-500 text-[11px] font-bold hover:bg-red-500/10">REMOVE</Button>
+                                            <Button disabled={isPending} onClick={() => { setEditingTrainer(t); setEditForm(t); }} className="flex-1 h-9 text-foreground border-0 text-xs bg-foreground/[0.05] hover:bg-foreground/[0.1]">Edit Trainer</Button>
                                             <Button className="flex-1 h-9 text-foreground border-0 text-xs" style={{ background: brand.primaryColor }}>Message</Button>
                                         </>
                                     )}
@@ -144,6 +164,49 @@ export default function TrainersClient({ initialTrainers }) {
                                 >
                                     {isPending ? 'Processing Onboarding...' : 'Send Invite'}
                                 </Button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+
+                {editingTrainer && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingTrainer(null)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
+                        <motion.div initial={{ x: 400, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 400, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-0 right-0 h-full w-full max-w-md bg-card border-l border-foreground/10 overflow-y-auto">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="text-xl font-bold font-display">Edit Trainer</div>
+                                    <button onClick={() => setEditingTrainer(null)}><X className="h-5 w-5 text-foreground/50 hover:text-foreground" /></button>
+                                </div>
+
+                                <div className="space-y-5">
+                                    <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Full Name</label><input value={editForm.name || ''} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 text-sm mt-1 outline-none" /></div>
+                                    <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Phone</label><input type="tel" value={editForm.phone || ''} onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 text-sm mt-1 outline-none" /></div>
+                                    <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Specialty</label><input value={editForm.specialty || ''} onChange={e => setEditForm(prev => ({ ...prev, specialty: e.target.value }))} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 text-sm mt-1 outline-none" /></div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Assigned Members</label><input type="number" value={editForm.members || 0} onChange={e => setEditForm(prev => ({ ...prev, members: parseInt(e.target.value) || 0 }))} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 text-sm mt-1 outline-none" /></div>
+                                        <div>
+                                            <label className="text-xs text-foreground/50 uppercase tracking-wider">Status</label>
+                                            <select value={editForm.status || 'Active'} onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 text-sm mt-1 outline-none appearance-none">
+                                                <option value="Active" className="text-black">Active</option>
+                                                <option value="Suspended" className="text-black">Suspended (Inactive)</option>
+                                                <option value="Pending" className="text-black">Pending</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Availability</label><input value={editForm.schedule || ''} onChange={e => setEditForm(prev => ({ ...prev, schedule: e.target.value }))} placeholder="e.g Mon-Fri 9-5" className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 text-sm mt-1 outline-none" /></div>
+
+                                    <div className="mt-8 flex gap-2">
+                                        <Button disabled={isPending} onClick={handleSaveEdit} style={{ background: brand.primaryColor }} className="flex-1 text-foreground border-0">{isPending ? 'Syncing...' : 'Save Trainer'}</Button>
+                                        <Button disabled={isPending} variant="outline" className="flex-1 border-red-500/20 hover:bg-red-500/10 text-red-500" onClick={() => {
+                                            startTransition(async () => {
+                                                await removeTrainer(editingTrainer.id);
+                                                setEditingTrainer(null);
+                                            })
+                                        }}>Remove</Button>
+                                    </div>
+                                </div>
                             </div>
                         </motion.div>
                     </>

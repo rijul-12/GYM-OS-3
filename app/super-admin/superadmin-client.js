@@ -22,12 +22,7 @@ const HealthDot = ({ status }) => {
     const color = status === 'Operational' ? '#22c55e' : status === 'Degraded' ? '#f59e0b' : '#ef4444'
     return <span className="h-2 w-2 rounded-full inline-block" style={{ background: color }} />
 }
-
-function formatCurrency(n) {
-    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`
-    if (n >= 1000) return `₹${(n / 1000).toFixed(0)}K`
-    return `₹${n}`
-}
+import { formatCurrency } from '@/lib/currency'
 
 export default function SuperAdminClient({ gyms }) {
     // We derive live platform numbers dynamically from our cross-tenant database fetch

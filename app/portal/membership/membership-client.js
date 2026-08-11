@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { CreditCard, Calendar, Check, ChevronRight, Sparkles, Shield } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
-import { ComingSoonModal } from '@/components/coming-soon-modal'
+
 import { useState } from 'react'
 
 // --- SYNTHETIC FALLBACKS START ---
@@ -34,7 +34,7 @@ export default function MembershipClient({ plans, meProfile }) {
 
     return (
         <PortalShell title="Membership">
-            <ComingSoonModal open={comingSoon} onOpenChange={setComingSoon} title="Billing Restructuring" feature="Payments & Plans" description="GymOS member billing is currently being mapped to tenant-specific payment gateways. Plan migrations are temporarily disabled." />
+
             <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>
                 <CreditCard className="h-3 w-3" /> Your pass
             </div>

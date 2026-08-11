@@ -14,9 +14,9 @@ function timeAgo(iso) {
   if (!iso) return '—'
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
   if (s < 60) return `${s}s ago`
-  if (s < 3600) return `${Math.floor(s/60)}m ago`
-  if (s < 86400) return `${Math.floor(s/3600)}h ago`
-  return `${Math.floor(s/86400)}d ago`
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
 }
 
 const CATS = ['All', 'QR', 'Manual', 'Biometric', 'Face', 'Cards', 'API']
@@ -62,9 +62,9 @@ function App() {
             <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="rounded-2xl border p-5 relative overflow-hidden card-hover" style={{ borderColor: connected ? `${p.color}55` : 'rgba(255,255,255,0.06)', background: connected ? `linear-gradient(135deg, ${p.color}0d, transparent 60%)` : 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-start justify-between mb-4">
                 <div className="h-11 w-11 rounded-xl flex items-center justify-center font-display font-bold text-sm" style={{ background: `${p.color}22`, border: `1px solid ${p.color}55`, color: p.color }}>{p.logo}</div>
-                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1 ${p.disabled ? 'bg-white/5 text-foreground/40' : connected ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/5 text-foreground/50'}`}>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1 ${connected ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/5 text-foreground/50'}`}>
                   {connected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 pulse-red" />}
-                  {p.disabled ? 'Reserved' : connected ? 'Connected' : 'Disconnected'}
+                  {connected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
 
@@ -82,7 +82,7 @@ function App() {
 
               <div className="mt-4 flex flex-wrap gap-1.5">
                 {!connected ? (
-                  <Button size="sm" onClick={() => setSelected(p)} disabled={p.disabled} className="h-8 text-xs text-foreground border-0" style={{ background: p.disabled ? '#333' : brand.primaryColor }}><Plug className="h-3 w-3 mr-1" /> {p.disabled ? 'Coming soon' : 'Connect'}</Button>
+                  <Button size="sm" onClick={() => setSelected(p)} className="h-8 text-xs text-foreground border-0" style={{ background: brand.primaryColor }}><Plug className="h-3 w-3 mr-1" /> Connect</Button>
                 ) : (
                   <>
                     <Button size="sm" onClick={() => { touchSync(p.id); toast.success(`${p.name} synced`) }} variant="outline" className="h-8 text-xs bg-foreground/[0.03] border-foreground/10"><RefreshCw className="h-3 w-3 mr-1" /> Sync now</Button>

@@ -25,8 +25,25 @@ export default function TrainerProgressClient({ initialMembers }) {
     const selected = initialMembers.find(m => m.id === selectedId) || initialMembers[0]
 
     // Progress Data Source Mapping directly from Native Members Payload
-    // Fallback if progress_history doesn't exist to prevent UI crashes structurally
-    const data = selected.progress_history || [{ w: 1, bench: 135, squat: 185, weight: 160 }, { w: 2, bench: 140, squat: 190, weight: 160 }, { w: 4, bench: 145, squat: 195, weight: 158 }]
+    const data = selected.progress_history || [];
+
+    if (data.length === 0) {
+        return (
+            <TrainerShell title="Progress" subtitle="Track strength gains and body composition mapped dynamically via NoSQL charts.">
+                <div className="flex flex-wrap gap-2 mb-6">
+                    {initialMembers.map((m) => (
+                        <button key={m.id} onClick={() => setSelectedId(m.id)} className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${selectedId === m.id ? 'border-foreground/25' : 'border-foreground/10 hover:border-foreground/20'}`} style={selectedId === m.id ? { background: `${brand.primaryColor}18`, color: brand.primaryColor } : {}}>
+                            <Image src={m.photo_url || `https://i.pravatar.cc/150?u=${m.id}`} className="h-5 w-5 rounded-full object-cover" alt="" width={120} height={120} /> {m.name}
+                        </button>
+                    ))}
+                </div>
+                <div className="p-12 text-center bg-black/20 rounded-xl border border-foreground/5 mt-4">
+                    <p className="text-foreground/40 text-sm">No progress data has been logged yet for {selected.name}.</p>
+                </div>
+            </TrainerShell>
+        )
+    }
+
     const first = data[0] || { bench: 0, squat: 0, weight: 0 }, last = data[data.length - 1] || { bench: 0, squat: 0, weight: 0 }
 
     const benchGain = last.bench - first.bench

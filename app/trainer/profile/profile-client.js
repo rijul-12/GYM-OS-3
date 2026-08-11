@@ -4,19 +4,55 @@ import { motion } from 'framer-motion'
 import { Award, Clock, Calendar, Star, Mail, Phone, Edit3, Users, GraduationCap } from 'lucide-react'
 import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
-import { ComingSoonModal } from '@/components/coming-soon-modal'
+
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-
-// Mocks eradicated inline with Production Sprint Step 1
+import { useState, useTransition } from 'react'
+import { updateTrainerProfile } from '@/actions/db/trainers'
+import { X, Save, UploadCloud } from 'lucide-react'
+import { AnimatePresence } from 'framer-motion'
+import { uploadProfilePhoto } from '@/actions/db/storage'
 
 export default function TrainerClient({ trainer }) {
   const { brand } = useBrand()
+  const [isEditing, setIsEditing] = useState(false)
+  const [form, setForm] = useState(trainer || {})
+  const [isPending, startTransition] = useTransition()
+
+  const handleSave = () => {
+    startTransition(async () => {
+      await updateTrainerProfile(trainer.id, {
+        name: form.name,
+        specialty: form.specialty,
+        bio: form.bio,
+        availability: form.availability,
+        workingHours: form.workingHours,
+        hourlyRate: Number(form.hourlyRate)
+      })
+      toast.success("Profile updated successfully")
+      setIsEditing(false)
+    })
+  }
+
+  const handlePhotoUpdate = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      startTransition(async () => {
+        try {
+          await uploadProfilePhoto(trainer.id, reader.result, 'trainers');
+          toast.success('Photo updated!');
+        } catch (err) { }
+      });
+    };
+    reader.readAsDataURL(file);
+  }
 
   if (!trainer) {
     return (
       <TrainerShell title="Profile" subtitle="Your public trainer card">
-            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Trainer Settings" feature="V2 Feature" description="Trainer profile overrides are currently restricted to SuperAdmin accounts." fallbackRoute="/trainer" />
+
         <div className="mt-8 text-center bg-foreground/[0.02] p-10 rounded-2xl border border-foreground/5 h-[400px] flex flex-col items-center justify-center">
           <div className="text-foreground/40 text-lg mb-2">No data yet</div>
           <div className="text-foreground/20 text-sm">Your trainer profile has not been configured by the Gym Owner.</div>
@@ -28,7 +64,7 @@ export default function TrainerClient({ trainer }) {
   const t = trainer;
 
   return (
-    <TrainerShell title="Profile" subtitle="Your public trainer card" actions={<Button onClick={() => toast.info('Coming Soon: Profile editing must be performed by your Gym Owner.')} variant="outline" className="h-10 bg-foreground/[0.03] border-foreground/10 text-xs opacity-50 cursor-not-allowed"><Edit3 className="h-3.5 w-3.5 mr-1.5" /> Edit</Button>}>
+    <TrainerShell title="Profile" subtitle="Your public trainer card" actions={<Button onClick={() => setIsEditing(true)} style={{ background: brand.primaryColor }} className="h-10 text-foreground border-0 hover:opacity-90"><Edit3 className="h-3.5 w-3.5 mr-1.5" /> Edit Profile</Button>}>
 
       {/* Hero */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative rounded-3xl overflow-hidden border border-foreground/10" style={{ background: `linear-gradient(135deg, ${brand.primaryColor}18, transparent 60%)` }}>
@@ -104,6 +140,70 @@ export default function TrainerClient({ trainer }) {
           ))}
         </div>
       </div>
+
+      <AnimatePresence>
+        {isEditing && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditing(false)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
+            <motion.div initial={{ x: 500, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 500, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-0 right-0 h-full w-full max-w-xl bg-card border-l border-foreground/10 overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="text-xl font-bold font-display">Edit Profile</div>
+                  <button onClick={() => setIsEditing(false)} className="text-foreground/50 hover:text-foreground"><X className="h-5 w-5" /></button>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-2">Display Name</label>
+                    <input value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 h-10 rounded-lg px-3 text-sm focus:border-foreground/30 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-2">Profile Photo Upload</label>
+                    <div className="flex items-center gap-4">
+                      <Image src={t.photo || 'https://i.pravatar.cc/150?u=a'} className="h-12 w-12 rounded-full object-cover ring-1 ring-white/10" alt="" width={60} height={60} />
+                      <label className="cursor-pointer text-xs flex items-center gap-1.5 bg-foreground/[0.05] hover:bg-foreground/[0.1] px-3 py-2 rounded-lg border border-foreground/10 transition">
+                        <UploadCloud className="h-3.5 w-3.5" /> Upload File
+                        <input type="file" onChange={handlePhotoUpdate} accept="image/*" className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-1.5">Availability Status</label>
+                      <select value={form.availability || 'Full Time'} onChange={e => setForm({ ...form, availability: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 h-10 rounded-lg px-3 text-sm outline-none">
+                        <option>Full Time</option>
+                        <option>Part Time</option>
+                        <option>Not Accepting New</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-1.5">Hourly Rate ($)</label>
+                      <input type="number" value={form.hourlyRate || ''} onChange={e => setForm({ ...form, hourlyRate: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 h-10 rounded-lg px-3 text-sm focus:border-foreground/30 outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-2">Specialization</label>
+                    <input value={form.specialty || ''} onChange={e => setForm({ ...form, specialty: e.target.value })} placeholder="e.g. Strength & Rehab" className="w-full bg-foreground/[0.03] border border-foreground/10 h-10 rounded-lg px-3 text-sm focus:border-foreground/30 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-2">Detailed Biography</label>
+                    <textarea value={form.bio || ''} onChange={e => setForm({ ...form, bio: e.target.value })} rows={4} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm focus:border-foreground/30 outline-none resize-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-foreground/50 uppercase tracking-widest block mb-2">Working Hours</label>
+                    <input value={form.workingHours || ''} onChange={e => setForm({ ...form, workingHours: e.target.value })} placeholder="e.g. 5:00 AM - 1:00 PM" className="w-full bg-foreground/[0.03] border border-foreground/10 h-10 rounded-lg px-3 text-sm focus:border-foreground/30 outline-none" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-foreground/5">
+                  <Button disabled={isPending} onClick={() => setIsEditing(false)} variant="ghost">Cancel</Button>
+                  <Button disabled={isPending} onClick={handleSave} style={{ background: brand.primaryColor }} className="text-foreground border-0"><Save className="h-4 w-4 mr-1.5" /> Save Changes</Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </TrainerShell>
   )
 }

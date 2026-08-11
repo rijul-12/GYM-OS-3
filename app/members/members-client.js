@@ -7,9 +7,12 @@ import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
-import { deleteMember, createMember, updateMember, approveMember, deactivateMember, markPaymentPaid } from '@/actions/db/members'
+import { deleteMember, createMember, updateMember, approveMember, deactivateMember, markPaymentPaid, reactivateMember } from '@/actions/db/members'
+import { getPlans } from '@/actions/db/plans'
 import { GlobalExport } from '@/components/global-export'
 import { useAutosave } from '@/hooks/use-autosave'
+
+import { getInitials, getAvatarColor } from '@/lib/avatar'
 
 const stageColor = (s) => (
     { Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5'
@@ -32,6 +35,7 @@ export default function MembersClient({ initialMembers }) {
     const [isPending, startTransition] = useTransition()
     const [pendingDeletes, setPendingDeletes] = useState([])
     const [showAdd, setShowAdd] = useState(false)
+    const [plans, setPlans] = useState([])
     const [newMember, setNewMember, clearMemberDraft] = useAutosave('gymos_member_draft', { name: '', email: '', phone: '' })
 
     // Map Supabase rows to UI requirements + handle empty fallbacks
@@ -39,7 +43,7 @@ export default function MembersClient({ initialMembers }) {
         const isCheckedIn = false // Connect to real attendance later 
         return {
             ...m,
-            photo: m.photo_url || `https://i.pravatar.cc/150?u=${m.email}`,
+            photo: m.photo_url || null,
             plan: m.plan || 'Base Member',
             workoutSplit: m.workoutSplit || 'General Fitness',
             schedule: m.schedule || 'Undecided',
@@ -136,7 +140,7 @@ export default function MembersClient({ initialMembers }) {
                     <input placeholder="Search members" value={q} onChange={(e) => setQ(e.target.value)} className="bg-transparent outline-none text-sm flex-1" />
                 </div>
                 <div className="flex gap-1.5 bg-foreground/[0.03] border border-foreground/10 rounded-lg p-1 flex-wrap">
-                    {['All', 'Inside', 'Offline', 'Active', 'Expiring'].map((t) => (
+                    {['All', 'Inside', 'Offline', 'Active', 'Inactive', 'Expiring'].map((t) => (
                         <button key={t} onClick={() => setFilter(t)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${filter === t ? 'text-foreground' : 'text-foreground/50 hover:text-foreground'}`} style={filter === t ? { background: brand.primaryColor } : {}}>{t}</button>
                     ))}
                 </div>
@@ -163,7 +167,13 @@ export default function MembersClient({ initialMembers }) {
                         <motion.div key={m.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} onClick={() => { setSelected(m); setEditForm(m); setIsEditing(false); }} className="cursor-pointer rounded-2xl border border-foreground/10 bg-gradient-to-b from-white/[0.03] to-white/[0.01] p-5 card-hover relative overflow-hidden">
                             <div className="flex items-start gap-4">
                                 <div className="relative shrink-0">
-                                    <Image src={m.photo} className="h-14 w-14 rounded-full object-cover ring-2 ring-white/10" alt="" width={120} height={120} />
+                                    {m.photo ? (
+                                        <Image src={m.photo} className="h-14 w-14 rounded-full object-cover ring-2 ring-white/10" alt="" width={120} height={120} />
+                                    ) : (
+                                        <div className="h-14 w-14 rounded-full flex items-center justify-center font-display font-bold text-lg ring-2 ring-white/10" style={{ backgroundColor: getAvatarColor(m.name), color: '#fff' }}>
+                                            {getInitials(m.name)}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-display font-semibold truncate">{m.name}</div>
@@ -189,8 +199,14 @@ export default function MembersClient({ initialMembers }) {
                                     <button onClick={() => setSelected(null)}><X className="h-5 w-5" /></button>
                                 </div>
                                 <div className="flex items-start gap-4">
-                                    <div className="relative">
-                                        <Image src={selected.photo} className="h-20 w-20 rounded-2xl object-cover ring-2 ring-white/10" alt="" width={120} height={120} />
+                                    <div className="relative shrink-0">
+                                        {selected.photo ? (
+                                            <Image src={selected.photo} className="h-20 w-20 rounded-2xl object-cover ring-2 ring-white/10" alt="" width={120} height={120} />
+                                        ) : (
+                                            <div className="h-20 w-20 rounded-2xl flex items-center justify-center font-display font-bold text-2xl ring-2 ring-white/10" style={{ backgroundColor: getAvatarColor(selected.name), color: '#fff' }}>
+                                                {getInitials(selected.name)}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <div className="font-display text-2xl font-bold">{selected.name}</div>
@@ -259,8 +275,17 @@ export default function MembersClient({ initialMembers }) {
                                                 {selected.status === 'Active' && (
                                                     <Button disabled={isPending} variant="outline" className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10" onClick={() => startTransition(async () => { await deactivateMember(selected.id); setSelected({ ...selected, status: 'Inactive' }) })}>Deactivate Membership</Button>
                                                 )}
+                                                {selected.status === 'Inactive' && (
+                                                    <Button disabled={isPending} onClick={() => startTransition(async () => { await reactivateMember(selected.id); setSelected({ ...selected, status: 'Active' }) })} className="w-full bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 border-0">Reactivate Membership</Button>
+                                                )}
                                                 <div className="flex gap-2">
-                                                    <Button onClick={() => setIsEditing(true)} style={{ background: brand.primaryColor }} className="flex-1 text-foreground border-0">Edit Profile</Button>
+                                                    <Button onClick={async () => {
+                                                        setIsEditing(true);
+                                                        if (plans.length === 0) {
+                                                            const p = await getPlans();
+                                                            setPlans(p);
+                                                        }
+                                                    }} style={{ background: brand.primaryColor }} className="flex-1 text-foreground border-0">Edit Profile</Button>
                                                     <Button variant="outline" className="flex-1 border-red-500/20 text-red-500 hover:bg-red-500/10" onClick={() => handleDeleteClick(selected)}>
                                                         Delete Member
                                                     </Button>
@@ -270,6 +295,44 @@ export default function MembersClient({ initialMembers }) {
                                     </>
                                 ) : (
                                     <div className="mt-6 space-y-5 animate-in fade-in duration-300">
+                                        <div className="space-y-3 border-l-2 border-indigo-500 pl-4">
+                                            <div className="text-sm font-semibold">Core Identity</div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Full Name</label><input value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 text-sm mt-1 outline-none" /></div>
+                                                <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Phone</label><input value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 text-sm mt-1 outline-none" /></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3 border-l-2 border-green-500 pl-4">
+                                            <div className="text-sm font-semibold">Membership Plan</div>
+                                            <div>
+                                                <label className="text-xs text-foreground/50 uppercase tracking-wider">Current Plan</label>
+                                                <div className="relative mt-1">
+                                                    <select value={editForm.plan || ''} onChange={e => setEditForm({ ...editForm, plan: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 text-sm outline-none text-foreground appearance-none">
+                                                        {plans.length === 0 ? <option value={editForm.plan}>{editForm.plan}</option> : null}
+                                                        {plans.map(p => (
+                                                            <option key={p.id} value={p.name} className="text-black">{p.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                        <ChevronRight className="h-4 w-4 text-foreground/50 rotate-90" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div>
+                                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Status</label>
+                                                    <select value={editForm.status || 'Active'} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 text-sm mt-1 outline-none appearance-none">
+                                                        <option value="Active" className="text-black">Active</option>
+                                                        <option value="Inactive" className="text-black">Inactive</option>
+                                                        <option value="Pending" className="text-black">Pending</option>
+                                                    </select>
+                                                </div>
+                                                <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Start Date</label><input type="date" value={editForm.startDate?.split('T')[0] || editForm.created_at?.split('T')[0] || ''} onChange={e => setEditForm({ ...editForm, startDate: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 text-sm mt-1 outline-none" /></div>
+                                                <div><label className="text-xs text-foreground/50 uppercase tracking-wider">Expiry Date</label><input type="date" value={editForm.expiryDate?.split('T')[0] || ''} onChange={e => setEditForm({ ...editForm, expiryDate: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 text-sm mt-1 outline-none" /></div>
+                                            </div>
+                                        </div>
+
                                         <div className="space-y-3 border-l-2 border-red-500 pl-4">
                                             <div className="text-sm font-semibold">Biological Mapping</div>
                                             <div className="grid grid-cols-2 gap-3">

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Activity, Calendar, ChevronRight, X, Phone, Mail, AlertCircle, MapPin, Timer, TrendingUp, Trophy, Ruler, Weight, StickyNote, Plus, Flame, ClipboardList, Check, XCircle } from 'lucide-react'
 import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
-import { ComingSoonModal } from '@/components/coming-soon-modal'
+
 import { Button } from '@/components/ui/button'
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { toast } from 'sonner'
@@ -87,13 +87,13 @@ export default function TrainerMembersClient({ initialMembers }) {
     }
 
     const extras = selected || {}
-    const progress = selected?.progress_history || [{ w: 1, bench: 135, squat: 185 }]
+    const progress = selected?.progress_history || []
     const plan = selected?.trainer_plan || {}
     const memberNotes = selected?.trainer_notes || []
 
     return (
         <TrainerShell title="Assigned Members" subtitle={`${members.length} clients · manage and track all your active participants`}>
-            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Trainer Client Roster" feature="V2 Feature" description="Advanced roster management and progress mapping is migrating to a dedicated service." fallbackRoute="/trainer" />
+
             <div className="flex flex-wrap gap-3 mb-6">
                 <div className="flex items-center gap-2 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-3 py-2 flex-1 min-w-[220px]">
                     <Search className="h-4 w-4 text-foreground/40" />
@@ -198,16 +198,20 @@ export default function TrainerMembersClient({ initialMembers }) {
                                 <div className="mt-6 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5">
                                     <div className="flex items-center gap-2"><TrendingUp className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm font-medium">Progress · last 8 weeks</div></div>
                                     <div className="h-48 mt-3">
-                                        <ResponsiveContainer>
-                                            <LineChart data={progress}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                                <XAxis dataKey="w" stroke="#ffffff40" fontSize={11} />
-                                                <YAxis stroke="#ffffff40" fontSize={11} />
-                                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                                <Line type="monotone" dataKey="bench" stroke={brand.primaryColor} strokeWidth={2.5} dot={{ r: 3 }} />
-                                                <Line type="monotone" dataKey="squat" stroke="#a3a3a3" strokeWidth={2} dot={{ r: 3 }} />
-                                            </LineChart>
-                                        </ResponsiveContainer>
+                                        {progress.length > 0 ? (
+                                            <ResponsiveContainer>
+                                                <LineChart data={progress}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                                                    <XAxis dataKey="w" stroke="#ffffff40" fontSize={11} />
+                                                    <YAxis stroke="#ffffff40" fontSize={11} />
+                                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
+                                                    <Line type="monotone" dataKey="bench" stroke={brand.primaryColor} strokeWidth={2.5} dot={{ r: 3 }} />
+                                                    <Line type="monotone" dataKey="squat" stroke="#a3a3a3" strokeWidth={2} dot={{ r: 3 }} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="flex bg-black/20 rounded-xl h-full items-center justify-center text-foreground/40 text-xs">Waiting for {selected?.name} to log workouts.</div>
+                                        )}
                                     </div>
                                     <div className="flex gap-4 text-xs mt-2">
                                         <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded" style={{ background: brand.primaryColor }} /> Bench (lb)</span>

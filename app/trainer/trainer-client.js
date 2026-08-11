@@ -7,7 +7,7 @@ import { TrainerShell } from '@/components/trainer-shell'
 import { useBrand } from '@/components/brand-provider'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { StatCard } from '@/components/ui/stat-card'
-import { ComingSoonModal } from '@/components/coming-soon-modal'
+
 import { useState } from 'react'
 
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
@@ -52,7 +52,7 @@ export default function TrainerClient({ members }) {
 
     return (
         <TrainerShell title="Trainer Dashboard" subtitle="Your assigned members, live floor, and today's sessions">
-            <ComingSoonModal open={comingSoon} onOpenChange={setComingSoon} title="Trainer AI Workflows" feature="Intelligent Coaching Core" description="GymOS V2 will introduce ML-driven adaptive training plans, connected floor tracking, and in-depth client metrics mapped natively for your gym's coaching staff." />
+
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <StatCard icon={Users} label="Assigned members" value={assigned.length} sub="active clients" />

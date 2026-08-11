@@ -117,3 +117,14 @@ export async function getMyTrainerProfile() {
     }
     return null;
 }
+
+export async function updateTrainerProfile(trainerId, updateData) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            await adminDb.collection('trainers').doc(trainerId).update(updateData)
+            revalidatePath('/trainer/profile')
+            return true;
+        }
+    }
+}

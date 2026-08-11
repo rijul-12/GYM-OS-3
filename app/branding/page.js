@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Logo } from '@/components/logo'
-import { ComingSoonModal } from '@/components/coming-soon-modal'
+
 
 // --- SYNTHETIC FALLBACKS START ---
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
@@ -47,18 +47,22 @@ const PRESETS = [
 ]
 
 function App() {
-  const { brand } = useBrand()
+  const { brand, setBrand, reset } = useBrand()
   const [local, setLocal] = useState(brand)
-  const [comingSoon, setComingSoon] = useState(false)
 
   const update = (patch) => setLocal((p) => ({ ...p, ...patch }))
-  const save = () => setComingSoon(true)
-  const doReset = () => setComingSoon(true)
+  const save = () => {
+    setBrand(local);
+    toast.success('Branding settings applied to browser session!');
+  }
+  const doReset = () => {
+    reset();
+    window.location.reload();
+  }
 
   return (
     <DashShell title="White Label" subtitle="Rebrand the entire platform in seconds — no code required"
       actions={<div className="flex gap-2"><Button onClick={doReset} variant="outline" className="bg-foreground/[0.03] border-foreground/10 h-10 text-xs"><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset</Button><Button onClick={save} style={{ background: local.primaryColor }} className="text-foreground border-0 h-10"><Save className="h-4 w-4 mr-2" /> Save changes</Button></div>}>
-      <ComingSoonModal open={comingSoon} onOpenChange={setComingSoon} title="White-Label Deployment" feature="Custom App Binaries & Global Branding" description="Deep white-labeling requires generating custom iOS and Android app binaries to App Store Connect. This enterprise feature will be unlocked in GymOS V2 along with advanced agency capabilities." />
       <div className="grid lg:grid-cols-5 gap-5">
         {/* Form */}
         <div className="lg:col-span-3 space-y-5">
@@ -104,7 +108,7 @@ function App() {
               <div className="text-xs text-foreground/60 mb-2">Quick presets</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {PRESETS.map((p) => (
-                  <button key={p.name} onClick={() => setComingSoon(true)} className="flex items-center gap-2 rounded-lg border border-foreground/5 bg-black/40 p-2.5 hover:border-foreground/20 transition">
+                  <button key={p.name} onClick={() => update({ primaryColor: p.primary, accentColor: p.accent })} className="flex items-center gap-2 rounded-lg border border-foreground/5 bg-black/40 p-2.5 hover:border-foreground/20 transition">
                     <div className="h-5 w-5 rounded-md" style={{ background: `linear-gradient(135deg, ${p.primary}, ${p.accent})` }} />
                     <span className="text-xs">{p.name}</span>
                   </button>
@@ -163,7 +167,7 @@ function App() {
             </div>
             <div className="p-5 bg-card space-y-4">
               <div className="grid grid-cols-3 gap-2">
-                {[{ l: 'Members', v: '1,284' }, { l: 'Inside', v: '62' }, { l: 'Revenue', v: '$45.9K' }].map((s, i) => (
+                {[{ l: 'Members', v: '1,284' }, { l: 'Inside', v: '62' }, { l: 'Revenue', v: '₹45.9K' }].map((s, i) => (
                   <div key={i} className="rounded-lg border border-foreground/5 bg-foreground/[0.02] p-2.5">
                     <div className="text-[10px] text-foreground/40 uppercase">{s.l}</div>
                     <div className="font-display text-lg font-bold" style={i === 1 ? { color: local.primaryColor } : {}}>{s.v}</div>

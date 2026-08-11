@@ -9,6 +9,10 @@ function generateGymCode() {
     return `GYM-${l1}${l2}${l3}-${num}`;
 }
 
+function isFirebaseConfigured() {
+    return !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+}
+
 export async function processOwnerRegistration(data) {
     const { adminDb, adminAuth } = await import('@/lib/firebase/server');
 
@@ -102,14 +106,23 @@ export async function processTrainerRegistration(data) {
 
     // 1. Validate Gym Code strictly
     const gymCodeRaw = data.gymCode?.trim()?.toUpperCase();
-    const gymSnap = await adminDb.collection('gyms').doc(gymCodeRaw).get();
 
-    if (!gymSnap.exists) {
+    if (!isFirebaseConfigured() || gymCodeRaw === 'DEMO') {
+        await new Promise(r => setTimeout(r, 600));
+        return { success: true, uid: 'demo-trainer-' + Math.floor(Math.random() * 10000) };
+    }
+    let actualGymId = gymCodeRaw;
+
+    let gymSnap = await adminDb.collection('gyms').doc(gymCodeRaw).get();
+    if (gymSnap.exists) {
+        actualGymId = gymSnap.id;
+    } else {
         // Fallback to checking via field if somehow they aren't matching ID
         const qSnap = await adminDb.collection('gyms').where('gymCode', '==', gymCodeRaw).get();
         if (qSnap.empty) {
             return { error: "Invalid Gym Code. Verification failed." };
         }
+        actualGymId = qSnap.docs[0].id;
     }
 
     // 2. Create Auth User
@@ -126,11 +139,11 @@ export async function processTrainerRegistration(data) {
 
     try {
         // 3. Bind Role & Multitenant Token
-        await adminAuth.setCustomUserClaims(user.uid, { role: 'trainer', gymCode: gymCodeRaw });
+        await adminAuth.setCustomUserClaims(user.uid, { role: 'trainer', gymCode: actualGymId });
 
         // 4. Write Trainer Profile Object
         await adminDb.collection('trainers').doc(user.uid).set({
-            gymId: gymCodeRaw,
+            gymId: actualGymId,
             name: data.trainerName,
             email: data.email,
             phone: data.phone,
@@ -168,22 +181,34 @@ export async function processMemberRegistration(data) {
 
     // 1. Validate Gym Code strictly
     const gymCodeRaw = data.gymCode?.trim()?.toUpperCase();
-    const gymSnap = await adminDb.collection('gyms').where('gymCode', '==', gymCodeRaw).get();
 
-    if (gymSnap.empty) return { error: "Invalid Gym Code. Please check with your gym." };
+    if (!isFirebaseConfigured() || gymCodeRaw === 'DEMO') {
+        await new Promise(r => setTimeout(r, 600));
+        return { success: true, uid: 'demo-member-' + Math.floor(Math.random() * 10000) };
+    }
+    let actualGymId = gymCodeRaw;
+
+    let gymDoc = await adminDb.collection('gyms').doc(gymCodeRaw).get();
+    if (gymDoc.exists) {
+        actualGymId = gymDoc.id;
+    } else {
+        const gymSnap = await adminDb.collection('gyms').where('gymCode', '==', gymCodeRaw).get();
+        if (gymSnap.empty) return { error: "Invalid Gym Code. Please check with your gym." };
+        actualGymId = gymSnap.docs[0].id;
+    }
 
     // 1b. Validate Member Limits!
     const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
     const { getMemberLimit } = await import('@/lib/permissions');
 
-    const subStatus = await getSubscriptionStatus(gymCodeRaw);
+    const subStatus = await getSubscriptionStatus(actualGymId);
     if (subStatus.currentPhase === 'Expired') {
         return { error: 'Facility subscription has expired. Registrations are paused.' };
     }
 
     const limit = getMemberLimit(subStatus.plan);
     const mSnap = await adminDb.collection('members')
-        .where('gymId', '==', gymCodeRaw)
+        .where('gymId', '==', actualGymId)
         .where('status', 'in', ['Active', 'Pending'])
         .count().get();
 
@@ -205,11 +230,11 @@ export async function processMemberRegistration(data) {
 
     try {
         // 3. Bind Member Role 
-        await adminAuth.setCustomUserClaims(user.uid, { role: 'member', gymCode: gymCodeRaw });
+        await adminAuth.setCustomUserClaims(user.uid, { role: 'member', gymCode: actualGymId });
 
         // 4. Construct Live Intelligence Matrix Schema Node
         await adminDb.collection('members').doc(user.uid).set({
-            gymId: gymCodeRaw,
+            gymId: actualGymId,
             name: data.name,
             email: data.email,
             phone: data.phone,

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Users, MapPin, Clock, Radio, Sparkles } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
-import { ComingSoonModal } from '@/components/coming-soon-modal'
+
 import { ZoneDemandGrid, CrowdHeatmap, ZoneInsightsGrid } from '@/components/zone-demand'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
@@ -54,7 +54,7 @@ function App({ insideCount = 0, zones = [], dailyLine = [], dist = [] }) {
 
   return (
     <PortalShell title="Live Gym">
-            <ComingSoonModal open={true} onOpenChange={()=>{}} title="Live Floor Telemetry" feature="V2 Feature" description="Real-time hardware connectivity requires physical IoT bridges." fallbackRoute="/portal" />
+
       <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>
         <span className="h-1.5 w-1.5 rounded-full pulse-red" style={{ background: brand.primaryColor }} />
         Real-time · Auto-refresh every 3s

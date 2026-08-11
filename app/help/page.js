@@ -22,8 +22,7 @@ export default function HelpCenter() {
                             <PlayCircle className="h-6 w-6 text-primary" />
                         </div>
                         <h3 className="font-semibold text-lg">Video Tutorials</h3>
-                        <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-[80%]">Watch quick mastery guides on maximizing the AI engine and operational flow.</p>
-                        <button className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-lg opacity-50 cursor-not-allowed">Coming Soon (Q3)</button>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-[80%]">Video library is currently offline during platform upgrades.</p>
                     </div>
 
                     <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-center items-center text-center">
@@ -40,7 +39,7 @@ export default function HelpCenter() {
                     <h3 className="font-semibold mb-4">Documentation Categories</h3>
                     <div className="grid sm:grid-cols-2 gap-3">
                         {categories.map(c => (
-                            <div key={c.title} className="flex items-center gap-4 p-3 rounded-xl hover:bg-foreground/[0.02] border border-transparent hover:border-border transition-all cursor-not-allowed opacity-50 grayscale" title="Documentation rolling out soon">
+                            <div key={c.title} className="flex items-center gap-4 p-3 rounded-xl hover:bg-foreground/[0.02] border border-transparent hover:border-border transition-all">
                                 <div className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${c.bg}`}>
                                     <c.icon className={`h-5 w-5 ${c.color}`} />
                                 </div>

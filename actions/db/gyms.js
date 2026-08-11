@@ -116,8 +116,25 @@ export async function getDashboardStats() {
             const insideCount = activeCheckins.length;
 
             // Compute Intelligence securely without mock arrays
-            const membersListDoc = await adminDb.collection('members').where('gymId', '==', gymId).get();
+            const [membersListDoc, plansListDoc] = await Promise.all([
+                adminDb.collection('members').where('gymId', '==', gymId).get(),
+                adminDb.collection('plans').where('gymId', '==', gymId).get()
+            ]);
             const members = membersListDoc.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            const plansMap = {};
+            plansListDoc.docs.forEach(doc => {
+                const pd = doc.data();
+                if (pd.name) plansMap[pd.name.toLowerCase()] = parseFloat(pd.price) || 0;
+            });
+
+            let totalRevenue = 0;
+            members.forEach(m => {
+                if (m.is_active !== false && m.status !== 'Inactive') {
+                    const planName = m.plan ? m.plan.toLowerCase() : '';
+                    totalRevenue += (plansMap[planName] || 0);
+                }
+            });
 
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const today = days[new Date().getDay()];
@@ -215,7 +232,7 @@ export async function getDashboardStats() {
                 totalMembers,
                 totalTrainers,
                 todayCheckins,
-                revenueMtd: `${currencySymbol}${totalMembers > 0 ? (totalMembers * 49.99).toLocaleString() : '0.00'}`,
+                revenueMtd: `${currencySymbol}${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                 zones: ZONES,
                 dist: WORKOUT_DIST,
                 dailyLine: ATTENDANCE_DAILY,

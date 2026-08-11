@@ -21,12 +21,7 @@ const STATUS_COLORS = {
     Expired: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
     Pending: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' }
 }
-
-function formatCurrency(n) {
-    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`
-    if (n >= 1000) return `₹${(n / 1000).toFixed(0)}K`
-    return `₹${n}`
-}
+import { formatCurrency } from '@/lib/currency'
 
 export default function GymsClient({ initialGyms }) {
     const router = useRouter()

@@ -14,11 +14,7 @@ const STATUS_COLORS = {
     Inactive: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
 }
 
-function formatCurrency(n) {
-    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`
-    if (n >= 1000) return `₹${(n / 1000).toFixed(0)}K`
-    return `₹${n}`
-}
+import { formatCurrency } from '@/lib/currency'
 
 export default function OwnersPage() {
     const [search, setSearch] = useState('')

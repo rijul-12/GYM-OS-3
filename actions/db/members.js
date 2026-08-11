@@ -233,3 +233,32 @@ export async function markPaymentPaid(id) {
         }
     }
 }
+
+export async function reactivateMember(id) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            await adminDb.collection('members').doc(id).update({
+                is_active: true,
+                status: 'Active'
+            })
+            revalidatePath('/members')
+            revalidatePath('/dashboard')
+            return true
+        }
+    }
+}
+
+export async function updateMemberPlan(id, newPlanName) {
+    if (isFirebaseConfigured()) {
+        const { adminDb } = await import('@/lib/firebase/server')
+        if (adminDb) {
+            await adminDb.collection('members').doc(id).update({
+                plan: newPlanName,
+            })
+            revalidatePath('/members')
+            revalidatePath('/dashboard')
+            return true
+        }
+    }
+}
