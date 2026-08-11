@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Flame, Timer, MapPin, ChevronRight, TrendingUp, Users, Sparkles, Dumbbell } from 'lucide-react'
+import { Flame, Timer, MapPin, ChevronRight, TrendingUp, Users, Sparkles, Dumbbell, CalendarClock } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
 import { ZoneDemandGrid, CrowdHeatmap } from '@/components/zone-demand'
@@ -33,6 +33,99 @@ const Ring = ({ value, size = 180, stroke = 14, gradient }) => {
             />
         </svg>
     )
+}
+
+const MembershipValidityBanner = ({ member }) => {
+    const { brand } = useBrand()
+
+    if (!member) return null;
+
+    const expiryStr = member.membershipExpiry || member.membership_expiry || member.expiryDate || member.expiry_date || member.valid_until;
+    let end = null;
+    if (expiryStr) {
+        const d = new Date(expiryStr);
+        if (!isNaN(d.getTime())) end = d;
+    }
+
+    if (!end) return null;
+
+    const plan = member.plan || member.membershipPlan || member.membershipStatus || 'Membership Plan';
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+    const timeDiff = endDate.getTime() - today.getTime();
+    const daysRemaining = Math.max(-1, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+
+    let message = "";
+    let dangerLevel = "none";
+    let showRenew = false;
+
+    if (daysRemaining < 0) {
+        message = "Membership expired";
+        dangerLevel = "critical";
+        showRenew = true;
+    } else if (daysRemaining === 0) {
+        message = "Membership expires today";
+        dangerLevel = "critical";
+        showRenew = true;
+    } else if (daysRemaining <= 6) {
+        message = `Membership expires in ${daysRemaining} days`;
+        dangerLevel = "critical";
+        showRenew = true;
+    } else if (daysRemaining <= 14) {
+        message = "Membership expires soon";
+        dangerLevel = "warning";
+        showRenew = true;
+    } else {
+        message = `${daysRemaining} days remaining`;
+    }
+
+    const formattedDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(end);
+
+    let bgColors = "bg-foreground/[0.02] border-foreground/5";
+    let iconColor = "text-foreground/50";
+
+    if (dangerLevel === 'warning') {
+        bgColors = "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400";
+        iconColor = "text-orange-500";
+    } else if (dangerLevel === 'critical') {
+        bgColors = "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400";
+        iconColor = "text-red-500";
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className={`w-full rounded-2xl border p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${bgColors}`}
+        >
+            <div className="flex items-start sm:items-center gap-3">
+                <div className={`p-2 rounded-lg bg-foreground/5 ${dangerLevel !== 'none' ? 'bg-current/10' : ''}`}>
+                    <CalendarClock className={`h-5 w-5 ${iconColor}`} />
+                </div>
+                <div>
+                    <h3 className="font-semibold">{plan}</h3>
+                    <div className="text-sm opacity-80 mt-0.5 flex flex-wrap gap-2 items-center">
+                        <span>Valid until {formattedDate}</span>
+                        <span className="hidden sm:inline opacity-50">•</span>
+                        <span className="font-medium">{message}</span>
+                    </div>
+                </div>
+            </div>
+            {showRenew && (
+                <Link
+                    href="/portal/membership"
+                    className="flex justify-center rounded-xl px-4 py-2 text-sm font-semibold hover:opacity-90 transition whitespace-nowrap text-white"
+                    style={{ backgroundColor: dangerLevel === 'critical' ? 'rgb(220 38 38)' : dangerLevel === 'warning' ? 'rgb(234 88 12)' : brand?.primaryColor || '#000' }}
+                >
+                    Renew Membership
+                </Link>
+            )}
+        </motion.div>
+    );
 }
 
 export default function PortalClient({ member, insideCount = 0, activeCheckin, zones, dailyLine }) {
@@ -126,6 +219,7 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
 
     return (
         <PortalShell title="Home">
+            <MembershipValidityBanner member={member} />
             <div className="mb-6">
                 <div className="text-sm text-foreground/50">Good evening,</div>
                 <div className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-0.5">{ME.name.split(' ')[0]} 👋</div>
