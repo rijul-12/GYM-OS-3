@@ -22,7 +22,7 @@ export default function PrivacyPolicy() {
                 <div className="space-y-8 text-foreground/80 leading-relaxed font-medium">
                     <section>
                         <h2 className="text-2xl font-bold text-foreground mb-3">1. Information We Collect</h2>
-                        <p>We collect basic information required to provide you with the GymOS service. This includes your name, email, phone number, and any fitness details you explicitly provide during registration, such as goals and workout schedules.</p>
+                        <p>We collect basic information required to provide you with the BGM service. This includes your name, email, phone number, and any fitness details you explicitly provide during registration, such as goals and workout schedules.</p>
                     </section>
 
                     <section>
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
 
                     <section>
                         <h2 className="text-2xl font-bold text-foreground mb-3">4. Your Rights</h2>
-                        <p>At any time, you can reach out to your Gym Administrator or GymOS Support to view, modify, or permanently delete the personal data associated with your account.</p>
+                        <p>At any time, you can reach out to your Gym Administrator or BGM Support to view, modify, or permanently delete the personal data associated with your account.</p>
                     </section>
 
                     <section>

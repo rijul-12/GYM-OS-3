@@ -131,7 +131,7 @@ function App({ insideCount = 0, zones = [], dailyLine = [], dist = [] }) {
       </div>
 
       <div className="mt-6 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-4 text-xs text-foreground/60 leading-relaxed">
-        <span className="text-foreground font-medium">Why zone-level?</span> GymOS predicts demand from member schedules, check-in patterns, and workout types — never from exact machine sensors. This is more accurate, respects privacy, and never lies.
+        <span className="text-foreground font-medium">Why zone-level?</span> BGM predicts demand from member schedules, check-in patterns, and workout types — never from exact machine sensors. This is more accurate, respects privacy, and never lies.
       </div>
     </PortalShell>
   )

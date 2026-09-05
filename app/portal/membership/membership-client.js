@@ -93,15 +93,27 @@ export default function MembershipClient({ plans, meProfile }) {
             {/* Plan details */}
             <div className="mt-4 rounded-3xl border p-6" style={{ borderColor: `${brand.primaryColor}30`, background: `linear-gradient(135deg, ${brand.primaryColor}08, transparent)` }}>
                 <div className="flex items-start justify-between">
-                    <div>
+                    <div className="w-full pr-4">
                         <div className="text-[10px] uppercase tracking-widest text-foreground/50">Your plan</div>
                         <div className="font-display text-2xl font-bold mt-1">{defaultLocalPlan.name}</div>
-                        <div className="flex items-baseline gap-1 mt-1">
-                            <span className="font-display text-3xl font-bold">${defaultLocalPlan.price}</span>
-                            <span className="text-foreground/50 text-sm">/mo</span>
-                        </div>
+
+                        {(brand.memberFeeRecovery && brand.memberFeeAmount > 0) ? (
+                            <div className="mt-3 text-sm text-foreground/70 bg-black/20 p-3 rounded-lg border border-foreground/5">
+                                <div className="flex justify-between mb-1"><span>Gym Membership</span> <span>₹{defaultLocalPlan.price}</span></div>
+                                <div className="flex justify-between mb-2"><span>Digital Service Fee</span> <span>₹{brand.memberFeeAmount}</span></div>
+                                <div className="flex justify-between font-bold text-lg text-foreground border-t border-white/5 pt-2">
+                                    <span>Total</span>
+                                    <span>₹{(Number(defaultLocalPlan.price) || 0) + Number(brand.memberFeeAmount)}<span className="text-xs font-normal text-foreground/50 ml-1">/mo</span></span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-baseline gap-1 mt-1">
+                                <span className="font-display text-3xl font-bold">₹{defaultLocalPlan.price}</span>
+                                <span className="text-foreground/50 text-sm">/mo</span>
+                            </div>
+                        )}
                     </div>
-                    <button onClick={() => setComingSoon(true)} className="h-9 px-4 rounded-lg text-xs font-medium text-foreground opacity-50 cursor-not-allowed" style={{ background: brand.primaryColor }}>Upgrade</button>
+                    <button onClick={() => setComingSoon(true)} className="h-9 px-4 rounded-lg text-xs font-medium text-foreground opacity-50 cursor-not-allowed shrink-0" style={{ background: brand.primaryColor }}>Upgrade</button>
                 </div>
                 <ul className="mt-5 grid sm:grid-cols-2 gap-2">
                     {(defaultLocalPlan.features || []).map((f, i) => (

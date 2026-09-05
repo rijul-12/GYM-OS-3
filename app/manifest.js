@@ -1,8 +1,8 @@
 export default function manifest() {
     return {
-        name: 'GymOS Technologies',
-        short_name: 'GymOS',
-        description: 'The Operating System for Modern Gyms',
+        name: 'BGM',
+        short_name: 'BGM',
+        description: 'An intelligent gym management platform.',
         start_url: '/',
         display: 'standalone',
         background_color: '#0a0a0a',

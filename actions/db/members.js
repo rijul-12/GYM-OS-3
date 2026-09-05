@@ -137,30 +137,96 @@ export async function createMember(memberData) {
                 }
             }
 
+            // DUPLICATE PROTECTION: Verify identity does not already exist
+            if (memberData.email) {
+                const exists = await adminDb.collection('members')
+                    .where('gymId', '==', gymId)
+                    .where('email', '==', memberData.email).limit(1).get()
+                if (!exists.empty) return { error: "Member already exists with this email." }
+            }
+            if (memberData.phone) {
+                const existsPhone = await adminDb.collection('members')
+                    .where('gymId', '==', gymId)
+                    .where('phone', '==', memberData.phone).limit(1).get()
+                if (!existsPhone.empty) return { error: "Member already exists with this phone number." }
+            }
+
+            const batch = adminDb.batch();
+            const memberRef = adminDb.collection('members').doc();
+
             const payload = {
-                ...memberData,
                 gymId: gymId,
-                created_at: new Date().toISOString(),
-                is_active: true,
+                name: memberData.name || '',
+                email: memberData.email || '',
+                phone: memberData.phone || '',
+                dob: memberData.dob || '',
+                gender: memberData.gender || 'Unknown',
+                address: memberData.address || '',
+                emergencyContact: memberData.emergencyContact || '',
+
+                plan: memberData.plan || 'Base Member',
+                status: memberData.membershipStatus || 'Pending',
+                is_active: memberData.membershipStatus === 'Active',
+
+                paymentFee: Number(memberData.paymentFee || 0),
+                paymentAmount: Number(memberData.amountPaid || 0),
+                outstandingAmount: Number(memberData.outstandingAmount || 0),
+                payment_status: memberData.paymentStatus || 'Unpaid',
+                paymentMethod: memberData.paymentMethod || 'Cash',
+
+                created_at: memberData.startDate || new Date().toISOString(),
+                expiryDate: memberData.expiryDate || null,
+
+                workoutSplit: memberData.noFixedSchedule ? 'Flexible' : 'Preset Schedule',
+                schedule: memberData.noFixedSchedule || !memberData.schedule ? 'Flexible' : memberData.schedule,
+                preferredTime: memberData.preferredTime || '',
+                goal: memberData.goal || 'General Health',
+
                 bodyMeasurements: { weight: '', height: '', bodyFat: '' },
                 bmi: null,
-                goal: '',
-                workoutSplit: '',
-                schedule: '',
-                preferredTime: '',
                 medicalNotes: '',
-                emergencyContact: '',
-                trainer_name: 'Unassigned',
-                trainer_id: null
+                trainer_name: memberData.trainer_name || 'Unassigned',
+                trainer_id: memberData.trainer_id || null
+            };
+
+            batch.set(memberRef, payload);
+
+            if (payload.paymentAmount > 0) {
+                const revRef = adminDb.collection('revenue_logs').doc();
+                batch.set(revRef, {
+                    gymId,
+                    member_id: memberRef.id,
+                    amount: payload.paymentAmount,
+                    method: payload.paymentMethod,
+                    status: payload.payment_status,
+                    date: new Date().toISOString()
+                });
             }
-            const docRef = await adminDb.collection('members').add(payload)
-            await logActivity(gymId, role, email, 'Member Created', `Added new member: ${memberData.first_name} ${memberData.last_name}`)
-            revalidatePath('/members')
-            revalidatePath('/dashboard')
-            return { id: docRef.id, ...payload }
+
+            const notifRef = adminDb.collection('notifications').doc();
+            batch.set(notifRef, {
+                gymId,
+                targetEmail: payload.email,
+                targetRole: 'member',
+                title: 'Welcome to BGM',
+                message: `Your membership for ${payload.plan} has been established.`,
+                read: false,
+                createdAt: new Date().toISOString()
+            });
+
+            await batch.commit();
+
+            await logActivity(gymId, role, email, 'Member Created', `Added new member: ${payload.name}`);
+
+            revalidatePath('/members');
+            revalidatePath('/portal');
+            revalidatePath('/portal/membership');
+            revalidatePath('/dashboard');
+
+            return { success: true, id: memberRef.id, ...payload };
         }
     }
-    return memberData;
+    return { error: "Database not connected" };
 }
 export async function updateMember(id, updates) {
     if (isFirebaseConfigured()) {
@@ -168,6 +234,8 @@ export async function updateMember(id, updates) {
         if (adminDb) {
             await adminDb.collection('members').doc(id).set(updates, { merge: true })
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return { id, ...updates }
         }
@@ -180,6 +248,8 @@ export async function deleteMember(id) {
         if (adminDb) {
             await adminDb.collection('members').doc(id).delete()
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return true
         }
@@ -197,6 +267,8 @@ export async function approveMember(id) {
                 status: 'Active'
             })
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return true
         }
@@ -212,6 +284,8 @@ export async function deactivateMember(id) {
                 status: 'Inactive'
             })
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return true
         }
@@ -228,6 +302,8 @@ export async function markPaymentPaid(id) {
                 status: 'Active'
             })
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return true
         }
@@ -243,6 +319,8 @@ export async function reactivateMember(id) {
                 status: 'Active'
             })
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return true
         }
@@ -257,6 +335,8 @@ export async function updateMemberPlan(id, newPlanName) {
                 plan: newPlanName,
             })
             revalidatePath('/members')
+            revalidatePath('/portal')
+            revalidatePath('/portal/membership')
             revalidatePath('/dashboard')
             return true
         }

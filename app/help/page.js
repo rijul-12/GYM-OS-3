@@ -13,7 +13,7 @@ export default function HelpCenter() {
     ]
 
     return (
-        <DashShell title="Help Center" subtitle="Learn how to optimize your operations with GymOS">
+        <DashShell title="Help Center" subtitle="Learn how to optimize your operations with BGM">
             <div className="max-w-4xl space-y-6">
 
                 <div className="grid md:grid-cols-2 gap-4">

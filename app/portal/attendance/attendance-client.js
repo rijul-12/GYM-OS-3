@@ -30,7 +30,7 @@ function App({ member, globalAttendance, stats }) {
     goals: member?.goal || "General",
     trainer: member?.trainers?.name || "Unassigned"
   };
-  const WORKOUT_HISTORY = member?.workout_logs ? member.workout_logs.map(w => ({ date: w.date_logged || new Date(), workout: w.workout_plan_name || 'Workout', duration: w.duration_minutes || parseInt(w.duration) || 45, calories: w.calories_burned || parseInt(w.calories) || 300, stage: 'Lifting' })) : [];
+  const WORKOUT_HISTORY = member?.workout_logs ? member.workout_logs.map(w => ({ date: w.date_logged || new Date(), workout: w.workout_plan_name || 'Workout', duration: w.duration_minutes || parseInt(w.duration) || 45, stage: 'Lifting', pr: w.pr || null })) : [];
   const ATTENDANCE_CALENDAR = { year: new Date().getFullYear(), month: new Date().getMonth(), today: new Date().getDate(), days: {} };
   if (Array.isArray(member?.attendance)) {
     member.attendance.forEach(a => {
@@ -128,7 +128,7 @@ function App({ member, globalAttendance, stats }) {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{w.workout}</div>
                 {w.duration > 0 ? (
-                  <div className="text-xs text-foreground/50 mt-0.5">{w.duration} min · {w.calories} cal{w.pr && <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase" style={{ background: `${brand.primaryColor}22`, color: brand.primaryColor }}><Trophy className="h-2.5 w-2.5" /> PR: {w.pr}</span>}</div>
+                  <div className="text-xs text-foreground/50 mt-0.5">{w.duration} min duration{w.pr && <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase" style={{ background: `${brand.primaryColor}22`, color: brand.primaryColor }}><Trophy className="h-2.5 w-2.5" /> PR: {w.pr}</span>}</div>
                 ) : (
                   <div className="text-xs text-foreground/40 mt-0.5">Recovery day</div>
                 )}

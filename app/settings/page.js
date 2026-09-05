@@ -1,7 +1,7 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Bell, Shield, Clock, Palette, Globe, QrCode, Download, Printer, Copy, AlertTriangle, User, Lock, Smartphone } from 'lucide-react'
+import { Bell, Shield, Clock, Palette, Globe, QrCode, Download, Printer, Copy, AlertTriangle, User, Lock, Smartphone, CreditCard } from 'lucide-react'
 import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
 import { Switch } from '@/components/ui/switch'
@@ -19,6 +19,7 @@ const SECTIONS = [
   { id: 'general', label: 'General', icon: Globe },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'widgets', label: 'Facilities / Zones', icon: MapPin },
+  { id: 'billing', label: 'Billing & Fees', icon: CreditCard },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'attendance', label: 'Attendance', icon: Clock },
   { id: 'security', label: 'Security', icon: Shield },
@@ -38,6 +39,23 @@ const Row = ({ title, desc, children }) => (
 function App() {
   const { brand, setBrand } = useBrand()
   const [active, setActive] = useState('general')
+  const [costData, setCostData] = useState(null)
+  const [qrOrigin, setQrOrigin] = useState('https://gymos.app')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setQrOrigin(window.location.origin)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (active === 'billing' && brand?.gymCode) {
+      import('@/actions/db/pricing').then(m => {
+        m.getMonthlyGymOsCost(brand.gymCode).then(res => setCostData(res))
+      })
+    }
+  }, [active, brand?.gymCode])
+
   const [isPending, startTransition] = useTransition()
   const [resetModal, setResetModal] = useState(false)
   const [resetText, setResetText] = useState('')
@@ -61,6 +79,49 @@ function App() {
 
         <div className="lg:col-span-3">
           <motion.div key={active} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
+            {active === 'billing' && (
+              <>
+                <div className="mb-5"><div className="text-lg font-semibold">Billing & Fees</div><div className="text-xs text-foreground/50">Manage gym-to-member transaction rules</div></div>
+                <Row title="Member Fee Recovery" desc="Charge members an additional digital service fee">
+                  <Switch checked={brand.memberFeeRecovery ?? false} onCheckedChange={(v) => { setBrand({ memberFeeRecovery: v }); toast.success("Fee setting saved") }} />
+                </Row>
+                {brand.memberFeeRecovery && (
+                  <>
+                    <Row title="Recovery Fee Amount" desc="Per member transaction fee">
+                      <div className="flex items-center gap-2">
+                        <span className="text-foreground/50">₹</span>
+                        <Input type="number" placeholder="20" value={brand.memberFeeAmount} onChange={(e) => setBrand({ memberFeeAmount: parseInt(e.target.value) || 0 })} className="w-24 bg-foreground/[0.03] border-foreground/10 h-9" />
+                      </div>
+                    </Row>
+                    <div className="mt-8 rounded-xl border border-foreground/10 p-5 bg-black/40">
+                      <div className="text-sm font-semibold mb-4">OWNER REVENUE/RECOVERY DASHBOARD</div>
+                      <div className="space-y-2 text-sm text-foreground/80">
+                        <div className="flex justify-between"><span>Active Paid Members</span><span>{costData ? costData.activePaidMembers : '...'}</span></div>
+                        <div className="flex justify-between"><span>BGM Monthly Cost</span><span>₹{costData ? costData.totalCost.toLocaleString() : '...'}</span></div>
+                        <div className="flex justify-between"><span>Member Fee</span><span>₹{brand.memberFeeAmount ?? 0}/member</span></div>
+                        <div className="border-t border-white/5 my-2 pt-2 flex justify-between font-medium"><span>Estimated recovery</span><span className="text-emerald-400">₹{costData ? (costData.activePaidMembers * (brand.memberFeeAmount ?? 0)).toLocaleString() : '...'}</span></div>
+                        <div className="flex justify-between text-foreground/50"><span>Estimated Net Cost</span><span>₹{costData ? Math.max(0, costData.totalCost - (costData.activePaidMembers * (brand.memberFeeAmount ?? 0))).toLocaleString() : '...'}</span></div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-8 mb-5 border-t border-foreground/10 pt-8"><div className="text-lg font-semibold">Member Payment Gateways</div><div className="text-xs text-foreground/50">Configure how members pay you directly</div></div>
+
+                <Row title="Direct UPI Payments" desc="Allow members to pay via their UPI apps">
+                  <Switch checked={brand.upi_enabled ?? false} onCheckedChange={(v) => { setBrand({ upi_enabled: v }); toast.success("Payment preferences saved") }} />
+                </Row>
+                {brand.upi_enabled && (
+                  <Row title="Your UPI ID" desc="Payments will be sent here">
+                    <Input placeholder="yourname@okhdfcbank" value={brand.upi_id || ''} onChange={(e) => setBrand({ upi_id: e.target.value })} className="w-56 bg-foreground/[0.03] border-foreground/10 h-9" />
+                  </Row>
+                )}
+
+                <Row title="Razorpay Credit/Debit Cards" desc="Accept cards and automated payments (Requires BGM global activation)">
+                  <Switch checked={brand.razorpay_enabled ?? false} onCheckedChange={(v) => { setBrand({ razorpay_enabled: v }); toast.success("Payment preferences saved") }} />
+                </Row>
+              </>
+            )}
             {active === 'general' && (
               <>
                 <div className="mb-5">
@@ -97,7 +158,7 @@ function App() {
                 </div>
                 <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] p-6 flex flex-col md:flex-row gap-8 items-start">
                   <div className="bg-white p-4 rounded-xl shrink-0">
-                    {brand.gymCode ? <QRCode value={`https://gymos.app/checkin/${brand.gymCode}`} size={160} /> : <div className="h-[160px] w-[160px] bg-foreground/5 flex items-center justify-center text-xs text-foreground/40 text-center px-4">No Code Generated</div>}
+                    {brand.gymCode ? <QRCode value={`${qrOrigin}/checkin/${brand.gymCode}`} size={160} /> : <div className="h-[160px] w-[160px] bg-foreground/5 flex items-center justify-center text-xs text-foreground/40 text-center px-4">No Code Generated</div>}
                   </div>
                   <div className="flex-1 w-full space-y-4">
                     <div className="grid grid-cols-2 gap-4 text-sm">

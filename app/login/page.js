@@ -71,6 +71,12 @@ function LoginContent() {
     }
   }, [user, router, params])
 
+  useEffect(() => {
+    return () => {
+      if (window.loginTimeout) clearTimeout(window.loginTimeout)
+    }
+  }, [])
+
   const pickRole = (r) => {
     setRole(r)
     setEmail('')
@@ -87,7 +93,8 @@ function LoginContent() {
       setStep('success')
       let dest = ROLES[session.role].home;
       if (session.role === 'owner' && session.onboarded === false) dest = '/onboarding';
-      setTimeout(() => {
+
+      window.loginTimeout = setTimeout(() => {
         const cb = params.get('callback')
         if (cb) router.push(cb)
         else router.push(dest)
@@ -98,7 +105,6 @@ function LoginContent() {
     } finally { setLoading(false) }
   }
 
-
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background text-foreground">
       {/* Left visual */}
@@ -108,7 +114,7 @@ function LoginContent() {
         <div className="absolute top-8 left-8"><Link href="/"><Logo size="lg" /></Link></div>
         <div className="absolute bottom-10 left-10 right-10">
           <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="font-display text-4xl xl:text-5xl font-bold tracking-tight leading-tight">
-            “The operating system every serious gym owner has been waiting for.”
+            “Your gym runs. BGM handles the rest.”
           </motion.h2>
           <div className="mt-6 flex items-center gap-3">
             <Image src="https://i.pravatar.cc/60?img=60" className="h-10 w-10 rounded-full" alt="" width={120} height={120} />
@@ -162,10 +168,7 @@ function LoginContent() {
                   ))}
                 </div>
 
-                <div className="mt-6 rounded-xl border border-foreground/5 bg-foreground/[0.02] p-3 flex items-center gap-2 text-xs text-foreground/60">
-                  <ShieldCheck className="h-4 w-4 shrink-0" style={{ color: brand.primaryColor }} />
-                  Demo access — each role has pre-filled credentials on the next screen.
-                </div>
+                {/* PRODUCTION NOTE: Demonstration credentials intentionally disabled here during final deployment sweep */}
               </motion.div>
             )}
 
@@ -176,7 +179,7 @@ function LoginContent() {
                 </button>
                 <div className="text-xs uppercase tracking-widest text-foreground/40 mb-2">Step 2 of 2</div>
                 <h1 className="font-display text-3xl font-bold tracking-tight">Sign in as {ROLES[role].label}</h1>
-                <p className="text-sm text-foreground/50 mt-1">Demo credentials are pre-filled — hit Sign in.</p>
+                <p className="text-sm text-foreground/50 mt-1">Select your workspace keys to authenticate.</p>
 
                 <motion.form key={shake} initial={{ x: 0 }} animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.35 }} onSubmit={submit} className="mt-6 space-y-4">
                   <div>
@@ -234,7 +237,7 @@ function LoginContent() {
           </AnimatePresence>
 
           <div className="mt-8 flex flex-col items-center gap-2 text-sm text-foreground/50">
-            <p>New to GymOS? <Link href="/register" className="text-foreground hover:underline transition">Create your workspace</Link></p>
+            <p>New to BGM? <Link href="/register" className="text-foreground hover:underline transition">Create your workspace</Link></p>
             <Link href="/" className="hover:text-foreground transition">← Back to website</Link>
           </div>
         </div>

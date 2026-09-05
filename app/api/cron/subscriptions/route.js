@@ -53,17 +53,23 @@ export async function GET(req) {
         let subject = null;
         let html = null;
 
-        if (daysRemaining === 7 && isTrial) {
-            subject = 'Your GymOS Trial Expires in 7 Days!';
-            html = `<p>Hi there, hope you are loving GymOS! Just a reminder that your fully-featured trial expires in exactly 7 days. Upgrade to a paid plan today to avoid any disruptions.</p>`;
+        if (daysRemaining === 30 && isTrial) {
+            subject = 'BGM Trial Update: 30 Days Remaining';
+            html = `<p>Hi there, hope you are loving BGM! Just a reminder that you have 30 days left in your 2-month free trial.</p>`;
+        } else if (daysRemaining === 14 && isTrial) {
+            subject = 'BGM Trial Update: 14 Days Remaining';
+            html = `<p>Hi there, you have exactly 14 days left in your 2-month trial. Consider upgrading to a paid plan soon.</p>`;
+        } else if (daysRemaining === 7 && isTrial) {
+            subject = 'Your BGM Trial Expires in 7 Days!';
+            html = `<p>Hi there, hope you are loving BGM! Just a reminder that your fully-featured trial expires in exactly 7 days. Upgrade to a paid plan today to avoid any disruptions.</p>`;
         } else if (daysRemaining === 3) {
-            subject = `GymOS Action Required: ${isTrial ? 'Trial' : 'Subscription'} Expires in 3 Days`;
-            html = `<p>Time is running out! Your ${isTrial ? 'trial' : 'subscription'} expires in 3 days. Navigate to your GymOS dashboard to renew.</p>`;
+            subject = `BGM Action Required: ${isTrial ? 'Trial' : 'Subscription'} Expires in 3 Days`;
+            html = `<p>Time is running out! Your ${isTrial ? 'trial' : 'subscription'} expires in 3 days. Navigate to your BGM dashboard to renew.</p>`;
         } else if (daysRemaining === 1) {
-            subject = `GymOS Urgent: 24 Hours Remaining!`;
-            html = `<p>Your GymOS access expires tomorrow! If not renewed, your portal will be locked into Read-Only mode and all mutations will be disabled.</p>`;
-        } else if (daysRemaining === 0) {
-            subject = `GymOS: Read-Only Mode Activated`;
+            subject = `BGM Urgent: 24 Hours Remaining!`;
+            html = `<p>Your BGM access expires tomorrow! If not renewed, your portal will be locked into Read-Only mode and all mutations will be disabled.</p>`;
+        } else if (daysRemaining <= 0 && data.status !== 'Expired') {
+            subject = `BGM: Read-Only Mode Activated`;
             html = `<p>Your ${isTrial ? 'trial' : 'subscription'} has officially expired. Your portal has been downgraded to Read-Only mode. Active members and operations have been paused until you renew your subscription.</p>`;
 
             // Automatically mark expired in DB if not already

@@ -29,21 +29,7 @@ export default function GymsClient({ initialGyms }) {
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('All')
     const [planFilter, setPlanFilter] = useState('All')
-    const [generating, setGenerating] = useState(false)
 
-    const handleCreateDemo = async () => {
-        setGenerating(true)
-        toast.info("Minting 20 mock members & gym record...")
-        try {
-            const res = await generateDemoGym(session?.email)
-            if (res?.success) toast.success(`Demo Gym ${res.gymCode} generated successfully!`)
-            else toast.error("Failed to generate demo.")
-        } catch (e) {
-            toast.error("Generation failed")
-        } finally {
-            setGenerating(false)
-        }
-    }
 
     const [gyms, setGyms] = useState(initialGyms.map(g => {
         const trueName = g.gymName || g.name || 'Unnamed Gym';
@@ -95,12 +81,33 @@ export default function GymsClient({ initialGyms }) {
         router.push('/dashboard')
     }
 
+    const handleExtendTrial = async (gym) => {
+        const daysStr = window.prompt(`Extend trial for ${gym.name} by how many days from today?`, "30");
+        if (!daysStr) return;
+        const formDays = parseInt(daysStr);
+        if (isNaN(formDays)) return toast.error("Invalid days");
+
+        const reason = window.prompt("Reason for extension?", "Courtesy extension via Super Admin");
+        if (!reason) return;
+
+        const newExpiry = new Date();
+        newExpiry.setDate(newExpiry.getDate() + formDays);
+
+        const { extendGymTrial } = await import('@/actions/db/subscriptions');
+        const res = await extendGymTrial(gym.id, newExpiry.toISOString(), reason);
+
+        if (res.success) {
+            toast.success(`Trial extended to ${newExpiry.toLocaleDateString()}`);
+            setGyms(prev => prev.map(g => g.id === gym.id ? { ...g, status: 'Trial' } : g));
+        } else {
+            toast.error(res.error || 'Failed to extend trial');
+        }
+    }
+
     return (
         <SuperAdminShell title="Gym Management" subtitle={`${gyms.length} gyms on the platform`} actions={
             <div className="flex items-center gap-3">
-                <Button onClick={handleCreateDemo} disabled={generating} variant="outline" className="h-9 text-xs border-foreground/10 bg-foreground/[0.04]">
-                    {generating ? 'Scaffolding...' : '1-Click Demo Gym'}
-                </Button>
+
                 <Link href="/super-admin/gyms/create">
                     <Button className="h-9 text-foreground border-0 text-xs" style={{ background: SA }}><Plus className="h-3.5 w-3.5 mr-1.5" /> Create Gym</Button>
                 </Link>
@@ -183,6 +190,10 @@ export default function GymsClient({ initialGyms }) {
                                         <button onClick={() => handleImpersonate(gym)} className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-foreground/5 bg-foreground/[0.03] px-2 py-2 text-[10px] font-medium hover:bg-foreground/[0.08] transition" title="Login as this gym's owner">
                                             <Eye className="h-3 w-3" style={{ color: SA }} /> Open as Owner
                                         </button>
+
+                                        {(gym.status === 'Trial' || gym.status === 'Expired') && (
+                                            <button onClick={() => handleExtendTrial(gym)} className="h-8 px-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-[10px] text-purple-400 font-bold transition" title="Extend Trial">Extend</button>
+                                        )}
 
                                         {gym.status === 'Pending' ? (
                                             <button onClick={() => handleActivate(gym)} className="flex-1 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-2 text-[10px] text-blue-400 font-bold transition">

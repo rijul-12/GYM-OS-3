@@ -25,20 +25,18 @@ const PLAN_DATA = [{ name: 'Basic', price: 9.99 }, { name: 'Pro', price: 19.99 }
 const ATTENDANCE_WEEKLY = [{ day: 'Mon', in: 42, out: 38 }, { day: 'Tue', in: 55, out: 51 }]
 const TESTIMONIALS = [{ text: "Great gym!", name: "User", role: "Trainer", photo: "https://i.pravatar.cc/150?img=1" }]
 const FAQS = [
-  { q: "How does the Free Trial work?", a: "You get 14 days of full access to all GymOS features. No credit card is required to sign up. After the trial, you can choose a plan that fits your gym's size." },
-  { q: "How do you track live floor traffic?", a: "GymOS combines biometric scans, QR check-ins, and schedule data to accurately show how many members are on the floor and predict peak hours." },
+  { q: "How does the Free Trial work?", a: "You get 2 full calendar months of access to all BGM features. No credit card is required to sign up. After the trial, you can choose a plan that fits your gym's size." },
+  { q: "How do you track live floor traffic?", a: "BGM combines biometric scans, QR check-ins, and schedule data to accurately show how many members are on the floor and predict peak hours." },
   { q: "Is the QR Attendance system reliable?", a: "Yes, our QR system generates dynamically refreshing codes for members, which prevents unauthorized sharing and provides instant check-in sync." },
   { q: "How does Member Registration work?", a: "Members can easily register using your secure facility Gym Code. They can set up flexible or fixed workout schedules directly matching their goals." },
-  { q: "Can I switch or cancel my subscription?", a: "Absolutely. You can upgrade, downgrade, or cancel your GymOS subscription at any time." },
+  { q: "Can I switch or cancel my subscription?", a: "Absolutely. You can upgrade, downgrade, or cancel your BGM subscription at any time." },
   { q: "What payment methods do you support?", a: "We sync directly with Razorpay to support UPI, credit/debit cards, and net banking seamlessly in India." },
   { q: "Is my gym data secure?", a: "We use enterprise-grade cloud security, strict authentication, and granular Role-Based Access Control to ensure your data stays private." },
   { q: "What kind of customer support do you offer?", a: "We provide email and phone support from Monday to Saturday, 10 AM to 8 PM IST. Premium plans receive priority response times." }
 ]
 const PLANS = [
-  { id: "starter", name: 'Starter', price: '1,999', period: 'month', features: ['Up to 75 Members', 'Full Dashboard Access', 'QR Attendance System', 'Standard Support'] },
-  { id: "pro", popular: true, name: 'Pro', price: '3,999', period: 'month', features: ['Up to 130 Members', 'White-Label Branding', 'Predicted Occupancy', 'Priority 12hr Support'] },
-  { id: "elite", name: 'Elite', price: '5,999', period: 'month', features: ['Up to 220 Members', 'Live Member AI Engine', 'Heatmap Access', 'Dedicated Account Manager'] },
-  { id: "enterprise", name: 'Enterprise', price: 'Custom', period: 'month', features: ['Unlimited Members', 'Enterprise API Access', 'Custom Integrations', '24/7 SLA Support'] }
+  { id: "v1-usage", popular: true, name: 'BGM Scale', price: '1,999', period: 'month', tag: '+ ₹20 / active member', features: ['Unlimited Members (Pay as you grow)', 'Full Dashboard Access', 'Live Member AI Engine', 'Member Fee Recovery (Pass-through)'] },
+  { id: "enterprise", name: 'Enterprise', price: 'Custom', period: 'month', features: ['Custom White-Label App', 'Enterprise API Access', 'Multi-Location Sync', '24/7 SLA Support'] }
 ]
 const MEMBER_INSIGHTS = [{ value: '5:30 AM', detail: 'Quiet tomorrow.' }]
 const ASSIGNED_MEMBERS = [{ id: 't1', name: 'James Wilson', photo: 'https://i.pravatar.cc/150?u=j', checkedIn: true, stage: 'Lifting', todayWorkout: 'Hypertrophy Block A', attendance: 85, progress: 40, status: 'Active' }]
@@ -108,29 +106,29 @@ const Hero = ({ stats }) => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="text-center max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs text-foreground/70 mb-8">
             <Sparkles className="h-3 w-3" style={{ color: brand.primaryColor }} />
-            <span>{brand.tagline || 'The gym intelligence platform'}</span>
+            <span>BEST GYM MANAGER</span>
             <ChevronRight className="h-3 w-3" />
           </div>
           <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-[0.95]">
-            <span className="text-gradient">See every member.</span>
+            <span className="text-gradient">Your gym runs.</span>
             <br />
-            <span className="text-gradient-red">Predict every surge.</span>
+            <span className="text-gradient-red">BGM handles the rest.</span>
           </h1>
           <p className="mt-8 text-lg md:text-xl text-foreground/60 max-w-2xl mx-auto leading-relaxed">
-            {brand.gymName} is an AI-native intelligence layer that shows you who&apos;s inside, what they&apos;re training, when they&apos;ll finish, and which machines are about to bottleneck &mdash; in real time.
+            Manage members, memberships, trainers, attendance, payments, schedules and everyday gym operations from one intelligent platform.
           </p>
           <div className="mt-10 flex flex-wrap gap-3 justify-center">
             <Link href="/dashboard">
               <Button size="lg" style={{ background: brand.primaryColor }} className="text-foreground h-12 px-6 border-0 hover:opacity-90 shadow-lg shadow-red-500/20">
-                Open live demo <ArrowRight className="h-4 w-4 ml-2" />
+                Start Free <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </Link>
             <Button size="lg" variant="outline" className="h-12 px-6 bg-foreground/[0.03] border-foreground/10 text-foreground hover:bg-foreground/[0.06]">
-              <Play className="h-4 w-4 mr-2" /> Watch overview
+              <Play className="h-4 w-4 mr-2" /> See How It Works
             </Button>
           </div>
           <div className="mt-10 flex items-center justify-center gap-6 text-xs text-foreground/40">
-            <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> 14-day free trial</div>
+            <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> Start instantly</div>
             <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> No card required</div>
             <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> White-label ready</div>
           </div>
@@ -143,7 +141,6 @@ const Hero = ({ stats }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             <div className="absolute bottom-6 left-6 right-6 flex flex-wrap gap-3 justify-between items-end">
               <div>
-                <div className="text-xs text-foreground/50 uppercase tracking-widest mb-1">Live from Firebase</div>
                 <div className="font-display text-2xl md:text-3xl font-bold">
                   {isFounding ? '🚀 Founding Gym Program Open' : `${stats?.gyms || 0}+ Registered Gyms Online`}
                 </div>
@@ -163,7 +160,7 @@ const Hero = ({ stats }) => {
 const LogoMarquee = ({ gyms }) => {
   const displayGyms = gyms && gyms.length > 0
     ? [...gyms, ...gyms, ...gyms] // duplicate for marquee
-    : ['GYMOS FOUNDING PROGRAM', 'EARLY ACCESS', 'GYMOS PLATFORM'];
+    : ['BGM FOUNDING PROGRAM', 'EARLY ACCESS', 'BGM PLATFORM'];
 
   return (
     <section className="py-10 border-y border-foreground/5 overflow-hidden">
@@ -182,7 +179,7 @@ const LogoMarquee = ({ gyms }) => {
 const Features = () => {
   const { brand } = useBrand()
   const items = [
-    { icon: Activity, title: 'Live Intelligence', desc: 'See who\u2019s inside, what stage they\u2019re at, and every machine in use \u2014 with AI-predicted surges up to 6 hours ahead.', img: IMAGES.feature1 },
+    { icon: Activity, title: 'Live Gym Traffic', desc: 'See live gym activity and workout demand in one place.', img: IMAGES.feature1 },
     { icon: Users, title: 'Per-Member Live State', desc: 'Every profile shows today\u2019s workout, check-in time, progress stage, ETA, and machine queue \u2014 in real time.', img: IMAGES.feature2 },
     { icon: BarChart3, title: 'AI Predictions', desc: 'Peak-hour forecasts, churn risk, equipment demand and revenue signals \u2014 scored with confidence intervals.', img: IMAGES.feature3 },
     { icon: Palette, title: 'True White-Label', desc: 'Change logo, colors, name, banner, footer — without touching a line of code.', img: IMAGES.feature4 },
@@ -298,16 +295,17 @@ const Pricing = ({ stats }) => {
           <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Membership plans</div>
           <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient">Priced for every gym.</h2>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {PLANS.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className={`relative rounded-2xl border p-8 ${p.popular ? 'border-foreground/20 bg-gradient-to-b from-white/[0.06] to-transparent' : 'border-foreground/5 bg-foreground/[0.02]'}`}>
-              {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs font-medium rounded-full text-foreground" style={{ background: brand.primaryColor }}>Most popular</div>}
-              <div className="font-display text-xl font-semibold mb-1">{p.name}</div>
-              <div className="flex items-baseline gap-1 mb-2">
+              {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs font-medium rounded-full text-foreground" style={{ background: brand.primaryColor }}>Usage-Based Model</div>}
+              <div className="font-display text-2xl font-semibold mb-1">{p.name}</div>
+              <div className="flex items-baseline gap-1 mb-2 flex-wrap">
                 <span className="font-display text-4xl lg:text-5xl font-bold">{p.price === 'Custom' ? "Let's Talk" : `₹${p.price}`}</span>
                 {p.price !== 'Custom' && <span className="text-foreground/40 text-sm">/{p.period}</span>}
+                {p.tag && <div className="w-full mt-2 mb-2"><span className="text-emerald-500 font-medium text-sm bg-emerald-500/10 px-2.5 py-1 rounded-md">{p.tag}</span></div>}
               </div>
-              <div className="text-xs text-foreground/50 mb-6 flex items-center gap-2">
+              <div className="text-xs text-foreground/50 mb-8 flex items-center gap-2 mt-4">
                 {p.price !== 'Custom' && <span>Registration Fee:</span>}
                 {p.price !== 'Custom' && isFounding ? (
                   <span className="flex items-center gap-1.5"><span className="line-through text-foreground/30">₹2999</span> <span className="text-emerald-500 font-medium">Waived (Founding)</span></span>
@@ -316,16 +314,16 @@ const Pricing = ({ stats }) => {
                 )}
                 {p.price === 'Custom' && <span>Custom solutions for enterprise.</span>}
               </div>
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-4 mb-10">
                 {p.features.map((f, j) => (
-                  <li key={j} className="flex items-start gap-2 text-sm text-foreground/70">
+                  <li key={j} className="flex items-start gap-3 text-sm text-foreground/70 leading-relaxed">
                     <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: brand.primaryColor }} /> {f}
                   </li>
                 ))}
               </ul>
-              <Link href={p.price === 'Custom' ? "mailto:sales@gymos.com" : "/dashboard"}>
-                <Button className={`w-full ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.12] border-0'}`} style={p.popular ? { background: brand.primaryColor } : {}}>
-                  {p.price === 'Custom' ? 'Contact Sales' : `Start with ${p.name}`}
+              <Link href={p.price === 'Custom' ? "mailto:sales@gymos.app" : "/dashboard"}>
+                <Button className={`w-full h-12 text-base ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.12] border-0'}`} style={p.popular ? { background: brand.primaryColor } : {}}>
+                  {p.price === 'Custom' ? 'Contact Sales' : 'Start with BGM Scale'}
                 </Button>
               </Link>
             </motion.div>
@@ -409,8 +407,8 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row gap-6 items-center justify-between">
         <Logo />
         <div className="text-xs text-foreground/40 text-center md:text-left leading-relaxed">
-          <span className="font-semibold text-foreground/60">GymOS</span><br />
-          The Operating System for Modern Gyms.<br />
+          <span className="font-semibold text-foreground/60">BGM</span><br />
+          Best Gym Manager.<br />
           Built in India 🇮🇳
         </div>
         <div className="flex gap-6 text-xs font-medium text-foreground/50">

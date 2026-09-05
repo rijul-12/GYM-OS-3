@@ -71,7 +71,7 @@ export async function submitFeedback(payload) {
         const { sendEmail } = await import('@/lib/email')
         await sendEmail({
             to: targetEmail,
-            subject: `New GymOS Feedback: ${payload.category}`,
+            subject: `New BGM Feedback: ${payload.category}`,
             headline: `New ${payload.category}`,
             greeting: `Hello Admin,`,
             bodyHtml: `<p>A new feedback report was submitted for your gym by <strong>${payload.email || 'A user'}</strong> (${payload.role}).</p>

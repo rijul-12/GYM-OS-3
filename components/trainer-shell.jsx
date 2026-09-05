@@ -108,7 +108,7 @@ export function TrainerShell({ children, title, subtitle, actions }) {
       <main className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-foreground/10">
           <div className="px-4 sm:px-8 py-4 flex items-center gap-4">
-            <button className="lg:hidden p-2.5 -ml-2.5 rounded-lg text-foreground/70 hover:bg-white/5" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
+            <button className="lg:hidden p-3 -ml-3 rounded-lg text-foreground/70 hover:bg-white/5 active:bg-white/10 transition touch-manipulation" onClick={() => setOpen(true)}><Menu className="h-6 w-6" /></button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight truncate">{title}</h1>
               {subtitle && <p className="text-xs sm:text-sm text-foreground/50 truncate">{subtitle}</p>}

@@ -8,7 +8,7 @@ export function ZoneDemandGrid({ compact = false, zones = [] }) {
   }
 
   return (
-    <div className={`grid gap-3 ${compact ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'}`}>
+    <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-6'}`}>
       {zones.map((z, i) => (
         <motion.div
           key={z.id || i}
@@ -25,7 +25,7 @@ export function ZoneDemandGrid({ compact = false, zones = [] }) {
               <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${z.color}25`, color: z.color }}>{z.status}</span>
             </div>
             <div className="mt-3 font-display font-semibold text-sm md:text-base">{z.name}</div>
-            <div className="mt-1 text-xs text-foreground/50">{z.members} members</div>
+            <div className="mt-1 text-xs text-foreground/50">{z.members} active workout intents</div>
             <div className="mt-3 flex items-center gap-2">
               <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
                 <motion.div

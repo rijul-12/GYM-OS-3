@@ -61,7 +61,7 @@ export function FeedbackButton({ wrapperClass = "flex items-center gap-3 px-3 py
                             <CheckCircle2 className="h-8 w-8 text-green-500" />
                         </div>
                         <h2 className="text-xl font-bold mb-2">Message Received</h2>
-                        <p className="text-muted-foreground text-sm">Thank you for helping us improve GymOS. Our engineering team will review your report shortly.</p>
+                        <p className="text-muted-foreground text-sm">Thank you for helping us improve BGM. Our engineering team will review your report shortly.</p>
                     </div>
                 ) : (
                     <>

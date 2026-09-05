@@ -8,6 +8,7 @@ import { useBrand } from '@/components/brand-provider'
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, ComposedChart } from 'recharts'
 
 import { FeatureGate } from '@/components/feature-gate'
+import { toast } from 'sonner'
 
 export default function AnalyticsClient({ stats, subscription = {} }) {
     const { brand } = useBrand()
@@ -23,7 +24,7 @@ export default function AnalyticsClient({ stats, subscription = {} }) {
     const top = [...enhancedMembers].sort((a, b) => b.attendance - a.attendance).slice(0, 5)
 
     const handleExport = () => {
-        if (!MEMBERS || MEMBERS.length === 0) return alert('No data available to export.');
+        if (!MEMBERS || MEMBERS.length === 0) return toast.info('No data available to export.');
 
         const headers = ['Name', 'Email', 'Plan', 'Status', 'Attendance Score'];
         const rows = [headers.join(',')];

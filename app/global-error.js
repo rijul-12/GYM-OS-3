@@ -10,7 +10,7 @@ export default function GlobalError({ error, reset }) {
                         <ServerCrash className="h-8 w-8 text-red-500" />
                     </div>
                     <h1 className="font-display text-2xl font-bold tracking-tight mb-2">Fatal Application Crash</h1>
-                    <p className="text-sm text-foreground/50 mb-8">GymOS experienced a catastrophic engine failure at the root boundary level. This shouldn't normally happen.</p>
+                    <p className="text-sm text-foreground/50 mb-8">BGM experienced a catastrophic engine failure at the root boundary level. This shouldn't normally happen.</p>
                     <button onClick={() => reset()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white text-black px-6 py-3 font-medium hover:opacity-90 transition">
                         <RefreshCw className="h-4 w-4" /> Reboot Subsystem
                     </button>

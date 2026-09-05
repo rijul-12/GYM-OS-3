@@ -7,10 +7,11 @@ export function BrandHydrator({ serverBrand }) {
 
     useEffect(() => {
         if (serverBrand && Object.keys(serverBrand).length > 0) {
+            // Merge all available gym_settings into global UI state, mapping legacy 'name' appropriately
             setBrand({
-                gymName: serverBrand.name || serverBrand.gymName || 'GymOS',
+                ...serverBrand,
+                gymName: serverBrand.name || serverBrand.gymName || 'BGM',
                 primaryColor: serverBrand.primaryColor || '#ef4444',
-                logo: serverBrand.logo
             })
         }
     }, [serverBrand, setBrand])

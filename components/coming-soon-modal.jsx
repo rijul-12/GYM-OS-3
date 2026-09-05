@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useBrand } from '@/components/brand-provider'
 import { useRouter } from 'next/navigation'
 
-export function ComingSoonModal({ open, onOpenChange, title = "Feature Coming Soon", feature = "This feature", description = "We're currently building out this module for the next major release of GymOS. Stay tuned for updates via your platform admin.", fallbackRoute }) {
+export function ComingSoonModal({ open, onOpenChange, title = "Feature Coming Soon", feature = "This feature", description = "We're currently building out this module for the next major release of BGM. Stay tuned for updates via your platform admin.", fallbackRoute }) {
     const { brand } = useBrand()
     const router = useRouter()
 
@@ -39,7 +39,7 @@ export function ComingSoonModal({ open, onOpenChange, title = "Feature Coming So
                         <div className="p-6 pt-2 text-center">
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/[0.04] border border-foreground/10 text-xs font-semibold mb-4 text-foreground/70">
                                 <Zap className="h-3.5 w-3.5" style={{ color: brand.primaryColor }} />
-                                GymOS V2 Roadmap
+                                BGM V2 Roadmap
                             </div>
 
                             <h2 className="text-xl font-display font-bold mb-2">{title}</h2>

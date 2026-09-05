@@ -9,7 +9,7 @@ export default function TermsConditions() {
                 <div className="space-y-12">
                     <section>
                         <h2 className="text-2xl font-display font-semibold text-foreground mb-4">1. Acceptance of Terms</h2>
-                        <p>By registering for the GymOS platform and paying the associated activation fees (e.g. ₹2999 Registration), the facility Owner structurally binds their enterprise to the terms of GymOS Technologies. The platform is offered as a premium B2B SaaS framework.</p>
+                        <p>By registering for the BGM platform and paying the associated activation fees (e.g. ₹2999 Registration), the facility Owner structurally binds their enterprise to the terms of BGM Technologies. The platform is offered as a premium B2B SaaS framework.</p>
                     </section>
                     <section>
                         <h2 className="text-2xl font-display font-semibold text-foreground mb-4">2. Usage Compliance & Ethics</h2>

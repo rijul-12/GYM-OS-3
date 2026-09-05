@@ -122,11 +122,28 @@ export default function OnboardingWizard() {
             <div className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight">2. Visual Identity</h2>
                 <p className="text-sm text-foreground/50 mb-6">Upload your brand logo for invoices and member portals.</p>
-                <div className="border-2 border-dashed border-foreground/10 rounded-2xl h-48 flex flex-col items-center justify-center hover:bg-foreground/[0.02] transition cursor-pointer text-foreground/40 hover:text-foreground group">
-                    <Upload className="h-8 w-8 mb-3 opacity-50 group-hover:opacity-100 transition" />
-                    <span className="text-sm font-medium">Click to upload logo PNG/SVG</span>
-                    <span className="text-xs mt-1">Recommended size 400x120</span>
-                </div>
+                <label className="border-2 border-dashed border-foreground/10 rounded-2xl h-48 flex flex-col items-center justify-center hover:bg-foreground/[0.02] transition cursor-pointer text-foreground/40 hover:text-foreground group relative overflow-hidden">
+                    <input type="file" accept="image/png, image/svg+xml, image/jpeg" className="hidden" onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            setLogo(file);
+                            toast.success(`Selected ${file.name}`);
+                        }
+                    }} />
+                    {logo ? (
+                        <div className="flex flex-col items-center gap-2">
+                            <Check className="h-8 w-8 text-emerald-500" />
+                            <span className="text-sm font-medium text-emerald-500">Logo selected: {logo.name || 'Image'}</span>
+                            <span className="text-xs text-foreground/40 mt-1">Click to change</span>
+                        </div>
+                    ) : (
+                        <>
+                            <Upload className="h-8 w-8 mb-3 opacity-50 group-hover:opacity-100 transition" />
+                            <span className="text-sm font-medium">Click to upload logo PNG/SVG</span>
+                            <span className="text-xs mt-1">Recommended size 400x120</span>
+                        </>
+                    )}
+                </label>
             </div>
         ),
         3: (
@@ -237,8 +254,8 @@ export default function OnboardingWizard() {
                     <p className="text-xs text-foreground/50 max-w-sm mb-6">Share this exact secure URL. It forces them into the Trainer registration variant pre-populated with your access code.</p>
 
                     <div className="w-full flex">
-                        <Input readOnly value={`gym-os.vercel.app/register?role=trainer&code=${user?.gymCode}`} className="rounded-r-none border-r-0 bg-card border-foreground/20 text-foreground/50 selection:bg-red-500/30" />
-                        <Button onClick={() => handleCopy(`gym-os.vercel.app/register?role=trainer&code=${user?.gymCode}`)} className="rounded-l-none bg-red-600 hover:bg-red-700 text-foreground"><Copy className="h-4 w-4" /></Button>
+                        <Input readOnly value={`https://gymos.app/register?role=trainer&code=${user?.gymCode}`} className="rounded-r-none border-r-0 bg-card border-foreground/20 text-foreground/50 selection:bg-red-500/30" />
+                        <Button onClick={() => handleCopy(`https://gymos.app/register?role=trainer&code=${user?.gymCode}`)} className="rounded-l-none bg-red-600 hover:bg-red-700 text-foreground"><Copy className="h-4 w-4" /></Button>
                     </div>
                 </div>
             </div>

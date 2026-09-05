@@ -140,7 +140,7 @@ export default function TrainersClient({ initialTrainers }) {
                                 </div>
                                 <div>
                                     <label className="text-xs text-foreground/50 uppercase tracking-wider">Email Address</label>
-                                    <input type="email" value={newTrainer.email} onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="david@gymos.com" />
+                                    <input type="email" value={newTrainer.email} onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="david@bgm.app" />
                                 </div>
                                 <div>
                                     <label className="text-xs text-foreground/50 uppercase tracking-wider">Specialty / Role</label>

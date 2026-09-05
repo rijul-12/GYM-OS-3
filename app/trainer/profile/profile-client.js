@@ -121,7 +121,7 @@ export default function TrainerClient({ trainer }) {
           </div>
           <div className="mt-5 text-[10px] uppercase tracking-widest text-foreground/50">Contact</div>
           <div className="mt-2 space-y-2 text-sm text-foreground/80">
-            <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-foreground/40" /> trainer@gymos.com</div>
+            <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-foreground/40" /> trainer@bgm.app</div>
             <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-foreground/40" /> +1 (415) 555-0130</div>
           </div>
         </div>

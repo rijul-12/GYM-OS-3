@@ -79,7 +79,7 @@ export function SuperAdminShell({ children, title, subtitle, actions }) {
                                 <span className="font-display font-bold text-lg text-foreground">SA</span>
                             </div>
                             <div>
-                                <h1 className="font-display font-bold text-lg leading-tight tracking-tight">GymOS</h1>
+                                <h1 className="font-display font-bold text-lg leading-tight tracking-tight">BGM</h1>
                                 <p className="text-[10px] uppercase tracking-widest text-purple-400 font-medium">Super Admin</p>
                             </div>
                         </Link>
@@ -124,7 +124,7 @@ export function SuperAdminShell({ children, title, subtitle, actions }) {
             <main className={`flex-1 flex flex-col min-w-0 min-h-screen ${impersonating ? 'pt-12' : ''}`}>
                 <header className="h-20 flex items-center justify-between px-6 lg:px-8 border-b border-foreground/10 bg-background/95 backdrop-blur-md sticky top-0 z-30">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setOpen(true)} className="lg:hidden p-2.5 -ml-2.5 rounded-lg text-foreground/70 hover:bg-white/10 active:bg-white/20 transition">
+                        <button onClick={() => setOpen(true)} className="lg:hidden p-3 -ml-3 rounded-lg text-foreground/70 hover:bg-white/10 active:bg-white/20 transition touch-manipulation">
                             <Menu className="h-6 w-6" />
                         </button>
                         <div>

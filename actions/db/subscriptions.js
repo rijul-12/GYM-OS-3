@@ -18,7 +18,7 @@ export async function dispatchSubscriptionInstructions({ gymId, planName, planPr
     // Build manual verification HTML
     const bodyHtml = `
         <p>Dear Gym Owner,</p>
-        <p>Thank you for choosing to upgrade your GymOS facility to the <strong>${planName}</strong> plan.</p>
+        <p>Thank you for choosing to upgrade your BGM facility to the <strong>${planName}</strong> plan.</p>
         <div style="background-color: #1a1a1a; padding: 24px; border-radius: 8px; border: 1px solid #333; margin: 24px 0;">
             <p style="margin-top: 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Subscription Amount</p>
             <p style="font-size: 28px; font-weight: bold; margin: 8px 0 24px; color: #ef4444;">₹${planPrice}</p>
@@ -29,7 +29,7 @@ export async function dispatchSubscriptionInstructions({ gymId, planName, planPr
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">UPI ID</td><td style="text-align: right; font-family: monospace; font-weight: bold;">rijul0027@oksbi</td></tr>
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">Bank Account</td><td style="text-align: right; font-family: monospace; font-weight: bold;">10099887766</td></tr>
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">IFSC Code</td><td style="text-align: right; font-family: monospace; font-weight: bold;">ICIC0001009</td></tr>
-                    <tr><td style="padding: 8px 0; color: #aaa;">Beneficiary</td><td style="text-align: right; font-family: monospace; font-weight: bold;">GymOS Tech PVT LTD</td></tr>
+                    <tr><td style="padding: 8px 0; color: #aaa;">Beneficiary</td><td style="text-align: right; font-family: monospace; font-weight: bold;">BGM Tech PVT LTD</td></tr>
                 </table>
             </div>
         </div>
@@ -37,18 +37,19 @@ export async function dispatchSubscriptionInstructions({ gymId, planName, planPr
         <p>Your subscription will be automatically activated upon transaction clearance.</p>
     `;
 
+    const { getSubscriptionUrl } = await import('@/lib/url-builder');
     await sendEmail({
         to: session.email,
-        subject: 'GymOS Subscription Payment Instructions',
-        headline: 'Complete your GymOS Upgrade',
+        subject: 'BGM Subscription Payment Instructions',
+        headline: 'Complete your BGM Upgrade',
         greeting: 'Ready to scale your facility?',
         bodyHtml,
-        button: { text: "I Have Completed Payment", url: "https://gymos.app/dashboard/subscription" }
+        button: { text: "I Have Completed Payment", url: getSubscriptionUrl() }
     });
 }
 
 // Define the standard Trial duration globally
-const TRIAL_DAYS = 14;
+const TRIAL_MONTHS = 2;
 
 /**
  * Ensures a gym has a subscription document in Firebase.
@@ -62,7 +63,8 @@ export async function initializeSubscription(gymId) {
 
     if (!subDoc.exists) {
         const now = new Date();
-        const trialEnd = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+        const trialEnd = new Date(now);
+        trialEnd.setMonth(trialEnd.getMonth() + TRIAL_MONTHS);
 
         const payload = {
             plan: 'Trial',
@@ -74,7 +76,8 @@ export async function initializeSubscription(gymId) {
         };
 
         await subRef.set(payload);
-        return { gymId, ...payload, isReadOnly: false, daysRemaining: TRIAL_DAYS };
+        const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        return { gymId, ...payload, isReadOnly: false, daysRemaining };
     }
 
     return await getSubscriptionStatus(gymId);
@@ -230,13 +233,14 @@ export async function approveSubscription(requestId) {
     const email = settingsDoc.exists ? settingsDoc.data().ownerEmail || settingsDoc.data().email : null;
 
     if (email) {
+        const { getDashboardUrl } = await import('@/lib/url-builder');
         await sendEmail({
             to: email,
-            subject: 'GymOS - Payment Approved & Subscription Activated',
+            subject: 'BGM - Payment Approved & Subscription Activated',
             headline: 'Your Subscription is Active!',
             greeting: 'Welcome back to the Pro Tier,',
             bodyHtml: `<p>We have successfully verified your payment of ₹${data.amount}. Your <strong>${data.plan}</strong> plan is now fully active for the next 30 days.</p>`,
-            button: { text: "Open GymOS Dashboard", url: "https://gymos.app/dashboard" }
+            button: { text: "Open BGM Dashboard", url: getDashboardUrl() }
         });
     }
 }
@@ -266,11 +270,50 @@ export async function rejectSubscription(requestId) {
     if (email) {
         await sendEmail({
             to: email,
-            subject: 'GymOS - Payment Verification Failed',
+            subject: 'BGM - Payment Verification Failed',
             headline: 'Payment Verification Failed',
             greeting: 'Important update regarding your account,',
             bodyHtml: `<p>We were unable to verify your manual payment reference (<strong>${data.referenceNumber}</strong>) for ₹${data.amount}.</p><p>Your account is currently locked in Read-Only mode. Please contact support or retry the payment.</p>`,
             button: { text: "Contact Support", url: "mailto:support@gymos.app" }
         });
+    }
+}
+
+/**
+ * Super Admin Action: Extends a gym's trial securely.
+ */
+export async function extendGymTrial(gymId, newExpiryDateStr, reason, authUid = 'SYSTEM') {
+    if (!adminDb || !gymId) return { success: false, error: 'Database unavailable' };
+
+    try {
+        const subRef = adminDb.collection('gym_subscriptions').doc(gymId);
+        const subDoc = await subRef.get();
+        if (!subDoc.exists) return { success: false, error: 'Subscription missing' };
+
+        const oldExpiry = subDoc.data().trialEndDate;
+        const newExpiryDate = new Date(newExpiryDateStr).toISOString();
+
+        await subRef.update({
+            trialEndDate: newExpiryDate,
+            status: 'Trial' // Reactivate trial explicitly
+        });
+
+        await adminDb.collection('gyms').doc(gymId).update({
+            trialEndDate: newExpiryDate,
+            subscriptionStatus: 'Trial',
+            isTrial: true
+        });
+
+        await adminDb.collection('audit_logs').add({
+            action: 'TRIAL_EXTENSION',
+            gymId,
+            uid: authUid,
+            timestamp: new Date().toISOString(),
+            details: `Trial manually extended from ${new Date(oldExpiry || Date.now()).toLocaleDateString()} to ${new Date(newExpiryDate).toLocaleDateString()}. Reason: ${reason}`
+        });
+
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
     }
 }

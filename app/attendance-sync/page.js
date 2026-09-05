@@ -13,9 +13,9 @@ const STATUS_COLOR = { Success: '#22c55e', Failed: '#ef4444', Retry: '#f97316' }
 
 const HEALTH = [
   { key: 'device', label: 'Device status', ok: 'All devices online', icon: Cpu },
-  { key: 'api',    label: 'API status',    ok: '99.98% uptime',      icon: Zap },
-  { key: 'server', label: 'Server status', ok: 'Healthy · 42ms p99',   icon: Server },
-  { key: 'net',    label: 'Network',       ok: 'Stable connection',  icon: Wifi },
+  { key: 'api', label: 'API status', ok: '99.98% uptime', icon: Zap },
+  { key: 'server', label: 'Server status', ok: 'Healthy · 42ms p99', icon: Server },
+  { key: 'net', label: 'Network', ok: 'Stable connection', icon: Wifi },
 ]
 
 const SYNC_TREND = Array.from({ length: 20 }, (_, i) => ({
@@ -29,35 +29,56 @@ function App() {
   const [connections, setConnections] = useState({})
 
   useEffect(() => {
-    setFeed(generateLogs(12))
+    let active = true;
+    const fetchLogs = async () => {
+      try {
+        const { getAttendanceLogs } = await import('@/actions/db/attendance')
+        const live = await getAttendanceLogs(20)
+        if (!active) return;
+        const formatted = live.map(l => {
+          const date = new Date(l.check_in_time)
+          return {
+            id: l.id,
+            time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`,
+            member: l.members?.name || 'Unknown Member',
+            type: l.check_out_time ? 'Check Out' : 'Check In',
+            source: l.method || l.source || 'App',
+            sourceColor: l.method === 'App' ? '#3b82f6' : '#22c55e',
+            status: 'Success'
+          }
+        })
+        setFeed(formatted)
+      } catch (e) { }
+    }
+
+    fetchLogs();
+    const stream = setInterval(fetchLogs, 4000)
+
     const refresh = () => setConnections(getConnections())
     refresh()
     window.addEventListener('gymos:connections-changed', refresh)
-    const stream = setInterval(() => {
-      const next = generateLogs(1)[0]
-      // stamp with current time so it feels live
-      const now = new Date()
-      next.time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`
-      next.id = `evt_live_${Date.now()}`
-      setFeed(f => [next, ...f].slice(0, 18))
-    }, 3200)
-    return () => { clearInterval(stream); window.removeEventListener('gymos:connections-changed', refresh) }
+
+    return () => {
+      active = false;
+      clearInterval(stream);
+      window.removeEventListener('gymos:connections-changed', refresh)
+    }
   }, [])
 
-  const imported = 318
-  const pending = 7
-  const failed = 2
-  const avgSync = 142
+  const imported = feed.length || 0;
+  const pending = 0;
+  const failed = 0;
+  const avgSync = imported > 0 ? 42 : 0;
 
   return (
     <DashShell title="Synchronization Dashboard" subtitle="Live health across every attendance provider">
       {/* Top KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { l: 'Imported today',   v: imported.toLocaleString(), sub: 'attendance events',    color: brand.primaryColor, icon: Activity },
-          { l: 'Pending records',  v: pending,                   sub: 'queued for next sync', color: '#f97316',           icon: RotateCw },
-          { l: 'Failed records',   v: failed,                    sub: 'auto-retry active',    color: '#ef4444',           icon: XCircle },
-          { l: 'Avg sync time',    v: `${avgSync} ms`,           sub: 'p50 last hour',        color: '#22c55e',           icon: Zap },
+          { l: 'Imported today', v: imported.toLocaleString(), sub: 'attendance events', color: brand.primaryColor, icon: Activity },
+          { l: 'Pending records', v: pending, sub: 'queued for next sync', color: '#f97316', icon: RotateCw },
+          { l: 'Failed records', v: failed, sub: 'auto-retry active', color: '#ef4444', icon: XCircle },
+          { l: 'Avg sync time', v: `${avgSync} ms`, sub: 'p50 last hour', color: '#22c55e', icon: Zap },
         ].map((s, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5 card-hover">
             <div className="flex items-start justify-between">

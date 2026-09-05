@@ -10,13 +10,13 @@ export async function GET(request) {
 
     try {
         const { adminDb } = await import('@/lib/firebase/server')
-        if (!adminDb) return NextResponse.json({ error: 'Database disconnected' }, { status: 500 });
+        if (!adminDb) return NextResponse.redirect(new URL('/login?error=Backend+Database+Disconnected', request.url));
 
         const ref = adminDb.collection('trainers').doc(id);
         const doc = await ref.get();
 
         if (!doc.exists) {
-            return NextResponse.json({ error: 'Trainer invitation not found or has been revoked.' }, { status: 404 });
+            return NextResponse.redirect(new URL('/login?error=Trainer+invitation+expired+or+revoked.+Please+request+a+new+one.', request.url));
         }
 
         await ref.update({
@@ -26,10 +26,9 @@ export async function GET(request) {
             updated_at: new Date().toISOString()
         });
 
-        // Redirect to a success page or the GymOS login
-        return NextResponse.redirect(new URL('/login?message=Trainer+Invite+Successfully+Accepted', request.url));
+        return NextResponse.redirect(new URL('/login?message=Trainer+Invite+Successfully+Accepted!+Please+login.', request.url));
     } catch (e) {
         console.error(e);
-        return NextResponse.json({ error: 'Failed to process invitation.' }, { status: 500 });
+        return NextResponse.redirect(new URL('/login?error=Internal+Server+Action+Failed.+Contact+Support.', request.url));
     }
 }

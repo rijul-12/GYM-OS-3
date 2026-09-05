@@ -9,11 +9,11 @@ export default function PrivacyPolicy() {
                 <div className="space-y-12">
                     <section>
                         <h2 className="text-2xl font-display font-semibold text-foreground mb-4">1. Information Collection</h2>
-                        <p>GymOS Technologies restricts the collection of personal information strictly to what is necessary for operating your GymOS SaaS platform. This includes basic identity variables required for Firebase Authentication and the intelligent health matrices opted-in by facility members.</p>
+                        <p>BGM Technologies restricts the collection of personal information strictly to what is necessary for operating your BGM SaaS platform. This includes basic identity variables required for Firebase Authentication and the intelligent health matrices opted-in by facility members.</p>
                     </section>
                     <section>
                         <h2 className="text-2xl font-display font-semibold text-foreground mb-4">2. Data Security & Storage</h2>
-                        <p>All biometric and structural infrastructure data is encrypted at rest and in transit via Firebase and Google Cloud architectures. GymOS Technologies unconditionally guarantees that it never sells, exposes, or brokers live gym telemetry to third-party ad networks.</p>
+                        <p>All biometric and structural infrastructure data is encrypted at rest and in transit via Firebase and Google Cloud architectures. BGM Technologies unconditionally guarantees that it never sells, exposes, or brokers live gym telemetry to third-party ad networks.</p>
                     </section>
                     <section>
                         <h2 className="text-2xl font-display font-semibold text-foreground mb-4">3. Contact Us</h2>

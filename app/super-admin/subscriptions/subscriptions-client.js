@@ -109,7 +109,7 @@ export default function SubscriptionsClient({ initialRequests, stats }) {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full min-w-[800px] text-sm text-left">
                         <thead className="text-xs font-semibold text-foreground/50 border-b border-foreground/10 sticky top-0 bg-background">
                             <tr>
                                 <th className="pb-3 pt-2">Gym</th>

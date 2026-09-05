@@ -7,14 +7,15 @@ import { motion } from 'framer-motion'
 import { Home, Radio, Sparkles, Calendar, User, CreditCard, Bell, Settings, LogOut, Activity } from 'lucide-react'
 import { useBrand } from './brand-provider'
 import { useAuth } from '@/lib/auth'
+import { NotificationDropdown } from './notifications-dropdown'
 
 const ME = { name: 'Member', plan: 'Premium', photo: "https://i.pravatar.cc/150?u=m" }
 const TABS = [
   { href: '/portal', label: 'Home', icon: Home },
   { href: '/portal/live', label: 'Live', icon: Radio },
   { href: '/portal/insights', label: 'AI', icon: Sparkles },
+  { href: '/portal/billing', label: 'Billing', icon: CreditCard },
   { href: '/portal/attendance', label: 'Log', icon: Calendar },
-  { href: '/portal/schedule', label: 'Sched', icon: Activity },
   { href: '/portal/profile', label: 'Me', icon: User },
 ]
 
@@ -23,6 +24,7 @@ const SIDE_LINKS = [
   { href: '/portal/live', label: 'Live Gym', icon: Radio },
   { href: '/portal/insights', label: 'AI Insights', icon: Sparkles },
   { href: '/portal/attendance', label: 'Attendance', icon: Calendar },
+  { href: '/portal/billing', label: 'Billing & Dues', icon: CreditCard },
   { href: '/portal/membership', label: 'Membership', icon: CreditCard },
   { href: '/portal/schedule', label: 'Schedule', icon: Activity },
   { href: '/portal/profile', label: 'Profile', icon: User },
@@ -32,7 +34,14 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
   const pathname = usePathname()
   const { brand } = useBrand()
   const { signOut } = useAuth()
-  const doLogout = () => { signOut(); if (typeof window !== 'undefined') window.location.href = '/' }
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const doLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    await signOut();
+    if (typeof window !== 'undefined') window.location.href = '/login';
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
@@ -71,7 +80,9 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
               <div className="text-sm font-medium truncate">{ME.name.split(' ')[0]}</div>
               <div className="text-[10px] text-foreground/40">{ME.plan} member</div>
             </div>
-            <Link href="/" onClick={(e) => { e.preventDefault(); doLogout() }} className="text-foreground/40 hover:text-foreground"><LogOut className="h-4 w-4" /></Link>
+            <button type="button" disabled={isLoggingOut} onClick={(e) => { e.preventDefault(); doLogout() }} className="text-foreground/40 hover:text-foreground disabled:opacity-50">
+              <LogOut className="h-4 w-4" />
+            </button>
           </motion.div>
         </div>
       </aside>
@@ -86,10 +97,9 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
               <div className="text-[10px] text-foreground/40 uppercase tracking-widest">{brand.gymName} Member</div>
               <div className="font-display font-semibold text-sm truncate">{title || 'Home'}</div>
             </div>
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.9 }} className="relative h-9 w-9 rounded-xl bg-foreground/[0.04] border border-foreground/5 flex items-center justify-center hover:bg-foreground/[0.1] transition-colors">
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full" style={{ background: brand.primaryColor }} />
-            </motion.button>
+
+            <NotificationDropdown />
+
           </div>
         </header>
 
@@ -99,16 +109,16 @@ export function PortalShell({ children, title, hideTitleOnDesktop = false }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-foreground/5 bg-black/85 backdrop-blur-2xl">
-        <div className="max-w-md mx-auto grid grid-cols-5 px-2 pt-1.5 pb-3">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-foreground/5 bg-black/85 backdrop-blur-2xl px-1 pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-md mx-auto grid grid-cols-6 pt-1.5 pb-2">
           {TABS.map((t) => {
             const Icon = t.icon
             const active = pathname === t.href
             return (
-              <Link key={t.href} href={t.href} className="relative flex flex-col items-center gap-1 py-2 rounded-lg">
-                {active && <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="absolute -top-1 h-0.5 w-8 rounded-full" style={{ background: brand.primaryColor }} />}
+              <Link key={t.href} href={t.href} className="relative flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg active:bg-white/5 transition-colors touch-manipulation">
+                {active && <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="absolute inset-x-2 -top-1.5 h-0.5 rounded-full" style={{ background: brand.primaryColor }} />}
                 <Icon className="h-5 w-5" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.5)' }} />
-                <span className="text-[10px] font-medium" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.5)' }}>{t.label}</span>
+                <span className="text-[9px] font-medium tracking-tight" style={active ? { color: brand.primaryColor } : { color: 'rgba(255,255,255,0.5)' }}>{t.label}</span>
               </Link>
             )
           })}

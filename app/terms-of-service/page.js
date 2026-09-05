@@ -22,12 +22,12 @@ export default function TermsOfService() {
                 <div className="space-y-8 text-foreground/80 leading-relaxed font-medium">
                     <section>
                         <h2 className="text-2xl font-bold text-foreground mb-3">1. Agreement to Terms</h2>
-                        <p>By using GymOS, you agree to these clear and simple terms. If you do not agree with them, please do not use our platform.</p>
+                        <p>By using BGM, you agree to these clear and simple terms. If you do not agree with them, please do not use our platform.</p>
                     </section>
 
                     <section>
                         <h2 className="text-2xl font-bold text-foreground mb-3">2. Acceptable Use</h2>
-                        <p>You agree to use GymOS solely for managing and tracking your fitness journey or facility operations. Attempting to bypass security, manipulate QR codes, or scrape platform data is strictly forbidden.</p>
+                        <p>You agree to use BGM solely for managing and tracking your fitness journey or facility operations. Attempting to bypass security, manipulate QR codes, or scrape platform data is strictly forbidden.</p>
                     </section>
 
                     <section>
@@ -37,7 +37,7 @@ export default function TermsOfService() {
 
                     <section>
                         <h2 className="text-2xl font-bold text-foreground mb-3">4. Limitation of Liability</h2>
-                        <p>GymOS provides software. We are not responsible for injuries occurring at the gym, disputes between gym members and owners, or the actual health guidance provided by trainers.</p>
+                        <p>BGM provides software. We are not responsible for injuries occurring at the gym, disputes between gym members and owners, or the actual health guidance provided by trainers.</p>
                     </section>
 
                     <section>

@@ -25,7 +25,7 @@ export default function Security() {
                 <div className="space-y-8 text-foreground/80 leading-relaxed font-medium">
                     <section className="p-6 border border-foreground/10 rounded-2xl bg-foreground/[0.02]">
                         <h2 className="text-xl font-bold text-foreground mb-2">Data Encryption</h2>
-                        <p className="text-sm">All traffic between the GymOS application and our databases uses secure HTTPS encryption. Your data at rest is protected by world-class Google Firebase encryption protocols.</p>
+                        <p className="text-sm">All traffic between the BGM application and our databases uses secure HTTPS encryption. Your data at rest is protected by world-class Google Firebase encryption protocols.</p>
                     </section>
 
                     <section className="p-6 border border-foreground/10 rounded-2xl bg-foreground/[0.02]">
@@ -35,7 +35,7 @@ export default function Security() {
 
                     <section className="p-6 border border-foreground/10 rounded-2xl bg-foreground/[0.02]">
                         <h2 className="text-xl font-bold text-foreground mb-2">Dynamic QR Logic</h2>
-                        <p className="text-sm">GymOS Check-in QR codes are dynamic and securely validated in real-time, preventing screenshot-sharing or fraudulent buddy check-ins.</p>
+                        <p className="text-sm">BGM Check-in QR codes are dynamic and securely validated in real-time, preventing screenshot-sharing or fraudulent buddy check-ins.</p>
                     </section>
                 </div>
             </div>

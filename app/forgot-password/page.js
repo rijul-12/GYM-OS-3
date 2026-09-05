@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
                         </Link>
 
                         <h1 className="text-3xl font-display font-medium tracking-tight mb-2">Reset password</h1>
-                        <p className="text-white/50 text-sm mb-8 leading-relaxed">Enter the email associated with your GymOS account to receive a secure password reset link.</p>
+                        <p className="text-white/50 text-sm mb-8 leading-relaxed">Enter the email associated with your BGM account to receive a secure password reset link.</p>
 
                         <AnimatePresence mode="wait">
                             {status === 'success' ? (
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
                                                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                                     <Mail className="h-4 w-4 text-white/30" />
                                                 </div>
-                                                <Input required type="email" placeholder="owner@gymos.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white focus:ring-1 focus:ring-white rounded-xl transition-all" />
+                                                <Input required type="email" placeholder="owner@bgm.app" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white focus:ring-1 focus:ring-white rounded-xl transition-all" />
                                             </div>
                                         </div>
                                     </div>
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
                 </motion.div>
 
                 <div className="mt-8 text-center flex items-center justify-center gap-2 text-white/40 text-xs">
-                    <Dumbbell className="h-3 w-3" /> Powered by GymOS
+                    <Dumbbell className="h-3 w-3" /> Powered by BGM
                 </div>
             </div>
 

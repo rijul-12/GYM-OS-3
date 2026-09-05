@@ -25,7 +25,7 @@ const ROLES = {
 const MUSCLES = ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core', 'Cardio', 'Mobility', 'Full Body', 'Other']
 
 const ROLE_LIST = [
-    { id: 'owner', accent: '#ef4444', title: 'Gym Owner', tagline: 'Create a new GymOS Workspace', points: ['Generate Gym Code', 'Full Command Center'] },
+    { id: 'owner', accent: '#ef4444', title: 'Gym Owner', tagline: 'Create a new BGM Workspace', points: ['Generate Gym Code', 'Full Command Center'] },
     { id: 'trainer', accent: '#f59e0b', title: 'Trainer', tagline: 'Join an existing Gym', points: ['Requires Gym Code', 'Training dashboard'] },
     { id: 'member', accent: '#22c55e', title: 'Member', tagline: 'Sign up to your Gym', points: ['Requires Gym Code', 'Live workout tracking'] },
 ]
@@ -115,7 +115,7 @@ function RegisterContent() {
                     <div className="mt-6 flex items-center gap-3">
                         <Image src="https://i.pravatar.cc/60?img=60" className="h-10 w-10 rounded-full" alt="" width={60} height={60} />
                         <div>
-                            <div className="text-sm font-semibold">Join GymOS</div>
+                            <div className="text-sm font-semibold">Join BGM</div>
                             <div className="text-xs text-foreground/50">Next-Generation Infrastructure</div>
                         </div>
                     </div>

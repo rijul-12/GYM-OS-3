@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Flame, Timer, MapPin, ChevronRight, TrendingUp, Users, Sparkles, Dumbbell, CalendarClock } from 'lucide-react'
+import { Flame, Timer, MapPin, ChevronRight, TrendingUp, Users, Sparkles, Dumbbell, CalendarClock, LogOut } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
 import { ZoneDemandGrid, CrowdHeatmap } from '@/components/zone-demand'
@@ -139,7 +139,6 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
     let checkinTime = 'N/A'
     let progress = 0
     let mm = '00', ss = '00'
-    let caloriesEst = 0
 
     if (isLive) {
         const ci = new Date(activeCheckin.check_in_time || activeCheckin.checkIn)
@@ -148,7 +147,6 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
         mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
         ss = String(elapsed % 60).padStart(2, '0')
         progress = Math.min(100, Math.round((elapsed / 3600) * 100)) // assuming 1 hour session = 100%
-        caloriesEst = Math.round((elapsed / 60) * 6.5) // ~6.5 cals per min
     }
 
     const ME = {
@@ -159,9 +157,17 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
         progress: progress,
         todayWorkout: member?.workoutSplit || member?.goal || 'Full Body Sculpt',
         checkinTime: checkinTime,
-        eta: isLive ? `${60 - parseInt(mm)} mins` : 'Offline',
-        caloriesEst: caloriesEst
+        eta: isLive ? `${60 - parseInt(mm)} mins` : 'Offline'
     }
+
+    let activeZone = null;
+    if (isLive && activeCheckin?.actual_workout && zones) {
+        let workArr = Array.isArray(activeCheckin.actual_workout) ? activeCheckin.actual_workout : [activeCheckin.actual_workout];
+        let searchString = workArr.join(' ').toLowerCase();
+        activeZone = zones.find(z => z.name && searchString.includes(z.name.toLowerCase().replace(' zone', '')));
+    }
+    const zoneNameDisplay = activeZone ? activeZone.name : (ME.todayWorkout);
+    const intensityDisplay = activeZone ? activeZone.status.toLowerCase() : 'active';
 
     // Compute Streak & Monthly Visits
     let streakDays = 0;
@@ -248,14 +254,10 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
                                     <Flame className="h-5 w-5" style={{ color: brand.primaryColor }} />
                                     <div className="font-display text-xl md:text-2xl font-semibold">{ME.todayWorkout}</div>
                                 </div>
-                                <div className="mt-4 grid grid-cols-3 gap-2">
+                                <div className="mt-4 grid grid-cols-2 gap-2">
                                     <div className="rounded-2xl bg-black/40 border border-foreground/5 p-3">
                                         <div className="text-[10px] uppercase tracking-wider text-foreground/40">Timer</div>
                                         <div className="font-display text-xl font-bold mt-1 tabular-nums">{mm}:{ss}</div>
-                                    </div>
-                                    <div className="rounded-2xl bg-black/40 border border-foreground/5 p-3">
-                                        <div className="text-[10px] uppercase tracking-wider text-foreground/40">Cals</div>
-                                        <div className="font-display text-xl font-bold mt-1">{ME.caloriesEst}</div>
                                     </div>
                                     <div className="rounded-2xl bg-black/40 border border-foreground/5 p-3">
                                         <div className="text-[10px] uppercase tracking-wider text-foreground/40">ETA</div>
@@ -264,7 +266,13 @@ export default function PortalClient({ member, insideCount = 0, activeCheckin, z
                                 </div>
                                 <div className="mt-3 flex items-center gap-2 text-xs text-foreground/60">
                                     <MapPin className="h-3.5 w-3.5" />
-                                    <span>Training <span className="text-foreground">Chest zone</span> · currently very busy · your session is peaking</span>
+                                    <span>Location: <span className="text-foreground">{zoneNameDisplay}</span> · {intensityDisplay} workout demand</span>
+                                </div>
+                                <div className="mt-5">
+                                    <Link href={`/checkout/${activeCheckin?.gymId}`} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-foreground/10 hover:bg-white/10 text-xs font-semibold uppercase tracking-widest text-foreground transition-all active:scale-95">
+                                        <LogOut className="h-3.5 w-3.5" />
+                                        Complete Session (Check-out)
+                                    </Link>
                                 </div>
                             </div>
                         </div>

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { toast } from 'sonner'
 import { blastOffPeakSMS } from '@/actions/sms'
 import Image from 'next/image'
@@ -13,15 +13,30 @@ import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YA
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/ui/stat-card'
 import { useAuth } from '@/lib/auth'
+import { NotificationDropdown } from '@/components/notifications-dropdown'
+import { OffPeakSMSModal } from '@/components/off-peak-sms-modal'
 import { RecentActivityTimeline } from '@/components/recent-activity'
 import { OperationsInsights } from '@/components/operations-insights'
+
+import { useRouter } from 'next/navigation'
 
 const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
 
 export default function DashboardClient({ stats, latestAttendance }) {
     const { brand } = useBrand()
     const { user } = useAuth()
+    const router = useRouter()
     const [isPending, startTransition] = useTransition()
+    const [showSMS, setShowSMS] = useState(false)
+
+    // Enforce implicit Live Status by quietly validating Server Component data routinely
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.refresh()
+        }, 15000)
+        return () => clearInterval(interval)
+    }, [router])
+
     const topInsight = stats.insights?.[0] || { tone: 'info', category: 'General', title: 'System Running', detail: 'Operations nominal', confidence: 100, action: 'View' }
 
     // The system now expects `stats.weeklyLine` from Firebase. Fallbacks stripped.
@@ -120,7 +135,7 @@ export default function DashboardClient({ stats, latestAttendance }) {
             <motion.div
                 initial="hidden" animate="show"
                 variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.2 } } }}
-                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
             >
                 <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={Users} label="Total Members" value={stats.totalMembers || '0'} delta="Live" /></motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={LogIn} label="Staff/Trainers" value={stats.totalTrainers || '0'} delta="Live" tone="#22c55e" /></motion.div>
@@ -264,21 +279,9 @@ export default function DashboardClient({ stats, latestAttendance }) {
                             { icon: FileText, label: 'Generate report', href: '/analytics' },
                             {
                                 icon: Zap,
-                                label: isPending ? 'Dispatching SMS...' : 'Push off-peak SMS',
+                                label: 'Push off-peak SMS',
                                 action: () => {
-                                    startTransition(async () => {
-                                        toast.loading("Finding offline members...", { id: 'sms' });
-                                        try {
-                                            const res = await blastOffPeakSMS();
-                                            if (res.success) {
-                                                toast.success(`Off-peak promotion sent to ${res.deliveredCount} offline members!`, { id: 'sms' });
-                                            } else {
-                                                toast.error(res.error || "Failed to fetch offline members.", { id: 'sms' });
-                                            }
-                                        } catch (e) {
-                                            toast.error("SMS blast failed.", { id: 'sms' });
-                                        }
-                                    });
+                                    setShowSMS(true)
                                 }
                             },
                         ].map((a, i) => (
@@ -311,6 +314,8 @@ export default function DashboardClient({ stats, latestAttendance }) {
             <div className="mt-8 mb-5">
                 <RecentActivityTimeline gymCode={user?.gymCode} />
             </div>
+
+            <OffPeakSMSModal open={showSMS} onOpenChange={setShowSMS} />
         </DashShell >
     )
 }

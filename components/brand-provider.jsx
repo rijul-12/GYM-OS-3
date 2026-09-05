@@ -1,17 +1,20 @@
 'use client'
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 
+export const BRAND_NAME = "BGM";
+export const BRAND_FULL_NAME = "Best Gym Manager";
+export const APP_URL = "https://gymos.app";
+
 const DEFAULT_BRAND = {
-  gymName: 'GymOS',
-  logoText: 'G',
+  gymName: BRAND_NAME,
+  logoText: 'BGM',
   primaryColor: '#ef4444',
   accentColor: '#f87171',
   phone: '+1 (415) 555-0100',
-  email: 'hello@gymos.io',
+  email: 'hello@gymos.app',
   address: '250 Market Street, San Francisco, CA',
-  banner: 'Elevate your gym. Elevate your brand.',
-  footer: '© 2025 GymOS. Built for the world\'s best gyms.',
-  footer: '© 2025 GymOS. Built for the world\'s best gyms.',
+  banner: 'Your gym runs. BGM handles the rest.',
+  footer: `© ${new Date().getFullYear()} ${BRAND_FULL_NAME}. Built for the world's best gyms.`,
   favicon: '',
   currency: '$ USD'
 }
@@ -68,6 +71,12 @@ export function BrandProvider({ children }) {
 
       const next = { ...prev, ...patch }
       try { localStorage.setItem('gymos_brand', JSON.stringify(next)) } catch { }
+
+      // Passively flush to Firebase maintaining Database Sync seamlessly without blocking UI
+      import('@/actions/db/gyms').then(m => {
+        m.saveGymBrand(null, patch).catch(e => console.error(e))
+      })
+
       return next
     })
   }, [])

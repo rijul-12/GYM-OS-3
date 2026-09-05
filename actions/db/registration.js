@@ -47,7 +47,7 @@ export async function processOwnerRegistration(data) {
 
         // 3. Write native Firestore Gym Record
         const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 14);
+        trialEndDate.setMonth(trialEndDate.getMonth() + 2);
 
         await adminDb.collection('gyms').doc(uniqueCode).set({
             gymCode: uniqueCode,
@@ -55,9 +55,10 @@ export async function processOwnerRegistration(data) {
             ownerName: data.ownerName,
             email: data.email,
             phone: data.phone,
-            city: data.city,
-            state: data.state,
-            country: data.country,
+            city: (data.city || '').trim().toLowerCase(),
+            state: (data.state || '').trim(),
+            country: (data.country || '').trim(),
+            pinCode: (data.pinCode || '').trim(),
             gymType: data.gymType,
             capacity: data.membershipCapacity,
             createdAt: new Date().toISOString(),
@@ -81,13 +82,14 @@ export async function processOwnerRegistration(data) {
         // 5. Dispatch Welcome Email (Strictly bounded to prevent SMTP hangs)
         try {
             const { sendEmail } = await import('@/lib/email');
+            const { getLoginUrl } = await import('@/lib/url-builder');
             const emailPromise = sendEmail({
                 to: data.email,
-                subject: 'GymOS - Registration Successful',
-                headline: `Welcome to GymOS, ${data.ownerName}`,
+                subject: 'BGM - Registration Successful',
+                headline: `Welcome to BGM, ${data.ownerName}`,
                 greeting: 'Your Gym Facility has been created!',
-                bodyHtml: `<p>Thank you for partnering with GymOS to manage <strong>${data.gymName}</strong>.</p><p>Your unique Gym Code is: <strong style="color: #ef4444; font-size: 18px;">${uniqueCode}</strong></p><p>Share this code with your Trainers and Members so they can join your facility network.</p>`,
-                button: { text: "Login to Owner Dashboard", url: "https://gymos.app/login" }
+                bodyHtml: `<p>Thank you for partnering with BGM to manage <strong>${data.gymName}</strong>.</p><p>Your unique Gym Code is: <strong style="color: #ef4444; font-size: 18px;">${uniqueCode}</strong></p><p>Share this code with your Trainers and Members so they can join your facility network.</p>`,
+                button: { text: "Login to Owner Dashboard", url: getLoginUrl() }
             });
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Email SMTP Timeout')), 4000));
             await Promise.race([emailPromise, timeoutPromise]);
@@ -160,13 +162,14 @@ export async function processTrainerRegistration(data) {
 
         // 5. Dispatch Trainer Welcome Email
         const { sendEmail } = await import('@/lib/email');
+        const { getLoginUrl } = await import('@/lib/url-builder');
         await sendEmail({
             to: data.email,
-            subject: 'Welcome to GymOS for Trainers',
+            subject: 'Welcome to BGM for Trainers',
             headline: 'Your Trainer Profile is Ready',
             greeting: `Hello ${data.trainerName},`,
             bodyHtml: `<p>You have successfully registered as a Trainer for the gym under code: <strong>${gymCodeRaw}</strong>.</p><p>Your account is currently in <strong>Pending</strong> status until the Gym Owner approves your profile.</p>`,
-            button: { text: "Login to Trainer Portal", url: "https://gymos.app/login" }
+            button: { text: "Login to Trainer Portal", url: getLoginUrl() }
         });
 
         return { success: true, uid: user.uid };
@@ -251,7 +254,7 @@ export async function processMemberRegistration(data) {
             preferredWorkoutTime: data.preferredWorkoutTime,
             preferredWorkoutDuration: data.preferredWorkoutDuration,
             trainingDays: data.trainingDays,
-            weeklySchedule: data.weeklySchedule || { Monday: 'Chest', Tuesday: 'Back', Wednesday: 'Rest', Thursday: 'Legs', Friday: 'Shoulders & Arms', Saturday: 'Cardio', Sunday: 'Rest' },
+            weeklySchedule: data.weeklySchedule || { Monday: ['Chest'], Tuesday: ['Back'], Wednesday: ['Rest'], Thursday: ['Legs'], Friday: ['Shoulders', 'Arms'], Saturday: ['Cardio'], Sunday: ['Rest'] },
 
             plan: 'Basic', // default fallback
             status: 'Active',
@@ -260,13 +263,14 @@ export async function processMemberRegistration(data) {
         });
         // 5. Dispatch Member Welcome Email
         const { sendEmail } = await import('@/lib/email');
+        const { getLoginUrl } = await import('@/lib/url-builder');
         await sendEmail({
             to: data.email,
-            subject: 'Welcome to GymOS Member Portal',
+            subject: 'Welcome to BGM Member Portal',
             headline: 'Your Registration is Complete',
             greeting: `Hello ${data.name},`,
-            bodyHtml: `<p>You have successfully joined the GymOS network under your gym's tenant code: <strong>${gymCodeRaw}</strong>.</p><p>You can now log in to view your workout schedule, track progress, and manage your health goals.</p>`,
-            button: { text: "Login to Member Portal", url: "https://gymos.app/login" }
+            bodyHtml: `<p>You have successfully joined the BGM network under your gym's tenant code: <strong>${gymCodeRaw}</strong>.</p><p>You can now log in to view your workout schedule, track progress, and manage your health goals.</p>`,
+            button: { text: "Login to Member Portal", url: getLoginUrl() }
         });
 
         return { success: true, uid: user.uid };

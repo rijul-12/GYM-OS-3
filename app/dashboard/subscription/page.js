@@ -1,4 +1,5 @@
 import { getSubscriptionStatus } from '@/actions/db/subscriptions'
+import { getMonthlyGymOsCost } from '@/actions/db/pricing'
 import { cookies } from 'next/headers'
 import SubscriptionClient from './subscription-client'
 
@@ -13,6 +14,7 @@ export default async function SubscriptionPage() {
     }
 
     const subStatus = await getSubscriptionStatus(gymId)
+    const costData = await getMonthlyGymOsCost(gymId)
 
-    return <SubscriptionClient status={subStatus} gymId={gymId} />
+    return <SubscriptionClient status={subStatus} gymId={gymId} costData={costData} />
 }

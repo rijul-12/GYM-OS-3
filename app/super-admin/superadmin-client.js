@@ -24,17 +24,17 @@ const HealthDot = ({ status }) => {
 }
 import { formatCurrency } from '@/lib/currency'
 
-export default function SuperAdminClient({ gyms }) {
+export default function SuperAdminClient({ gyms, analytics }) {
     // We derive live platform numbers dynamically from our cross-tenant database fetch
     const PLATFORM_STATS = {
         totalGyms: gyms?.length || 0,
         activeGyms: (gyms || []).filter(g => g.status === 'Active').length || gyms?.length || 0,
         trialGyms: (gyms || []).filter(g => g.status === 'Trial').length || 0,
-        totalMembers: 0, // Awaiting Firebase Aggregation across tenants
-        totalTrainers: 0, // Awaiting Firebase Aggregation
-        todayAttendance: 0, // Awaiting Firebase Aggregation
-        monthlyRevenue: 0, // Awaiting Firebase Aggregation
-        arr: 0,
+        totalMembers: analytics?.totalMembers || 0,
+        totalTrainers: analytics?.totalTrainers || 0,
+        todayAttendance: analytics?.todayAttendance || 0,
+        monthlyRevenue: analytics?.monthlyRevenue || 0,
+        arr: analytics?.arr || 0,
         newSignups: 0,
         renewals: 0,
         expiringSubscriptions: 0,
@@ -63,7 +63,7 @@ export default function SuperAdminClient({ gyms }) {
     const NOTIFICATIONS = []
 
     return (
-        <SuperAdminShell title="Command Center" subtitle="GymOS Platform Management — Real-time overview">
+        <SuperAdminShell title="Command Center" subtitle="BGM Platform Management — Real-time overview">
             {/* KPI Row 1: Business */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <StatCard icon={Building2} label="Total Gyms" value={s.totalGyms} sub={`${s.activeGyms} active · ${s.trialGyms} trial`} delay={0} />

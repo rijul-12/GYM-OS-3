@@ -10,13 +10,9 @@ import { toast } from 'sonner'
 import Script from 'next/script'
 import { createRazorpayOrder, verifyPaymentSignature } from '@/actions/payments'
 
-const PLANS = [
-    { id: 'starter', name: 'Starter', price: 1999, annualPrice: 17999, limit: 75, features: ['Up to 75 Members', 'Basic Reports', 'Community Support', 'Web Access'] },
-    { id: 'pro', name: 'Pro', price: 3999, annualPrice: 35999, limit: 130, features: ['Up to 130 Members', 'Advanced Analytics', 'Priority Support', 'Mobile Access', 'Automated Attendance'] },
-    { id: 'elite', name: 'Elite', price: 5999, annualPrice: 53999, limit: 999999, features: ['Unlimited Members', 'Custom Branding', 'API Access', 'Dedicated Account Manager', 'Multi-location Sync'] }
-]
+// Removed Fixed Strategy Framework
 
-export default function SubscriptionClient({ status, gymId }) {
+export default function SubscriptionClient({ status, gymId, costData }) {
     const { brand } = useBrand()
     const router = useRouter()
     const [billingCycle, setBillingCycle] = useState('monthly') // 'monthly' | 'annual'
@@ -45,7 +41,7 @@ export default function SubscriptionClient({ status, gymId }) {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: orderRes.amountInPaise,
                 currency: orderRes.currency,
-                name: brand.gymName || "GymOS",
+                name: brand.gymName || "BGM",
                 description: `Subscription: ${planKey.toUpperCase()}`,
                 order_id: orderRes.orderId,
                 handler: async function (response) {
@@ -88,31 +84,43 @@ export default function SubscriptionClient({ status, gymId }) {
     }
 
     return (
-        <DashShell title="Subscription" subtitle="Manage your GymOS plan and billing">
+        <DashShell title="Subscription" subtitle="Manage your BGM plan and billing">
             <Script src="https://checkout.razorpay.com/v1/checkout.js" />
 
             <div className="grid md:grid-cols-3 gap-4 mt-6">
                 <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 md:col-span-2 relative overflow-hidden">
                     <div className="absolute top-0 right-0 h-48 w-48 rounded-full blur-3xl opacity-20 -mr-20 -mt-20" style={{ background: brand.primaryColor }} />
                     <div className="relative">
-                        <div className="text-sm font-medium text-foreground/50 mb-1">Current Active Plan</div>
+                        <div className="text-sm font-medium text-foreground/50 mb-1">{status.currentPhase === 'Trial' ? 'Current Status' : 'Current Active Plan'}</div>
                         <div className="text-3xl font-display font-bold flex items-center gap-3 capitalize">
-                            {status.plan || 'Development Mode'} {status.isReadOnly && <span className="text-sm px-2 py-1 bg-red-500/20 text-red-500 rounded-md font-medium tracking-wide uppercase">Expired</span>}
+                            {status.currentPhase === 'Trial' ? 'BGM FREE TRIAL' : (status.plan || 'Development Mode')} {status.isReadOnly && <span className="text-sm px-2 py-1 bg-red-500/20 text-red-500 rounded-md font-medium tracking-wide uppercase">Expired</span>}
                         </div>
 
                         <div className="mt-8 flex flex-wrap gap-6">
-                            <div>
-                                <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Status Phase</div>
-                                <div className="font-medium">{status.currentPhase}</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Days Remaining</div>
-                                <div className="font-medium">{status.daysRemaining} days</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Renewal Date</div>
-                                <div className="font-medium">{new Date(status.subscriptionExpiryDate || status.trialEndDate).toLocaleDateString()}</div>
-                            </div>
+                            {status.currentPhase === 'Trial' && !status.isReadOnly ? (
+                                <div className={`p-4 rounded-xl border w-full flex justify-between items-center ${status.daysRemaining < 7 ? 'bg-orange-500/10 border-orange-500/20 text-orange-200' : 'bg-foreground/[0.03] border-foreground/5'}`}>
+                                    <div>
+                                        <div className="font-bold text-lg">{status.daysRemaining} days remaining</div>
+                                        <div className="text-sm opacity-80 mt-0.5">Trial ends: {new Date(status.trialEndDate).toLocaleDateString()}</div>
+                                    </div>
+                                    {status.daysRemaining < 7 && <Clock className="h-6 w-6 text-orange-400 opacity-50" />}
+                                </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Status Phase</div>
+                                        <div className="font-medium">{status.currentPhase}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Days Remaining</div>
+                                        <div className="font-medium">{status.daysRemaining} days</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Renewal Date</div>
+                                        <div className="font-medium">{new Date(status.subscriptionExpiryDate || status.trialEndDate).toLocaleDateString()}</div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -132,41 +140,51 @@ export default function SubscriptionClient({ status, gymId }) {
             </div>
 
             <div className="mt-12">
-                <div className="text-xl font-display font-bold text-center mb-2">Upgrade your GymOS</div>
-                <div className="text-center text-foreground/50 text-sm mb-6">Select a tier that scales with your facility's operational demands.</div>
+                <div className="text-xl font-display font-bold text-center mb-2">Platform & Billing</div>
+                <div className="text-center text-foreground/50 text-sm mb-6">BGM uses a transparent, usage-based pricing model that scales with your business automatically.</div>
 
-                <div className="flex justify-center mb-8">
-                    <div className="bg-foreground/5 p-1 rounded-xl inline-flex text-sm font-medium">
-                        <button onClick={() => setBillingCycle('monthly')} className={`px-6 py-2 rounded-lg transition-all ${billingCycle === 'monthly' ? 'bg-foreground text-background shadow-md' : 'text-foreground/60 hover:text-foreground'}`}>Monthly Billing</button>
-                        <button onClick={() => setBillingCycle('annual')} className={`px-6 py-2 rounded-lg transition-all ${billingCycle === 'annual' ? 'bg-foreground text-background shadow-md' : 'text-foreground/60 hover:text-foreground'}`}>Annual Billing <span className="ml-1 text-emerald-500 font-bold">-25%</span></button>
-                    </div>
-                </div>
+                <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                    {/* Calculation Card */}
+                    <div className="rounded-2xl border border-foreground/10 bg-black/40 p-6">
+                        <div className="text-lg font-bold mb-6 flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-500" /> Usage Calculation</div>
 
-                <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                    {PLANS.map(p => {
-                        const activePrice = billingCycle === 'annual' ? p.annualPrice : p.price;
-                        return (
-                            <div key={p.id} className="rounded-2xl border border-foreground/10 bg-black/40 p-6 relative flex flex-col pt-8">
-                                {p.id === 'pro' && <div className="absolute top-0 inset-x-0 h-1 bg-blue-500" />}
-
-                                <div className="text-2xl font-bold font-display">{p.name}</div>
-                                <div className="mt-2 text-3xl font-bold" style={{ color: brand.primaryColor }}>₹{activePrice.toLocaleString()}<span className="text-sm text-foreground/40 font-normal">/{billingCycle === 'annual' ? 'yr' : 'mo'}</span></div>
-
-                                <div className="mt-6 flex-1 space-y-3">
-                                    {p.features.map(f => (
-                                        <div key={f} className="flex items-center gap-3 text-sm text-foreground/70">
-                                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                            {f}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <Button disabled={isPending} onClick={() => handleCheckout(p.id)} className="w-full mt-8 bg-foreground/[0.06] hover:bg-white/10 border border-foreground/10 text-foreground font-medium">
-                                    Upgrade to {p.name}
-                                </Button>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-foreground/70">Base Platform Fee</span>
+                                <span className="font-medium">₹{costData.baseFee.toLocaleString()}</span>
                             </div>
-                        )
-                    })}
+
+                            <div className="flex justify-between items-center text-sm border-b border-foreground/10 pb-4">
+                                <span className="text-foreground/70 flex flex-col">
+                                    <span>Active Member Usage</span>
+                                    <span className="text-xs opacity-60">{costData.activePaidMembers} members × ₹{costData.rate}</span>
+                                </span>
+                                <span className="font-medium">₹{costData.usageCost.toLocaleString()}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center bg-foreground/5 p-3 rounded-lg">
+                                <span className="font-bold">Estimated Monthly Cost</span>
+                                <span className="font-bold text-xl" style={{ color: brand.primaryColor }}>₹{costData.totalCost.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Features & Checkout */}
+                    <div className="rounded-2xl border border-foreground/10 bg-black/40 p-6 flex flex-col">
+                        <div className="text-lg font-bold flex items-center justify-between mb-2">
+                            BGM Core <span className="text-[10px] uppercase font-bold tracking-widest bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">No Tier Limits</span>
+                        </div>
+                        <ul className="space-y-2 mt-4 text-sm text-foreground/70 mb-8 flex-1">
+                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Unlimited Members (pay as you grow)</li>
+                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Full Platform Access</li>
+                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Advanced AI Analytics</li>
+                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Automated Attendance</li>
+                        </ul>
+
+                        <Button disabled={isPending} onClick={() => handleCheckout('usage-v1')} className="w-full mt-auto font-medium" style={{ background: brand.primaryColor, color: '#fff' }}>
+                            {status.currentPhase === 'Trial' ? 'Activate Platform' : 'Renew Subscription'}
+                        </Button>
+                    </div>
                 </div>
             </div>
 

@@ -25,17 +25,17 @@ export default function RefundPolicy() {
                 <div className="space-y-8 text-foreground/80 leading-relaxed font-medium">
                     <section className="p-6 border border-foreground/10 rounded-2xl bg-foreground/[0.02]">
                         <h2 className="text-xl font-bold text-foreground mb-2">14-Day Guarantee</h2>
-                        <p className="text-sm">If you subscribe as a Gym Owner and are not satisfied with GymOS within the first 14 days, you may request a full refund, no questions asked.</p>
+                        <p className="text-sm">If you subscribe as a Gym Owner and are not satisfied with BGM within the first 14 days, you may request a full refund, no questions asked.</p>
                     </section>
 
                     <section className="p-6 border border-foreground/10 rounded-2xl bg-foreground/[0.02]">
                         <h2 className="text-xl font-bold text-foreground mb-2">Member Refunds</h2>
-                        <p className="text-sm">GymOS does NOT process refunds for gym memberships directly. If you are a facility member requesting a refund for your local gym fees, you must contact your gym's administration.</p>
+                        <p className="text-sm">BGM does NOT process refunds for gym memberships directly. If you are a facility member requesting a refund for your local gym fees, you must contact your gym's administration.</p>
                     </section>
 
                     <section className="p-6 border border-foreground/10 rounded-2xl bg-foreground/[0.02]">
                         <h2 className="text-xl font-bold text-foreground mb-2">Canceling Subscriptions</h2>
-                        <p className="text-sm">You can cancel your GymOS software subscription at any time. Your services will continue until the end of your current billing cycle.</p>
+                        <p className="text-sm">You can cancel your BGM software subscription at any time. Your services will continue until the end of your current billing cycle.</p>
                     </section>
                 </div>
             </div>

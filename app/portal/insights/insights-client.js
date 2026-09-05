@@ -36,7 +36,7 @@ function App({ member, globalAttendance, stats }) {
     goals: member?.goal || "General",
     trainer: member?.trainers?.name || "Unassigned"
   };
-  const WORKOUT_HISTORY = member?.workout_logs ? member.workout_logs.map(w => ({ date: w.date_logged || new Date(), workout: w.workout_plan_name || 'Workout', duration: w.duration_minutes || parseInt(w.duration) || 45, calories: w.calories_burned || parseInt(w.calories) || 300, stage: 'Lifting' })) : [];
+  const WORKOUT_HISTORY = member?.workout_logs ? member.workout_logs.map(w => ({ date: w.date_logged || new Date(), workout: w.workout_plan_name || 'Workout', duration: w.duration_minutes || parseInt(w.duration) || 45, stage: 'Lifting' })) : [];
   const ATTENDANCE_CALENDAR = { year: new Date().getFullYear(), month: new Date().getMonth(), today: new Date().getDate(), days: {} };
   if (Array.isArray(member?.attendance)) {
     member.attendance.forEach(a => {

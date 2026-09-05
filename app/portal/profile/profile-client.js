@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { User, Bell, Shield, Calendar, Phone, Mail, AlertCircle, Edit3, ChevronRight, Award } from 'lucide-react'
 import { PortalShell } from '@/components/portal-shell'
 import { useBrand } from '@/components/brand-provider'
+import { useAuth } from '@/lib/auth'
 
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
@@ -12,14 +13,26 @@ import { uploadProfilePhoto, removeProfilePhoto } from '@/actions/db/storage'
 import { updateMember } from '@/actions/db/members'
 import { X, Save } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 
 import { getInitials, getAvatarColor } from '@/lib/avatar'
 
 function App({ member, globalAttendance, stats }) {
   const fileInputRef = useRef(null);
   const [isPending, startTransition] = useTransition();
+  const { signOut } = useAuth();
+  const router = useRouter();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const doLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    await signOut();
+    router.push('/login');
+  };
+
   const [form, setForm] = useState({
     name: member?.name || '',
     phone: member?.phone || '',
@@ -73,7 +86,7 @@ function App({ member, globalAttendance, stats }) {
     goals: member?.goal || "General",
     trainer: member?.trainers?.name || "Unassigned"
   };
-  const WORKOUT_HISTORY = member?.workout_logs ? member.workout_logs.map(w => ({ date: w.date_logged || new Date(), workout: w.workout_plan_name || 'Workout', duration: w.duration_minutes || parseInt(w.duration) || 45, calories: w.calories_burned || parseInt(w.calories) || 300, stage: 'Lifting' })) : [];
+  const WORKOUT_HISTORY = member?.workout_logs ? member.workout_logs.map(w => ({ date: w.date_logged || new Date(), workout: w.workout_plan_name || 'Workout', duration: w.duration_minutes || parseInt(w.duration) || 45, stage: 'Lifting' })) : [];
   const ATTENDANCE_CALENDAR = { year: new Date().getFullYear(), month: new Date().getMonth(), today: new Date().getDate(), days: {} };
   if (Array.isArray(member?.attendance)) {
     member.attendance.forEach(a => {
@@ -233,7 +246,14 @@ function App({ member, globalAttendance, stats }) {
 
       <div className="mt-8 text-center text-xs text-foreground/40">
         <div>Signed in as {ME.email}</div>
-        <a href="/" className="mt-2 inline-block hover:text-foreground">Sign out</a>
+        <button
+          type="button"
+          disabled={isLoggingOut}
+          onClick={doLogout}
+          className="mt-2 text-foreground/60 hover:text-foreground font-medium disabled:opacity-50"
+        >
+          {isLoggingOut ? 'Signing out...' : 'Sign out'}
+        </button>
       </div>
 
       <AnimatePresence>

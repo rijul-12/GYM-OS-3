@@ -29,7 +29,7 @@ export async function POST(req) {
 
         const standardizedEvent = parseBiometricPayload(settings.provider_name, payload)
 
-        // Resolve the IoT biometric ID to a GymOS Member UUID
+        // Resolve the IoT biometric ID to a BGM Member UUID
         const membersSnap = await adminDb.collection('members')
             .where('gymId', '==', settings.gym_id)
             .where('biometric_id', '==', standardizedEvent.hardwareId)

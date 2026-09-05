@@ -64,8 +64,25 @@ export default function AttendanceLogsClient({ initialLogs }) {
         retry: rows.filter(r => r.status === 'Retry').length,
     }), [rows])
 
+    const exportCSV = () => {
+        if (!filtered.length) return toast.error("No data available to export.")
+        const headers = ['Date', 'Time', 'Member', 'Planned Workout', 'Actual Workout', 'Type', 'Status']
+        const csvContent = [
+            headers.join(','),
+            ...filtered.map(r => `"${r.date}","${r.time}","${r.member}","${r.plannedWorkout}","${r.actualWorkout}","${r.type}","${r.status}"`)
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `BGM_Attendance_${new Date().toISOString().split('T')[0]}.csv`
+        link.click()
+        toast.success(`Exported ${filtered.length} rows successfully`)
+    }
+
     return (
-        <DashShell title="Attendance Logs" subtitle="Every check-in, check-out, retry and failure across all providers" actions={<Button onClick={() => toast.success(`Exported ${filtered.length} rows`)} variant="outline" className="h-10 bg-foreground/[0.03] border-foreground/10 text-xs"><Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV</Button>}>
+        <DashShell title="Attendance Logs" subtitle="Every check-in, check-out, retry and failure across all providers" actions={<Button onClick={exportCSV} variant="outline" className="h-10 bg-foreground/[0.03] border-foreground/10 text-xs"><Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV</Button>}>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 {[

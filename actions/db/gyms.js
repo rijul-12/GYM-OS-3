@@ -199,8 +199,36 @@ export async function getDashboardStats() {
                 });
             });
 
-            const getDem = (count, maxCap) => Math.min(100, Math.floor((count / Math.max(1, maxCap)) * 100));
-            const getStatus = (count, maxCap) => count > (maxCap * 0.7) ? 'Busy' : (count > (maxCap * 0.3) ? 'Medium' : 'Empty');
+            const getDem = (count, maxCapStr) => {
+                const hasCapacity = maxCapStr !== undefined && maxCapStr !== null && maxCapStr !== '';
+                const maxCap = parseInt(maxCapStr);
+                if (hasCapacity && !isNaN(maxCap) && maxCap > 0) {
+                    return Math.min(100, Math.round((count / maxCap) * 100));
+                }
+                // When capacity is NOT configured, percentage can be an arbitrary relative scale (e.g., maxing at 10)
+                return Math.min(100, Math.round((count / 10) * 100));
+            };
+
+            const getStatus = (count, maxCapStr) => {
+                const hasCapacity = maxCapStr !== undefined && maxCapStr !== null && maxCapStr !== '';
+                const maxCap = parseInt(maxCapStr);
+
+                if (hasCapacity && !isNaN(maxCap) && maxCap > 0) {
+                    const perc = (count / maxCap) * 100;
+                    if (perc === 0) return 'Quiet';
+                    if (perc < 25) return 'Low';
+                    if (perc < 50) return 'Moderate';
+                    if (perc < 80) return 'Busy';
+                    if (perc <= 100) return 'Very Busy';
+                    return 'Very Busy / Over Capacity';
+                } else {
+                    if (count === 0) return 'Quiet';
+                    if (count <= 2) return 'Low';
+                    if (count <= 5) return 'Moderate';
+                    if (count <= 9) return 'Busy';
+                    return 'Very Busy';
+                }
+            };
 
             const ZONES = activeWidgets.map((w, idx) => {
                 let badgeColor = w.color || '#3b82f6';
@@ -212,10 +240,10 @@ export async function getDashboardStats() {
                     id: w.id || `w${idx}`,
                     name: w.name,
                     members: w._count,
-                    demand: getDem(w._count, w.capacity || 10),
+                    demand: getDem(w._count, w.capacity),
                     emoji: w.emoji || '✓',
                     color: hex,
-                    status: getStatus(w._count, w.capacity || 10),
+                    status: getStatus(w._count, w.capacity),
                     bg: `rgba(${r},${g},${b},0.03)`,
                     border: `rgba(${r},${g},${b},0.1)`
                 }
@@ -343,5 +371,75 @@ export async function saveGymWidgets(gymIdParam, widgets) {
         return true;
     } catch (e) {
         return false;
+    }
+}
+
+export async function saveGymBrand(gymIdParam, patch) {
+    if (!isFirebaseConfigured()) return false;
+    const { adminDb } = await import('@/lib/firebase/server');
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const sessionStr = cookieStore.get('gymos_session')?.value;
+
+    let sessionGymId = null;
+    let authRole = null;
+    try {
+        if (sessionStr) {
+            const dec = JSON.parse(sessionStr)
+            sessionGymId = dec.gymCode || dec.gymId;
+            authRole = dec.role;
+        }
+    } catch (e) { }
+
+    const gymId = gymIdParam || sessionGymId;
+    if (!adminDb || !gymId || authRole !== 'owner') return false; // Enforce owner limits natively globally
+
+    try {
+        await adminDb.collection('gym_settings').doc(gymId).set(patch, { merge: true });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+export async function getSuperAdminAnalytics() {
+    if (!isFirebaseConfigured()) return { totalMembers: 0, totalTrainers: 0, todayAttendance: 0, monthlyRevenue: 0, arr: 0 };
+    const { adminDb } = await import('@/lib/firebase/server');
+    if (!adminDb) return { totalMembers: 0, totalTrainers: 0, todayAttendance: 0, monthlyRevenue: 0, arr: 0 };
+
+    try {
+        const [memSnap, trnSnap] = await Promise.all([
+            adminDb.collection('members').count().get(),
+            adminDb.collection('trainers').count().get()
+        ]);
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        let todayAttendance = 0;
+        try {
+            const attSnap = await adminDb.collection('attendance')
+                .where('check_in_time', '>=', todayStart.toISOString())
+                .count().get();
+            todayAttendance = attSnap.data().count;
+        } catch (e) {
+            // Unindexed fallback ignore
+        }
+
+        const gymSnap = await adminDb.collection('gyms').where('status', '==', 'Active').count().get();
+        const activeGyms = gymSnap.data().count;
+        const activeMembers = memSnap.data().count;
+
+        const mrr = (activeGyms * 1999) + (activeMembers * 20);
+
+        return {
+            totalMembers: memSnap.data().count,
+            totalTrainers: trnSnap.data().count,
+            todayAttendance,
+            monthlyRevenue: mrr,
+            arr: mrr * 12
+        }
+    } catch (e) {
+        return { totalMembers: 0, totalTrainers: 0, todayAttendance: 0, monthlyRevenue: 0, arr: 0 };
     }
 }

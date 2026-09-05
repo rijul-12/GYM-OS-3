@@ -10,7 +10,7 @@ export default function OfflinePage() {
             </div>
             <h1 className="font-display text-3xl font-bold tracking-tight mb-2">No Internet Connection</h1>
             <p className="text-foreground/50 max-w-md mx-auto mb-8">
-                GymOS requires an active data connection to synchronize live member attendance and billing metrics. Please check your network and try again.
+                BGM requires an active data connection to synchronize live member attendance and billing metrics. Please check your network and try again.
             </p>
             <button onClick={() => window.location.reload()} className="px-6 py-3 rounded-xl bg-white text-black font-medium hover:opacity-90 transition">
                 Retry Connection

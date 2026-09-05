@@ -19,7 +19,7 @@ export async function generateDemoGym(saEmail = "system@gymos.in") {
         // 1. Create a Demo Gym Record
         const gymCode = `DEMO-${Math.floor(Math.random() * 9000) + 1000}`
         await adminDb.collection('gyms').doc(gymCode).set({
-            name: `GymOS Global Demo (${gymCode})`,
+            name: `BGM Global Demo (${gymCode})`,
             email: `demo@${gymCode.toLowerCase()}.com`,
             phone: '9876543210',
             location: 'Mumbai, IN',

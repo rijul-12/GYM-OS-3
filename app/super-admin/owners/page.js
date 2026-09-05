@@ -59,8 +59,8 @@ export default function OwnersPage() {
 
             {/* Owners Table */}
             <div className="animate-in fade-in duration-500 rounded-2xl border border-foreground/5 bg-foreground/[0.02] overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                <div className="overflow-x-auto no-scrollbar pb-2">
+                    <table className="w-full min-w-[1000px] text-sm">
                         <thead className="text-xs font-semibold text-foreground/50 bg-background sticky top-0 shadow-sm border-b border-foreground/10">
                             <tr>
                                 <th className="text-left px-5 py-3 font-medium">Owner</th>
