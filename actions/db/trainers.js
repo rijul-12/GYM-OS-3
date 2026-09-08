@@ -95,7 +95,13 @@ export async function removeTrainer(trainerId) {
     if (isFirebaseConfigured()) {
         const { adminDb } = await import('@/lib/firebase/server')
         if (adminDb) {
-            await adminDb.collection('trainers').doc(trainerId).delete()
+            const doc = await adminDb.collection('trainers').doc(trainerId).get();
+            if (doc.exists && doc.data().uid) {
+                const { deleteUserFootprint } = await import('@/actions/db/deletion');
+                await deleteUserFootprint(doc.data().uid);
+            } else {
+                await adminDb.collection('trainers').doc(trainerId).delete();
+            }
             revalidatePath('/trainers')
             return true;
         }

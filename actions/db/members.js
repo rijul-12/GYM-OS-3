@@ -246,7 +246,18 @@ export async function deleteMember(id) {
     if (isFirebaseConfigured()) {
         const { adminDb } = await import('@/lib/firebase/server')
         if (adminDb) {
-            await adminDb.collection('members').doc(id).delete()
+            const doc = await adminDb.collection('members').doc(id).get();
+            if (!doc.exists) return { success: false, error: 'Member not found' };
+
+            const data = doc.data();
+            if (data.authUid) {
+                const { deleteUserFootprint } = await import('@/actions/db/deletion');
+                await deleteUserFootprint(data.authUid);
+            } else {
+                // If member was manually added without external Auth links
+                await adminDb.collection('members').doc(id).delete();
+            }
+
             revalidatePath('/members')
             revalidatePath('/portal')
             revalidatePath('/portal/membership')
