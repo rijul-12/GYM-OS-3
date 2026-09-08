@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteUserFootprint } from '@/actions/db/deletion';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase/server';
 
 // Protect the endpoint via simple internal secret verification
 const DELETION_SECRET = process.env.FIREBASE_WEBHOOK_SECRET || 'bgm_cascade_internal_secret';

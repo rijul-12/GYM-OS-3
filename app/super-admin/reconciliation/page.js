@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { FileSearch, Trash2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { SuperadminShell } from '@/components/superadmin-shell'
+import { SuperAdminShell } from '@/components/superadmin-shell'
 import { fetchOrphans, executeOrphanCleanup } from './reconciliation-client'
 
 export default function ReconciliationDashboard() {
@@ -27,7 +27,7 @@ export default function ReconciliationDashboard() {
     }
 
     return (
-        <SuperadminShell>
+        <SuperAdminShell>
             <div className="max-w-6xl mx-auto px-6 py-10">
                 <div className="flex items-end justify-between mb-8">
                     <div>
@@ -45,7 +45,7 @@ export default function ReconciliationDashboard() {
                     <OrphanTable title="Orphaned Trainers" data={orphans.trainers} onClean={handleCleanup} />
                 </div>
             </div>
-        </SuperadminShell>
+        </SuperAdminShell>
     )
 }
 
