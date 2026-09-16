@@ -21,6 +21,7 @@ const NAV = [
     { href: '/super-admin/health', label: 'System Health', icon: Activity },
     { href: '/super-admin/support', label: 'Support', icon: LifeBuoy },
     { href: '/super-admin/audit', label: 'Audit Logs', icon: ScrollText },
+    { href: '/super-admin/reconciliation', label: 'Data Cleaning', icon: Activity },
     { href: '/super-admin/settings', label: 'Settings', icon: Settings },
     { href: '/super-admin/notifications', label: 'Notifications', icon: Bell },
 ]
