@@ -1,5 +1,5 @@
 'use server'
-import { adminDb, adminAuth } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase/server';
 
 export async function adminScanOrphans() {
     let orphans = { owners: [], members: [], trainers: [] };
@@ -41,4 +41,9 @@ export async function adminScanOrphans() {
     });
 
     return orphans;
+}
+
+export async function executeOrphanCleanupServerAction(uid) {
+    const { deleteUserFootprint } = await import('@/actions/db/deletion');
+    return await deleteUserFootprint(uid);
 }

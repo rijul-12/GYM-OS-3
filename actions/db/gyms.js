@@ -63,7 +63,9 @@ export async function deleteGym(gymId) {
     if (!adminDb) return false;
 
     try {
-        await adminDb.collection('gyms').doc(gymId).delete();
+        const { deleteGymFootprint } = await import('@/actions/db/deletion');
+        await deleteGymFootprint(gymId);
+
         revalidatePath('/super-admin/gyms');
         revalidatePath('/super-admin');
         return true;

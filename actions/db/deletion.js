@@ -1,4 +1,4 @@
-import { adminDb, adminAuth, adminStorage } from '@/lib/firebase-admin';
+import { adminDb, adminAuth, adminStorage } from '@/lib/firebase/server';
 
 /**
  * Helper to execute arrays of batch operations safely in Firestore (500 limit).
@@ -219,4 +219,14 @@ export async function deleteUserFootprint(uid, optionalEmail = null) {
         });
         return { success: false, error: err.message };
     }
+}
+
+/**
+ * Super Admin override function. Invokes owner-level cascade destruction targeting 
+ * a specific gymCode regardless of Auth mapping. 
+ */
+export async function deleteGymFootprint(gymCode) {
+    if (!gymCode) throw new Error("A gymCode must be provided to wipe facility assets.");
+    // Run handleOwnerDeletion natively wiping downstream. uid is optional.
+    return await handleOwnerDeletion(null, gymCode);
 }
