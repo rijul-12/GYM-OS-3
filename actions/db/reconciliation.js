@@ -24,19 +24,31 @@ export async function adminScanOrphans() {
         }
     });
 
+    const gymsSnap = await adminDb.collection('gyms').get();
+    let validGymIds = new Set(gymsSnap.docs.map(d => d.id));
+    let validGymCodes = new Set(gymsSnap.docs.map(d => d.data().gymCode).filter(Boolean));
+
     const membersSnap = await adminDb.collection('members').get();
     membersSnap.docs.forEach(doc => {
         const u = doc.data();
-        if (u.authUid && !allAuthUids.has(u.authUid)) {
-            orphans.members.push({ uid: u.authUid, email: u.email });
+        let orphan = false;
+        if (u.authUid && !allAuthUids.has(u.authUid)) orphan = true;
+        if (u.gymId && u.gymId !== 'DEMO' && !validGymIds.has(u.gymId) && !validGymCodes.has(u.gymId)) orphan = true;
+
+        if (orphan) {
+            orphans.members.push({ uid: u.authUid || doc.id, email: u.email });
         }
     });
 
     const trainersSnap = await adminDb.collection('trainers').get();
     trainersSnap.docs.forEach(doc => {
         const u = doc.data();
-        if (u.uid && !allAuthUids.has(u.uid)) {
-            orphans.trainers.push({ uid: u.uid, email: u.email });
+        let orphan = false;
+        if (u.uid && !allAuthUids.has(u.uid)) orphan = true;
+        if (u.gymId && u.gymId !== 'DEMO' && !validGymIds.has(u.gymId) && !validGymCodes.has(u.gymId)) orphan = true;
+
+        if (orphan) {
+            orphans.trainers.push({ uid: u.uid || doc.id, email: u.email });
         }
     });
 
