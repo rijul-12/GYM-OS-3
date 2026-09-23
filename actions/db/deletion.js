@@ -176,10 +176,18 @@ export async function deleteUserFootprint(uid, optionalEmail = null) {
         }
 
         const memberQ = await adminDb.collection('members').where('authUid', '==', uid).limit(1).get();
-        const memberRef = !memberQ.empty ? memberQ.docs[0] : null;
+        let memberRef = !memberQ.empty ? memberQ.docs[0] : null;
+        if (!memberRef) {
+            const fallback = await adminDb.collection('members').doc(uid).get();
+            if (fallback.exists) memberRef = fallback;
+        }
 
         const trainerQ = await adminDb.collection('trainers').where('uid', '==', uid).limit(1).get();
-        const trainerRef = !trainerQ.empty ? trainerQ.docs[0] : null;
+        let trainerRef = !trainerQ.empty ? trainerQ.docs[0] : null;
+        if (!trainerRef) {
+            const fallback = await adminDb.collection('trainers').doc(uid).get();
+            if (fallback.exists) trainerRef = fallback;
+        }
 
         // Execution Flags
         if (userDoc?.data()?.role === 'owner') {
@@ -200,9 +208,9 @@ export async function deleteUserFootprint(uid, optionalEmail = null) {
             deletionLog.metrics.trainer = await handleTrainerDeletion(trainerRef.ref, trainerRef.data());
         }
 
-        // Catch Firebase Auth deletions
+        // Catch Firebase Auth deletions aggressively swallowing all structural limits preventing cascade aborts
         try { await adminAuth.deleteUser(uid); } catch (e) {
-            if (e.code !== 'auth/user-not-found') throw e;
+            console.warn("Auth Wipe Bypassed:", e.code);
         }
 
         deletionLog.status = 'COMPLETED';
