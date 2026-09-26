@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { uploadProfilePhoto, removeProfilePhoto } from '@/actions/db/storage'
+import { compressProfileImage } from '@/lib/image-utils'
 import { updateMember } from '@/actions/db/members'
 import { X, Save } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
@@ -132,22 +133,22 @@ function App({ member, globalAttendance, stats }) {
                 });
               }} className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300">Remove</button>}
             </div>
-            <input type="file" ref={fileInputRef} accept="image/jpeg, image/png, image/webp" className="hidden" onChange={(e) => {
+            <input type="file" ref={fileInputRef} accept="image/jpeg, image/png, image/webp" className="hidden" onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
-              if (file.size > 2 * 1024 * 1024) return toast.error('File must be less than 2MB');
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                startTransition(async () => {
-                  try {
-                    await uploadProfilePhoto(ME.id, reader.result);
-                    toast.success('Profile photo updated!');
-                  } catch (err) {
-                    toast.error('Failed to upload photo');
-                  }
-                });
-              };
-              reader.readAsDataURL(file);
+              if (file.size > 5 * 1024 * 1024) return toast.error('File must be less than 5MB');
+
+              startTransition(async () => {
+                try {
+                  const webpBase64 = await compressProfileImage(file);
+                  const res = await uploadProfilePhoto(ME.id, webpBase64);
+                  if (res?.success) toast.success('Profile photo updated!');
+                  else throw new Error(res?.error || 'Failed');
+                } catch (err) {
+                  console.error(err);
+                  toast.error('Failed to upload photo');
+                }
+              });
             }} />
           </div>
           <div className="flex-1 min-w-0 text-center md:text-left">

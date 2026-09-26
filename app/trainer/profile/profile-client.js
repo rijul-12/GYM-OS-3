@@ -12,6 +12,7 @@ import { updateTrainerProfile } from '@/actions/db/trainers'
 import { X, Save, UploadCloud } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { uploadProfilePhoto } from '@/actions/db/storage'
+import { compressProfileImage } from '@/lib/image-utils'
 
 export default function TrainerClient({ trainer }) {
   const { brand } = useBrand()
@@ -34,19 +35,21 @@ export default function TrainerClient({ trainer }) {
     })
   }
 
-  const handlePhotoUpdate = (e) => {
+  const handlePhotoUpdate = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      startTransition(async () => {
-        try {
-          await uploadProfilePhoto(trainer.id, reader.result, 'trainers');
-          toast.success('Photo updated!');
-        } catch (err) { }
-      });
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) return toast.error('File must be less than 5MB');
+
+    startTransition(async () => {
+      try {
+        const webpBase64 = await compressProfileImage(file);
+        const res = await uploadProfilePhoto(trainer.id, webpBase64);
+        if (res?.success) toast.success('Photo updated!');
+        else throw new Error(res?.error || 'Upload failed');
+      } catch (err) {
+        toast.error('Failed to update photo.');
+      }
+    });
   }
 
   if (!trainer) {

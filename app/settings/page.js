@@ -13,7 +13,10 @@ import { regenerateGymCode } from '@/actions/db/gyms'
 import QRCode from 'react-qr-code'
 import { AppearanceSettings } from '@/components/appearance-settings'
 import { WidgetBuilder } from '@/components/widget-builder'
-import { MapPin } from 'lucide-react'
+import { MapPin, UploadCloud } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
+import { uploadProfilePhoto } from '@/actions/db/storage'
+import { compressProfileImage } from '@/lib/image-utils'
 
 const SECTIONS = [
   { id: 'general', label: 'General', icon: Globe },
@@ -38,9 +41,27 @@ const Row = ({ title, desc, children }) => (
 
 function App() {
   const { brand, setBrand } = useBrand()
+  const { user } = useAuth()
   const [active, setActive] = useState('general')
   const [costData, setCostData] = useState(null)
   const [qrOrigin, setQrOrigin] = useState('https://gymos.app')
+
+  const handlePhotoUpdate = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+    if (file.size > 5 * 1024 * 1024) return toast.error('File must be less than 5MB');
+
+    startTransition(async () => {
+      try {
+        const webpBase64 = await compressProfileImage(file);
+        const res = await uploadProfilePhoto(user.id, webpBase64);
+        if (res?.success) toast.success('Profile photo updated globally!');
+        else throw new Error(res?.error || 'Upload failed');
+      } catch (err) {
+        toast.error('Failed to update photo.');
+      }
+    });
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -128,6 +149,17 @@ function App() {
                   <div className="text-lg font-semibold">General Settings</div>
                   <div className="text-xs text-foreground/50">Basic preferences for your gym</div>
                 </div>
+
+                <Row title="Owner Profile Photo" desc="Your personal platform avatar">
+                  <div className="flex items-center gap-4">
+                    <img src={user?.photoURL || 'https://i.pravatar.cc/150'} className="h-10 w-10 rounded-full object-cover ring-1 ring-white/10" alt="avatar" />
+                    <label className="cursor-pointer text-xs flex items-center gap-1.5 bg-foreground/[0.05] hover:bg-foreground/[0.1] px-3 py-2 rounded-lg border border-foreground/10 transition">
+                      <UploadCloud className="h-3.5 w-3.5" /> {isPending ? 'Processing...' : 'Upload New'}
+                      <input type="file" onChange={handlePhotoUpdate} accept="image/*" className="hidden" disabled={isPending} />
+                    </label>
+                  </div>
+                </Row>
+
                 <Row title="Gym Name" desc="Displayed everywhere on the platform"><Input value={brand.gymName} onChange={e => setBrand({ gymName: e.target.value })} className="w-56 bg-foreground/[0.03] border-foreground/10 h-9" /></Row>
                 <Row title="Timezone" desc="Used for reports and check-ins"><select value={brand.timezone || 'Asia/Kolkata'} onChange={e => setBrand({ timezone: e.target.value })} className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option value="Asia/Kolkata">Asia/Kolkata</option><option value="America/Los_Angeles">America/Los_Angeles</option><option value="America/New_York">America/New_York</option><option value="Europe/London">Europe/London</option></select></Row>
                 <Row title="Currency" desc="For pricing and revenue displays"><select value={brand.currency || '₹ INR'} onChange={e => setBrand({ currency: e.target.value })} className="h-9 rounded-md bg-foreground/[0.03] border border-foreground/10 px-3 text-sm"><option value="₹ INR">₹ INR</option><option value="$ USD">$ USD</option><option value="€ EUR">€ EUR</option><option value="£ GBP">£ GBP</option></select></Row>

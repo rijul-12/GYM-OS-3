@@ -135,7 +135,7 @@ export function DashShell({ children, title, subtitle, actions }) {
 
             {actions}
             <motion.div whileHover={{ scale: 1.05, rotate: 2 }} whileTap={{ scale: 0.95 }} className="h-10 w-10 rounded-lg overflow-hidden ring-1 ring-white/10 shadow-lg cursor-pointer hover:shadow-xl transition-shadow">
-              <Image src="https://i.pravatar.cc/80?img=68" alt="admin" className="h-full w-full object-cover origin-center" width={120} height={120} />
+              <Image src={session?.photoURL || "https://i.pravatar.cc/80?img=68"} alt="admin" className="h-full w-full object-cover origin-center" width={120} height={120} />
             </motion.div>
           </div>
         </header>

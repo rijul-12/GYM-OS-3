@@ -37,7 +37,7 @@ export function SuperAdminShell({ children, title, subtitle, actions }) {
 
     useEffect(() => { setMounted(true) }, [])
 
-    const me = user || { name: 'Platform Admin', photo: 'https://i.pravatar.cc/150?img=68', email: 'superadmin@gymos.com' }
+    const me = user || { name: 'Platform Admin', photoURL: 'https://i.pravatar.cc/150?img=68', email: 'superadmin@gymos.com' }
 
     const doLogout = () => { signOut(); router.push('/') }
 
@@ -108,7 +108,7 @@ export function SuperAdminShell({ children, title, subtitle, actions }) {
                     <div className="p-4 mt-auto space-y-2">
                         <FeedbackButton />
                         <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-4 flex items-center gap-3">
-                            <Image src={me.photo} alt={me.name} className="h-10 w-10 rounded-full object-cover ring-2 ring-white/10" width={120} height={120} />
+                            <Image src={me.photoURL || me.photo || 'https://i.pravatar.cc/150?img=68'} alt={me.name} className="h-10 w-10 rounded-full object-cover ring-2 ring-white/10" width={120} height={120} />
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground truncate">{me.name}</p>
                                 <p className="text-[10px] text-foreground/50 truncate">{me.email}</p>
