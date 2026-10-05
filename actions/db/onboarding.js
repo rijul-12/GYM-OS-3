@@ -1,18 +1,19 @@
 'use server'
 
 export async function completeOnboarding(payload) {
-    const { adminDb } = await import('@/lib/firebase/server');
-    if (!adminDb) return { success: true };
-    const { cookies } = await import('next/headers');
-
-    // Authenticate tenant context
-    const cookieStore = await cookies();
-    const sessionStr = cookieStore.get('gymos_session')?.value;
-    if (!sessionStr) throw new Error("Unauthorized context");
-    const session = JSON.parse(sessionStr);
-    const gymCode = session.gymCode || 'DEMO';
-
     try {
+        const { adminDb } = await import('@/lib/firebase/server');
+        if (!adminDb) return { error: "CRITICAL: Firebase Admin initialization failed." };
+        const { cookies } = await import('next/headers');
+
+        // Authenticate tenant context
+        const cookieStore = await cookies();
+        const sessionStr = cookieStore.get('gymos_session')?.value;
+        if (!sessionStr) return { error: "Unauthorized context. Please log in again." };
+
+        const session = JSON.parse(sessionStr);
+        const gymCode = session.gymCode || 'DEMO';
+
         // 1. Commit Settings
         await adminDb.collection('gym_settings').doc(gymCode).set({
             logo: payload.logo || null,
@@ -40,7 +41,7 @@ export async function completeOnboarding(payload) {
         }
 
         return { success: true };
-    } catch (err) {
-        throw new Error("Critical fallback committing multi-step initialization." + err.message);
+    } catch (globalErr) {
+        return { error: "Initialization Fault: " + globalErr.message };
     }
 }

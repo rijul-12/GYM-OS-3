@@ -92,7 +92,12 @@ export default function OnboardingWizard() {
     const submitOnboarding = async () => {
         setLoading(true)
         try {
-            await completeOnboarding({ gymInfo, logo, hours, plans, attendanceMode, equipment })
+            const res = await completeOnboarding({ gymInfo, logo, hours, plans, attendanceMode, equipment })
+            if (res && res.error) {
+                toast.error(res.error)
+                setLoading(false)
+                return
+            }
             setBrand({ gymName: gymInfo.name })
             toast.success("Workspace Synthesized.")
             window.location.href = '/dashboard'
