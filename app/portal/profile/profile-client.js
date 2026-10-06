@@ -8,6 +8,7 @@ import { useBrand } from '@/components/brand-provider'
 import { useAuth } from '@/lib/auth'
 
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { uploadProfilePhoto, removeProfilePhoto } from '@/actions/db/storage'
 import { compressProfileImage } from '@/lib/image-utils'
