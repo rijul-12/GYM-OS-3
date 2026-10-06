@@ -14,6 +14,7 @@ import { useAutosave } from '@/hooks/use-autosave'
 import { AddMemberModal } from '@/components/add-member-modal'
 
 import { getInitials, getAvatarColor } from '@/lib/avatar'
+import { toast } from 'sonner'
 
 const stageColor = (s) => (
     { Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5'
