@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, ArrowLeft, Eye, EyeOff, Mail, Lock, Loader2, Check, ChevronRight, ShieldCheck } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Eye, EyeOff, Mail, Lock, Loader2, Check, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Logo } from '@/components/logo'
@@ -12,34 +12,20 @@ import { useBrand } from '@/components/brand-provider'
 import { useAuth, ROLES } from '@/lib/auth'
 import { toast } from 'sonner'
 
-// --- SYNTHETIC FALLBACKS START ---
-const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
-const WORKOUT_DIST = [{ name: 'Strength', value: 45, color: '#ef4444' }, { name: 'Cardio', value: 30, color: '#3b82f6' }]
-const IMAGES = { feature3: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg' }
-const PLAN_DATA = [{ name: 'Basic', price: 9.99 }, { name: 'Pro', price: 19.99 }]
-const ATTENDANCE_WEEKLY = [{ day: 'Mon', in: 42, out: 38 }, { day: 'Tue', in: 55, out: 51 }]
-const TESTIMONIALS = [{ quote: "Great gym!", author: "User" }]
-const FAQS = [{ q: "Hours?", a: "24/7" }]
-const PLANS = [{ name: 'Premium', price: 19.99, features: ['24/7 Access'] }]
-const MEMBER_INSIGHTS = [{ value: '5:30 AM', detail: 'Quiet tomorrow.' }]
-const ASSIGNED_MEMBERS = [{ id: 't1', name: 'James Wilson', photo: 'https://i.pravatar.cc/150?u=j', checkedIn: true, stage: 'Lifting', todayWorkout: 'Hypertrophy Block A', attendance: 85, progress: 40, status: 'Active' }]
-const PROGRESS = { default: [{ w: 1, bench: 135, squat: 185 }] }
-const CURRENT_TRAINER = { name: "Lead Trainer", role: "Head of PT", rating: 4.9, activeClients: 12, thisMonth: 45, target: 50, joined: "2021", bio: "Expert." }
-const WEEKLY_PLANS = {}
-const WORKOUT_TYPES = ['Hypertrophy', 'Strength', 'Endurance', 'Mobility']
-const ATTENDANCE_CALENDAR = []
-const WORKOUT_HISTORY = []
-const ME = { id: '#102', name: 'James Wilson', plan: 'Premium', joined: 'Jan 2024', expiry: 'Jan 2025' }
-const PERSONAL = { dob: "1994-05-15", gender: "Male", phone: "555-0101", emergency: "Jane Wilson 555-0102" }
-const SCHEDULE = [{ day: 'Mon', type: 'Chest & Triceps', cals: 450 }]
-const NOTIFICATION_PREFS = { push: true, sms: false, email: true }
-// --- SYNTHETIC FALLBACKS END ---
+const LOGIN_IMAGE = 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg'
+
+// Only same-origin relative paths are accepted as post-login destinations.
+function safeNext(params) {
+  const raw = params.get('next') || params.get('callback')
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return null
+  return raw
+}
 
 
 const ROLE_LIST = [
   { id: 'owner', accent: '#ef4444', title: 'Gym Owner', tagline: 'Full command center', points: ['Members & trainers', 'Revenue & billing', 'White-label + integrations'] },
   { id: 'trainer', accent: '#f59e0b', title: 'Trainer', tagline: 'Coach view', points: ['Assigned members', 'Workout plans', 'Progress & notes'] },
-  { id: 'member', accent: '#22c55e', title: 'Member', tagline: 'Personal fitness OS', points: ['Live gym data', 'My workouts', 'Membership card'] },
+  { id: 'member', accent: '#22c55e', title: 'Member', tagline: 'Your gym, in your pocket', points: ['QR check-in', 'My workouts', 'Membership & dues'] },
 ]
 
 function LoginContent() {
@@ -64,18 +50,14 @@ function LoginContent() {
       if (user.role === 'owner' && user.onboarded === false) {
         router.replace('/onboarding')
       } else {
-        const cb = params.get('callback')
-        if (cb) router.replace(cb)
-        else router.replace(ROLES[user.role]?.home || '/')
+        router.replace(safeNext(params) || ROLES[user.role]?.home || '/')
       }
     }
   }, [user, router, params])
 
-  useEffect(() => {
-    return () => {
-      if (window.loginTimeout) clearTimeout(window.loginTimeout)
-    }
-  }, [])
+  // Messages handed over by redirects (e.g. trainer invitation accepted)
+  const notice = params.get('message')
+  const redirectError = params.get('error')
 
   const pickRole = (r) => {
     setRole(r)
@@ -91,14 +73,8 @@ function LoginContent() {
     try {
       const session = await signIn({ email, password, role: role, remember })
       setStep('success')
-      let dest = ROLES[session.role].home;
-      if (session.role === 'owner' && session.onboarded === false) dest = '/onboarding';
-
-      window.loginTimeout = setTimeout(() => {
-        const cb = params.get('callback')
-        if (cb) router.push(cb)
-        else router.push(dest)
-      }, 900)
+      // Navigation happens in the effect above as soon as the session is applied.
+      if (!session) throw new Error('Sign-in failed')
     } catch (err) {
       setError(err.message || 'Sign-in failed')
       setShake(s => s + 1)
@@ -109,20 +85,14 @@ function LoginContent() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background text-foreground">
       {/* Left visual */}
       <div className="relative hidden lg:block overflow-hidden">
-        <Image src={IMAGES.feature3} className="absolute inset-0 w-full h-full object-cover" alt="" width={120} height={120} />
+        <Image src={LOGIN_IMAGE} className="absolute inset-0 w-full h-full object-cover" alt="" width={120} height={120} />
         <div className="absolute inset-0 bg-gradient-to-tr from-black via-black/70 to-transparent" />
         <div className="absolute top-8 left-8"><Link href="/"><Logo size="lg" /></Link></div>
         <div className="absolute bottom-10 left-10 right-10">
           <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="font-display text-4xl xl:text-5xl font-bold tracking-tight leading-tight">
             “Your gym runs. BGM handles the rest.”
           </motion.h2>
-          <div className="mt-6 flex items-center gap-3">
-            <Image src="https://i.pravatar.cc/60?img=60" className="h-10 w-10 rounded-full" alt="" width={120} height={120} />
-            <div>
-              <div className="text-sm font-semibold">James Holloway</div>
-              <div className="text-xs text-foreground/50">Owner · Iron Peak Gym</div>
-            </div>
-          </div>
+          <p className="mt-4 text-sm text-foreground/60">Memberships, attendance, trainers and payments in one place.</p>
         </div>
       </div>
 
@@ -137,6 +107,8 @@ function LoginContent() {
                 <div className="text-xs uppercase tracking-widest text-foreground/40 mb-2">Step 1 of 2</div>
                 <h1 className="font-display text-3xl font-bold tracking-tight">Sign in as</h1>
                 <p className="text-sm text-foreground/50 mt-1">Pick your role to continue.</p>
+                {notice && <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs px-3 py-2">{notice}</div>}
+                {redirectError && <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs px-3 py-2">{redirectError}</div>}
 
                 <div className="mt-6 space-y-2.5">
                   {ROLE_LIST.map((r, i) => (
@@ -179,21 +151,21 @@ function LoginContent() {
                 </button>
                 <div className="text-xs uppercase tracking-widest text-foreground/40 mb-2">Step 2 of 2</div>
                 <h1 className="font-display text-3xl font-bold tracking-tight">Sign in as {ROLES[role].label}</h1>
-                <p className="text-sm text-foreground/50 mt-1">Select your workspace keys to authenticate.</p>
+                <p className="text-sm text-foreground/50 mt-1">Enter the e-mail and password for your account.</p>
 
                 <motion.form key={shake} initial={{ x: 0 }} animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.35 }} onSubmit={submit} className="mt-6 space-y-4">
                   <div>
                     <label className="text-xs text-foreground/60">Email</label>
                     <div className="mt-1.5 relative">
                       <Mail className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
-                      <Input value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-11 bg-foreground/[0.03] border-foreground/10" />
+                      <Input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-11 bg-foreground/[0.03] border-foreground/10" />
                     </div>
                   </div>
                   <div>
                     <label className="text-xs text-foreground/60">Password</label>
                     <div className="mt-1.5 relative">
                       <Lock className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
-                      <Input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10 h-11 bg-foreground/[0.03] border-foreground/10" />
+                      <Input type={show ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10 h-11 bg-foreground/[0.03] border-foreground/10" />
                       <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40">
                         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>

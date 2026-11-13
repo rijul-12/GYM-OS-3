@@ -1,91 +1,101 @@
-import { adminDb } from '@/lib/firebase/server'
-import { sendEmail } from '@/lib/mail'
 import { NextResponse } from 'next/server'
+import { adminDb } from '@/lib/firebase/server'
+import { sendEmail, escapeHtml } from '@/lib/email'
+import { getSubscriptionUrl, getPortalUrl } from '@/lib/url-builder'
+import { notify } from '@/lib/server/notify'
+import { getEffectiveStatus, daysUntilExpiry, MEMBER_STATUS } from '@/lib/domain/membership'
+import { queryOpenSessions, closeStaleSessions, maxSessionMinutes } from '@/lib/server/live'
 
-export const maxDuration = 60; // Extra time for bulk mailing
-export const dynamic = 'force-dynamic';
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Daily job (Vercel Cron, see vercel.json):
+//   1. BGM subscription / trial reminders to gym owners and expiry flagging
+//   2. Membership expiry reminders to members (7, 3 and 1 day before)
+//   3. Auto check-out of abandoned sessions
+// Requires CRON_SECRET; without it the endpoint refuses to run.
 export async function GET(req) {
-    // Vercel Cron Authentication
-    if (process.env.CRON_SECRET) {
-        const authHeader = req.headers.get('authorization')
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            return new Response('Unauthorized', { status: 401 })
+    if (!process.env.CRON_SECRET) return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
+    if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return new Response('Unauthorized', { status: 401 })
+    if (!adminDb) return NextResponse.json({ success: false, reason: 'Database not configured' }, { status: 500 })
+
+    const now = Date.now()
+    const report = { gyms: 0, ownerEmails: 0, markedExpired: 0, memberReminders: 0, memberEmails: 0, sessionsClosed: 0 }
+
+    const [subsSnap, gymsSnap, settingsSnap] = await Promise.all([
+        adminDb.collection('gym_subscriptions').get(),
+        adminDb.collection('gyms').get(),
+        adminDb.collection('gym_settings').get(),
+    ])
+    const gyms = Object.fromEntries(gymsSnap.docs.map(d => [d.id, d.data()]))
+    const settings = Object.fromEntries(settingsSnap.docs.map(d => [d.id, d.data()]))
+
+    // 1 — gym subscriptions
+    for (const doc of subsSnap.docs) {
+        const data = doc.data()
+        const gym = gyms[doc.id]
+        if (!gym || data.gymDeleted) continue
+        report.gyms++
+        const email = gym.email || gym.ownerEmail
+        const isTrial = data.status === 'Trial'
+        const target = isTrial ? data.trialEndDate : (data.status === 'Active' ? data.subscriptionExpiryDate : null)
+        if (!target) continue
+        const daysRemaining = Math.ceil((new Date(target).getTime() - now) / DAY_MS)
+        const what = isTrial ? 'free trial' : 'subscription'
+
+        let subject = null, body = null
+        if (daysRemaining <= 0) {
+            await doc.ref.update({ status: 'Expired', expiredAt: new Date().toISOString() })
+            report.markedExpired++
+            subject = `Your BGM ${what} has ended`
+            body = `<p>Your BGM ${what} has ended and your account is now read-only. Renew to continue managing members, attendance and payments.</p>`
+            await notify({ gymId: doc.id, targetRole: 'owner', title: 'Subscription expired', message: `Your BGM ${what} has ended. Renew to restore full access.`, url: '/dashboard/subscription' })
+        } else if ([14, 7, 3, 1].includes(daysRemaining)) {
+            subject = `Your BGM ${what} ends in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`
+            body = `<p>Your BGM ${what} for <strong>${escapeHtml(gym.gymName || gym.name || 'your gym')}</strong> ends in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}. Renew now to avoid your account becoming read-only.</p>`
+            await notify({ gymId: doc.id, targetRole: 'owner', title: `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left`, message: `Your BGM ${what} ends soon.`, url: '/dashboard/subscription' })
+        }
+        if (subject && email) {
+            const res = await sendEmail({ to: email, subject, headline: subject, bodyHtml: body, button: { text: 'Manage subscription', url: getSubscriptionUrl() } })
+            if (res.success) report.ownerEmails++
         }
     }
 
-    if (!adminDb) return NextResponse.json({ success: false, reason: "No DB" })
+    // 2 + 3 — per gym: membership expiry reminders and stale sessions
+    for (const gymId of Object.keys(gyms)) {
+        const s = settings[gymId] || {}
+        const tz = s.timezone || 'Asia/Kolkata'
+        try {
+            const open = await queryOpenSessions(gymId)
+            report.sessionsClosed += await closeStaleSessions(open, maxSessionMinutes(s))
+        } catch (e) { console.error('cron auto-checkout failed:', e.message) }
 
-    const subsSnap = await adminDb.collection('gym_subscriptions').get();
-    const gymsSnap = await adminDb.collection('gym_settings').get();
-
-    // Map gym emails
-    const gymEmails = gymsSnap.docs.reduce((acc, doc) => {
-        acc[doc.id] = doc.data().ownerEmail || doc.data().email;
-        return acc;
-    }, {});
-
-    const now = Date.now();
-    const DISPATCHES = [];
-
-    const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-    subsSnap.docs.forEach(doc => {
-        const data = doc.data();
-        const gymId = doc.id;
-        const email = gymEmails[gymId];
-        if (!email) return;
-
-        let targetDate = null;
-        let isTrial = false;
-
-        if (data.status === 'Trial' && data.trialEndDate) {
-            targetDate = new Date(data.trialEndDate).getTime();
-            isTrial = true;
-        } else if (data.status === 'Active' && data.subscriptionExpiryDate) {
-            targetDate = new Date(data.subscriptionExpiryDate).getTime();
+        if (s.notif_expiring === false) continue
+        const membersSnap = await adminDb.collection('members').where('gymId', '==', gymId).where('status', '==', 'Active').get()
+        const gymName = gyms[gymId].gymName || gyms[gymId].name || 'your gym'
+        for (const m of membersSnap.docs) {
+            const data = m.data()
+            if (getEffectiveStatus(data, new Date(), tz) !== MEMBER_STATUS.ACTIVE) continue
+            const left = daysUntilExpiry(data, new Date(), tz)
+            if (left === null || ![7, 3, 1].includes(left)) continue
+            const marker = `${data.expiryDate || ''}:${left}`
+            if (data.lastExpiryReminder === marker) continue // already reminded for this stage
+            await m.ref.update({ lastExpiryReminder: marker })
+            await notify({ gymId, targetRole: 'member', targetMemberId: m.id, title: 'Membership expiring soon', message: `Your membership at ${gymName} expires in ${left} day${left === 1 ? '' : 's'}.`, url: '/portal/membership' })
+            report.memberReminders++
+            if (data.email) {
+                const res = await sendEmail({
+                    to: data.email, subject: `Your ${gymName} membership expires in ${left} day${left === 1 ? '' : 's'}`,
+                    headline: 'Membership expiring soon', greeting: `Hi ${data.name || 'there'},`,
+                    bodyHtml: `<p>Your membership at <strong>${escapeHtml(gymName)}</strong> expires in ${left} day${left === 1 ? '' : 's'}. Please renew at the front desk to keep checking in.</p>`,
+                    button: { text: 'View my membership', url: getPortalUrl('/membership') },
+                })
+                if (res.success) report.memberEmails++
+            }
         }
+    }
 
-        if (!targetDate) return;
-
-        const daysRemaining = Math.floor((targetDate - now) / MS_PER_DAY);
-
-        let subject = null;
-        let html = null;
-
-        if (daysRemaining === 30 && isTrial) {
-            subject = 'BGM Trial Update: 30 Days Remaining';
-            html = `<p>Hi there, hope you are loving BGM! Just a reminder that you have 30 days left in your 2-month free trial.</p>`;
-        } else if (daysRemaining === 14 && isTrial) {
-            subject = 'BGM Trial Update: 14 Days Remaining';
-            html = `<p>Hi there, you have exactly 14 days left in your 2-month trial. Consider upgrading to a paid plan soon.</p>`;
-        } else if (daysRemaining === 7 && isTrial) {
-            subject = 'Your BGM Trial Expires in 7 Days!';
-            html = `<p>Hi there, hope you are loving BGM! Just a reminder that your fully-featured trial expires in exactly 7 days. Upgrade to a paid plan today to avoid any disruptions.</p>`;
-        } else if (daysRemaining === 3) {
-            subject = `BGM Action Required: ${isTrial ? 'Trial' : 'Subscription'} Expires in 3 Days`;
-            html = `<p>Time is running out! Your ${isTrial ? 'trial' : 'subscription'} expires in 3 days. Navigate to your BGM dashboard to renew.</p>`;
-        } else if (daysRemaining === 1) {
-            subject = `BGM Urgent: 24 Hours Remaining!`;
-            html = `<p>Your BGM access expires tomorrow! If not renewed, your portal will be locked into Read-Only mode and all mutations will be disabled.</p>`;
-        } else if (daysRemaining <= 0 && data.status !== 'Expired') {
-            subject = `BGM: Read-Only Mode Activated`;
-            html = `<p>Your ${isTrial ? 'trial' : 'subscription'} has officially expired. Your portal has been downgraded to Read-Only mode. Active members and operations have been paused until you renew your subscription.</p>`;
-
-            // Automatically mark expired in DB if not already
-            adminDb.collection('gym_subscriptions').doc(gymId).update({ status: 'Expired' });
-        }
-
-        if (subject && html) {
-            DISPATCHES.push(sendEmail({ to: email, subject, html }));
-        }
-    });
-
-    await Promise.all(DISPATCHES);
-
-    return NextResponse.json({
-        success: true,
-        swept: subsSnap.size,
-        emailsSent: DISPATCHES.length
-    });
+    return NextResponse.json({ success: true, ...report })
 }

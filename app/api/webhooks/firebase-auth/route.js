@@ -1,37 +1,43 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { deleteUserFootprint } from '@/actions/db/deletion';
+import { deleteUserFootprint } from '@/lib/server/deletion';
 import { adminDb } from '@/lib/firebase/server';
 
-// Protect the endpoint via simple internal secret verification
-const DELETION_SECRET = process.env.FIREBASE_WEBHOOK_SECRET || 'bgm_cascade_internal_secret';
+export const dynamic = 'force-dynamic';
 
-/**
- * Endpoint to catch deletions directly from Firebase (if routed through HTTP triggers)
- * Expects a POST payload with { uid, secret }
- */
+// Called by the Firebase Auth onDelete Cloud Function (see firebase/functions)
+// so that deleting an account in Firebase Authentication also removes the
+// user's application footprint.
+//
+//   POST { "uid": "<firebase uid>" }
+//   Header: Authorization: Bearer <FIREBASE_WEBHOOK_SECRET>
+//
+// There is no default secret: without FIREBASE_WEBHOOK_SECRET the endpoint is disabled.
+function authorised(request, bodySecret) {
+    const expected = process.env.FIREBASE_WEBHOOK_SECRET;
+    if (!expected || expected.length < 24) return false;
+    const provided = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') || bodySecret || '';
+    const a = Buffer.from(String(provided));
+    const b = Buffer.from(expected);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function POST(request) {
+    if (!process.env.FIREBASE_WEBHOOK_SECRET) {
+        return NextResponse.json({ error: 'Endpoint disabled: FIREBASE_WEBHOOK_SECRET is not configured' }, { status: 503 });
+    }
+    let body;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+    if (!authorised(request, body?.secret)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!adminDb) return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    if (!body?.uid || typeof body.uid !== 'string') return NextResponse.json({ error: 'UID is required' }, { status: 400 });
+
     try {
-        const body = await request.json();
-        const { uid, secret } = body;
-
-        if (secret !== DELETION_SECRET) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        if (!uid) {
-            return NextResponse.json({ error: 'UID is required' }, { status: 400 });
-        }
-
-        const result = await deleteUserFootprint(uid);
-
-        if (result.success) {
-            return NextResponse.json({ message: 'User footprint deleted successfully', log: result.log }, { status: 200 });
-        } else {
-            return NextResponse.json({ error: result.error }, { status: 500 });
-        }
-
+        const result = await deleteUserFootprint(body.uid, { actor: { uid: 'auth-trigger', role: 'system' } });
+        if (!result.success) return NextResponse.json({ error: result.error }, { status: 409 });
+        return NextResponse.json({ success: true, roles: result.roles });
     } catch (error) {
-        console.error("Firebase Webhook Error:", error);
+        console.error('auth deletion webhook failed:', error.message);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

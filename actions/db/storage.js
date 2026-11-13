@@ -1,122 +1,145 @@
 'use server'
 
+import crypto from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { adminDb, adminAuth, adminStorage } from '@/lib/firebase/server'
+import { getSession, getMemberForSession, getTrainerForSession, UNAUTHORIZED } from '@/lib/server/session'
 
-function isFirebaseConfigured() {
-    return !!process.env.FIREBASE_PROJECT_ID;
+// One profile-photo pipeline for all four roles.
+//
+//   Storage path : profilePhotos/{uid}/avatar-{timestamp}.{ext}   (uid from the verified session)
+//   Canonical URL: photoURL on the user's profile document
+//                  owner / super admin → users/{uid}
+//                  trainer             → trainers/{id}
+//                  member              → members/{id}
+//   Mirrored to  : Firebase Auth photoURL
+//
+// The file is written with a Firebase download token so the URL works without
+// making the bucket public.
+
+const MAX_BYTES = 2 * 1024 * 1024
+const TYPES = {
+    'image/jpeg': { ext: 'jpg', magic: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+    'image/png': { ext: 'png', magic: (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+    'image/webp': { ext: 'webp', magic: (b) => b.slice(0, 4).toString('ascii') === 'RIFF' && b.slice(8, 12).toString('ascii') === 'WEBP' },
 }
 
-export async function uploadProfilePhoto(uid, base64Data) {
-    if (isFirebaseConfigured() && base64Data) {
-        const { adminStorage, adminDb, adminAuth } = await import('@/lib/firebase/server');
-        if (adminStorage && adminDb) {
-            try {
-                // Ensure base64 padding is stripped and buffered correctly
-                const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
-                const buffer = Buffer.from(base64Content, 'base64');
-                const uniqueId = `profilePhotos/${uid}/avatar-${Date.now()}.webp`;
-
-                const bucket = adminStorage.bucket();
-                const file = bucket.file(uniqueId);
-
-                await file.save(buffer, {
-                    metadata: {
-                        contentType: 'image/webp',
-                        cacheControl: 'public, max-age=31536000'
-                    }
-                });
-
-                // Generate exact standardized download url without provoking uniform ACL rules
-                const encodedPath = encodeURIComponent(uniqueId);
-                const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media`;
-
-                // Update cross-role database nodes dynamically explicitly avoiding orphaned data
-                let updated = 0;
-
-                // Users (Owners/SuperAdmins)
-                const userQ = await adminDb.collection('users').where('uid', '==', uid).limit(1).get()
-                if (!userQ.empty) { await userQ.docs[0].ref.update({ photoURL: publicUrl }); updated++; }
-                else {
-                    const fallbackUser = await adminDb.collection('users').doc(uid).get()
-                    if (fallbackUser.exists) { await fallbackUser.ref.update({ photoURL: publicUrl }); updated++; }
-                }
-
-                // Members
-                const memberQ = await adminDb.collection('members').where('authUid', '==', uid).limit(1).get()
-                if (!memberQ.empty) { await memberQ.docs[0].ref.update({ photoURL: publicUrl, photo_url: publicUrl }); updated++; }
-                else {
-                    const fallbackMem = await adminDb.collection('members').doc(uid).get()
-                    if (fallbackMem.exists) { await fallbackMem.ref.update({ photoURL: publicUrl, photo_url: publicUrl }); updated++; }
-                }
-
-                // Trainers
-                const trainerQ = await adminDb.collection('trainers').where('uid', '==', uid).limit(1).get()
-                if (!trainerQ.empty) { await trainerQ.docs[0].ref.update({ photoURL: publicUrl, photo: publicUrl }); updated++; }
-                else {
-                    const fallbackTrainer = await adminDb.collection('trainers').doc(uid).get()
-                    if (fallbackTrainer.exists) { await fallbackTrainer.ref.update({ photoURL: publicUrl, photo: publicUrl }); updated++; }
-                }
-
-                // Ensure Firebase Auth synchronizes organically for cross-network integration
-                if (adminAuth) {
-                    try { await adminAuth.updateUser(uid, { photoURL: publicUrl }); } catch (e) { console.warn("Skip Auth Update:", e.message) }
-                }
-
-                revalidatePath('/portal/profile');
-                revalidatePath('/trainer/profile');
-                revalidatePath('/dashboard/settings');
-                revalidatePath('/super-admin/profile');
-
-                return { success: true, url: publicUrl, updatedNodes: updated };
-            } catch (err) {
-                console.error("Storage upload failed:", err);
-                return { success: false, error: err.message };
-            }
-        }
-    }
-    return { success: false, error: "Firebase configuration missing or invalid payload." };
+function storageMissing() {
+    const missing = []
+    if (!adminStorage) missing.push('Firebase Admin credentials')
+    if (!process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) missing.push('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET')
+    return missing
 }
 
-export async function removeProfilePhoto(uid) {
-    if (isFirebaseConfigured()) {
-        const { adminDb, adminAuth } = await import('@/lib/firebase/server');
-        if (adminDb) {
+function downloadUrl(bucketName, path, token) {
+    const emulator = process.env.FIREBASE_STORAGE_EMULATOR_HOST
+    const base = emulator ? `http://${emulator}` : 'https://firebasestorage.googleapis.com'
+    return `${base}/v0/b/${bucketName}/o/${encodeURIComponent(path)}?alt=media&token=${token}`
+}
 
-            // Users
-            const userQ = await adminDb.collection('users').where('uid', '==', uid).limit(1).get()
-            if (!userQ.empty) await userQ.docs[0].ref.update({ photoURL: null })
-            else {
-                const fallbackUser = await adminDb.collection('users').doc(uid).get()
-                if (fallbackUser.exists) await fallbackUser.ref.update({ photoURL: null })
-            }
+/** Where this user's canonical profile document lives. */
+async function profileTargets(session) {
+    const refs = []
+    if (session.role === 'member') {
+        const m = await getMemberForSession()
+        if (m) refs.push({ ref: m.ref, extra: { photo_url: null } })
+    } else if (session.role === 'trainer') {
+        const t = await getTrainerForSession()
+        if (t) refs.push({ ref: t.ref })
+    } else {
+        refs.push({ ref: adminDb.collection('users').doc(session.uid), create: { uid: session.uid, role: session.role, email: session.email, gymCode: session.gymId || null } })
+    }
+    return refs
+}
 
-            // Members
-            const memberQ = await adminDb.collection('members').where('authUid', '==', uid).limit(1).get()
-            if (!memberQ.empty) await memberQ.docs[0].ref.update({ photoURL: null, photo_url: null })
-            else {
-                const fallbackMem = await adminDb.collection('members').doc(uid).get()
-                if (fallbackMem.exists) await fallbackMem.ref.update({ photoURL: null, photo_url: null })
-            }
+async function writePhotoUrl(session, url) {
+    const targets = await profileTargets(session)
+    if (targets.length === 0) throw new Error('Profile record not found')
+    const batch = adminDb.batch()
+    for (const t of targets) {
+        batch.set(t.ref, { ...(t.create || {}), photoURL: url, ...(t.extra ? { photo_url: url } : {}), photoUpdatedAt: new Date().toISOString() }, { merge: true })
+    }
+    await batch.commit()
 
-            // Trainers
-            const trainerQ = await adminDb.collection('trainers').where('uid', '==', uid).limit(1).get()
-            if (!trainerQ.empty) await trainerQ.docs[0].ref.update({ photoURL: null, photo: null })
-            else {
-                const fallbackTrainer = await adminDb.collection('trainers').doc(uid).get()
-                if (fallbackTrainer.exists) await fallbackTrainer.ref.update({ photoURL: null, photo: null })
-            }
-
-            // Clean Auth Network
-            if (adminAuth) {
-                try { await adminAuth.updateUser(uid, { photoURL: null }); } catch (e) { }
-            }
-
-            revalidatePath('/portal/profile');
-            revalidatePath('/trainer/profile');
-            revalidatePath('/dashboard/settings');
-            revalidatePath('/super-admin/profile');
-            return true;
+    // Open attendance rows carry a denormalised photo for the owner's live view.
+    if (session.role === 'member') {
+        const m = await getMemberForSession()
+        if (m) {
+            const open = await adminDb.collection('attendance').where('member_id', '==', m.id).where('check_out_time', '==', null).get()
+            await Promise.all(open.docs.map(d => d.ref.update({ member_photo: url })))
         }
     }
-    return false;
+    try { await adminAuth.updateUser(session.uid, { photoURL: url }) } catch (e) { console.warn('auth photoURL not updated:', e.code || e.message) }
+}
+
+async function removeOldFiles(bucket, uid, keepPath) {
+    try {
+        const [files] = await bucket.getFiles({ prefix: `profilePhotos/${uid}/` })
+        await Promise.all(files.filter(f => f.name !== keepPath).map(f => f.delete().catch(() => { })))
+    } catch { /* cleanup is best-effort */ }
+}
+
+function refreshPaths() {
+    for (const p of ['/portal/profile', '/portal', '/trainer/profile', '/trainer', '/settings', '/dashboard', '/super-admin/settings']) revalidatePath(p)
+}
+
+/**
+ * Upload (or replace) the signed-in user's profile photo.
+ * @param {string} dataUrl  a data:image/(jpeg|png|webp);base64,… string produced by the client-side compressor
+ */
+export async function uploadProfilePhoto(first, second) {
+    // Older callers passed (uid, dataUrl). A uid from the client is ignored: identity comes from the session.
+    const dataUrl = typeof second === 'string' ? second : first
+    const session = await getSession()
+    if (!session) return { success: false, error: UNAUTHORIZED.error }
+    const missing = storageMissing()
+    if (missing.length) return { success: false, error: `Photo upload is not configured (missing ${missing.join(', ')}).` }
+
+    const match = typeof dataUrl === 'string' ? dataUrl.match(/^data:(image\/[a-z+]+);base64,([A-Za-z0-9+/=]+)$/) : null
+    if (!match) return { success: false, error: 'Please choose an image file.' }
+    const type = TYPES[match[1]]
+    if (!type) return { success: false, error: 'Only JPG, PNG or WebP images are supported.' }
+
+    const buffer = Buffer.from(match[2], 'base64')
+    if (buffer.length < 100) return { success: false, error: 'The image appears to be empty.' }
+    if (buffer.length > MAX_BYTES) return { success: false, error: 'The image is too large. Please choose one under 2 MB.' }
+    if (!type.magic(buffer)) return { success: false, error: 'The file is not a valid image.' }
+
+    try {
+        const bucket = adminStorage.bucket()
+        const path = `profilePhotos/${session.uid}/avatar-${Date.now()}.${type.ext}`
+        const token = crypto.randomUUID()
+        await bucket.file(path).save(buffer, {
+            resumable: false,
+            metadata: { contentType: match[1], cacheControl: 'public, max-age=31536000, immutable', metadata: { firebaseStorageDownloadTokens: token, ownerUid: session.uid } },
+        })
+        const url = downloadUrl(bucket.name, path, token)
+        try {
+            await writePhotoUrl(session, url)
+        } catch (e) {
+            await bucket.file(path).delete().catch(() => { }) // do not leave an orphaned upload behind
+            throw e
+        }
+        await removeOldFiles(bucket, session.uid, path)
+        refreshPaths()
+        return { success: true, url }
+    } catch (err) {
+        console.error('profile photo upload failed:', err.message)
+        return { success: false, error: 'The photo could not be saved. Please try again.' }
+    }
+}
+
+/** Remove the signed-in user's profile photo. */
+export async function removeProfilePhoto() {
+    const session = await getSession()
+    if (!session) return { success: false, error: UNAUTHORIZED.error }
+    if (!adminDb) return { success: false, error: 'Not configured.' }
+    try {
+        await writePhotoUrl(session, null)
+        if (adminStorage && process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) await removeOldFiles(adminStorage.bucket(), session.uid, null)
+        refreshPaths()
+        return { success: true }
+    } catch (e) {
+        return { success: false, error: 'The photo could not be removed.' }
+    }
 }

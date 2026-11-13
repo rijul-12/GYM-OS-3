@@ -1,319 +1,169 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { adminDb } from '@/lib/firebase/server'
-import { cookies } from 'next/headers'
-import { sendEmail } from '@/lib/email'
+import { getSession, authorize, audit, UNAUTHORIZED, NO_DB, plain } from '@/lib/server/session'
+import { computeSubscriptionStatus } from '@/lib/server/subscription'
+import { escapeHtml } from '@/lib/email'
 
-export async function dispatchSubscriptionInstructions({ gymId, planName, planPrice }) {
-    if (!adminDb) return;
-
-    // Retrieve authenticated sender
-    const cookieStore = await cookies()
-    const sessionStr = cookieStore.get('gymos_session')?.value
-    if (!sessionStr) return;
-
-    const session = JSON.parse(sessionStr)
-    if (!session.email) return;
-
-    // Build manual verification HTML
-    const bodyHtml = `
-        <p>Dear Gym Owner,</p>
-        <p>Thank you for choosing to upgrade your BGM facility to the <strong>${planName}</strong> plan.</p>
-        <div style="background-color: #1a1a1a; padding: 24px; border-radius: 8px; border: 1px solid #333; margin: 24px 0;">
-            <p style="margin-top: 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Subscription Amount</p>
-            <p style="font-size: 28px; font-weight: bold; margin: 8px 0 24px; color: #ef4444;">₹${planPrice}</p>
-            
-            <p style="margin-top: 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Manual Payment Transfer Details</p>
-            <div style="margin-top: 8px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">UPI ID</td><td style="text-align: right; font-family: monospace; font-weight: bold;">rijul0027@oksbi</td></tr>
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">Bank Account</td><td style="text-align: right; font-family: monospace; font-weight: bold;">10099887766</td></tr>
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">IFSC Code</td><td style="text-align: right; font-family: monospace; font-weight: bold;">ICIC0001009</td></tr>
-                    <tr><td style="padding: 8px 0; color: #aaa;">Beneficiary</td><td style="text-align: right; font-family: monospace; font-weight: bold;">BGM Tech PVT LTD</td></tr>
-                </table>
-            </div>
-        </div>
-        <p>Once you have completed the transaction using the details above, click the button below to submit a verification request or enter your transaction reference ID in your dashboard.</p>
-        <p>Your subscription will be automatically activated upon transaction clearance.</p>
-    `;
-
-    const { getSubscriptionUrl } = await import('@/lib/url-builder');
-    await sendEmail({
-        to: session.email,
-        subject: 'BGM Subscription Payment Instructions',
-        headline: 'Complete your BGM Upgrade',
-        greeting: 'Ready to scale your facility?',
-        bodyHtml,
-        button: { text: "I Have Completed Payment", url: getSubscriptionUrl() }
-    });
-}
-
-// Define the standard Trial duration globally
-const TRIAL_MONTHS = 2;
+const FALLBACK = { isReadOnly: false, status: null, plan: null, daysRemaining: null, currentPhase: 'Unknown', activeMembers: 0, memberLimit: 0, usageProgressBar: 0 }
 
 /**
- * Ensures a gym has a subscription document in Firebase.
- * If not, it implicitly generates a Free Trial starting today.
+ * Subscription status for the caller's own gym.
+ * Only a Super Admin may ask about another gym.
  */
-export async function initializeSubscription(gymId) {
-    if (!adminDb || gymId === 'DEMO') return null;
-
-    const subRef = adminDb.collection('gym_subscriptions').doc(gymId);
-    const subDoc = await subRef.get();
-
-    if (!subDoc.exists) {
-        const now = new Date();
-        const trialEnd = new Date(now);
-        trialEnd.setMonth(trialEnd.getMonth() + TRIAL_MONTHS);
-
-        const payload = {
-            plan: 'Trial',
-            status: 'Trial',
-            trialStartDate: now.toISOString(),
-            trialEndDate: trialEnd.toISOString(),
-            subscriptionExpiryDate: null,
-            createdAt: now.toISOString(),
-        };
-
-        await subRef.set(payload);
-        const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        return { gymId, ...payload, isReadOnly: false, daysRemaining };
-    }
-
-    return await getSubscriptionStatus(gymId);
+export async function getSubscriptionStatus(gymIdParam) {
+    const session = await getSession()
+    if (!session || !adminDb) return FALLBACK
+    const gymId = session.role === 'super_admin' ? gymIdParam : session.gymId
+    if (!gymId) return FALLBACK
+    const status = await computeSubscriptionStatus(gymId)
+    return status ? plain(status) : FALLBACK
 }
 
-/**
- * Calculates current status and resolves the Read-Only flag
- */
-export async function getSubscriptionStatus(gymId) {
-    if (!adminDb || gymId === 'DEMO') return { isReadOnly: false, status: 'Active', plan: 'Demo', daysRemaining: 999 };
-
-    const subDoc = await adminDb.collection('gym_subscriptions').doc(gymId).get();
-
-    // If somehow missing (legacy gym), initialize it!
-    if (!subDoc.exists) return await initializeSubscription(gymId);
-
-    const data = subDoc.data();
-    const now = new Date().getTime();
-
-    let isReadOnly = true;
-    let daysRemaining = 0;
-    let currentPhase = 'Expired';
-
-    if (data.status === 'Trial') {
-        const end = new Date(data.trialEndDate).getTime();
-        daysRemaining = Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
-        if (end > now) {
-            isReadOnly = false;
-            currentPhase = 'Trial';
-        }
-    } else if (data.status === 'Active' && data.subscriptionExpiryDate) {
-        const end = new Date(data.subscriptionExpiryDate).getTime();
-        daysRemaining = Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
-        if (end > now) {
-            isReadOnly = false;
-            currentPhase = 'Active';
-        }
-    }
-
-    // Force overwrite status if expired dynamically
-    if (isReadOnly && data.status !== 'Pending_Payment') {
-        currentPhase = 'Expired';
-    }
-
-    // Compute exact plan limits and active members usage
-    const { getMemberLimit } = await import('@/lib/permissions');
-    const memberLimit = getMemberLimit(data.plan);
-
-    let activeMembers = 0;
-    try {
-        const countSnap = await adminDb.collection('members')
-            .where('gymId', '==', gymId)
-            .where('status', 'in', ['Active', 'Pending'])
-            .count().get();
-        activeMembers = countSnap.data().count;
-    } catch (e) {
-        // Fallback for empty/legacy paths
-        activeMembers = 0;
-    }
-
-    const usageProgressBar = memberLimit === 999999 ? 0 : Math.min(100, Math.round((activeMembers / memberLimit) * 100));
-
-    return {
-        ...data,
-        id: gymId,
-        isReadOnly,
-        daysRemaining,
-        currentPhase,
-        activeMembers,
-        memberLimit,
-        usageProgressBar,
-        storageUsed: '1.2 GB' // Hardcoded metric placeholder for storage limits
-    };
-}
-
-/**
- * Called by Gym Owners to generate a manual payment request
- */
-export async function createSubscriptionRequest(gymData) {
-    if (!adminDb) return false;
-    const { gymId, plan, amount, paymentProofUrl, referenceNumber } = gymData;
-
-    await adminDb.collection('subscription_requests').add({
-        gymId,
-        plan,
-        amount,
-        paymentProofUrl: paymentProofUrl || null,
-        referenceNumber: referenceNumber || 'MANUAL',
-        requestDate: new Date().toISOString(),
-        status: 'Pending'
-    });
-
-    // Mark current sub as pending
-    await adminDb.collection('gym_subscriptions').doc(gymId).update({
-        status: 'Pending_Payment'
-    });
-
-    return true;
-}
-
-/**
- * Super Admin Action: Fetch all requests
- */
+/** Super Admin: list manual subscription requests. */
 export async function getSubscriptionRequests() {
-    if (!adminDb) return [];
+    const session = await authorize('super_admin')
+    if (!session || !adminDb) return []
 
-    // We also want to merge gym names to show in the UI, so we fetch gyms
     const [reqSnap, gymsSnap] = await Promise.all([
-        adminDb.collection('subscription_requests').orderBy('requestDate', 'desc').get(),
-        adminDb.collection('gyms').get()
-    ]);
-
-    const gyms = gymsSnap.docs.reduce((acc, doc) => {
-        acc[doc.id] = doc.data().name;
-        return acc;
-    }, {});
-
-    return reqSnap.docs.map(doc => {
-        const d = doc.data();
-        return {
-            id: doc.id,
-            ...d,
-            gymName: gyms[d.gymId] || d.gymId
-        };
-    });
+        adminDb.collection('subscription_requests').orderBy('requestDate', 'desc').limit(200).get(),
+        adminDb.collection('gyms').get(),
+    ])
+    const gyms = Object.fromEntries(gymsSnap.docs.map(d => [d.id, d.data().gymName || d.data().name || d.id]))
+    return plain(reqSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), gymName: gyms[doc.data().gymId] || doc.data().gymId })))
 }
 
-/**
- * Super Admin Action: Approve Request
- */
+async function ownerEmailFor(gymId) {
+    const gymSnap = await adminDb.collection('gyms').doc(gymId).get()
+    return gymSnap.exists ? (gymSnap.data().email || gymSnap.data().ownerEmail || null) : null
+}
+
+/** Super Admin: approve a manual payment request (idempotent). */
 export async function approveSubscription(requestId) {
-    if (!adminDb) return;
-    const reqDoc = await adminDb.collection('subscription_requests').doc(requestId).get();
-    if (!reqDoc.exists) return;
-    const data = reqDoc.data();
+    const session = await authorize('super_admin')
+    if (!session) return UNAUTHORIZED
+    if (!adminDb) return NO_DB
+    if (typeof requestId !== 'string' || !requestId) return { error: 'Invalid request.' }
 
-    // 1. Mark request approved
-    await adminDb.collection('subscription_requests').doc(requestId).update({ status: 'Approved' });
+    const reqRef = adminDb.collection('subscription_requests').doc(requestId)
+    let data
+    try {
+        data = await adminDb.runTransaction(async (t) => {
+            const snap = await t.get(reqRef)
+            if (!snap.exists) throw new Error('Request not found.')
+            const d = snap.data()
+            if (d.status !== 'Pending') throw new Error(`Request was already ${String(d.status).toLowerCase()}.`)
+            const subRef = adminDb.collection('gym_subscriptions').doc(d.gymId)
+            const subSnap = await t.get(subRef)
+            const currentExpiry = subSnap.exists && subSnap.data().status === 'Active' && subSnap.data().subscriptionExpiryDate
+                ? new Date(subSnap.data().subscriptionExpiryDate).getTime() : 0
+            const expiry = new Date(Math.max(Date.now(), currentExpiry) + 30 * 24 * 60 * 60 * 1000)
+            t.update(reqRef, { status: 'Approved', resolvedAt: new Date().toISOString(), resolvedBy: session.uid })
+            t.set(subRef, { plan: String(d.plan || 'starter').split(' ')[0], status: 'Active', subscriptionExpiryDate: expiry.toISOString(), isTrial: false }, { merge: true })
+            return d
+        })
+    } catch (e) {
+        return { error: e.message }
+    }
 
-    // 2. Lock-in 30 days of active subscription
-    const now = new Date();
-    const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-    await adminDb.collection('gym_subscriptions').doc(data.gymId).set({
-        plan: data.plan.split(' ')[0], // Base format
-        status: 'Active',
-        subscriptionExpiryDate: expiry.toISOString()
-    }, { merge: true });
-
-    // 3. Send Email
-    const { sendEmail } = await import('@/lib/email');
-    const settingsDoc = await adminDb.collection('gym_settings').doc(data.gymId).get();
-    const email = settingsDoc.exists ? settingsDoc.data().ownerEmail || settingsDoc.data().email : null;
-
+    await audit(session, 'SUBSCRIPTION_REQUEST_APPROVED', { gymId: data.gymId, requestId, amount: data.amount })
+    const email = await ownerEmailFor(data.gymId)
     if (email) {
-        const { getDashboardUrl } = await import('@/lib/url-builder');
+        const { sendEmail } = await import('@/lib/email')
+        const { getDashboardUrl } = await import('@/lib/url-builder')
         await sendEmail({
             to: email,
-            subject: 'BGM - Payment Approved & Subscription Activated',
-            headline: 'Your Subscription is Active!',
-            greeting: 'Welcome back to the Pro Tier,',
-            bodyHtml: `<p>We have successfully verified your payment of ₹${data.amount}. Your <strong>${data.plan}</strong> plan is now fully active for the next 30 days.</p>`,
-            button: { text: "Open BGM Dashboard", url: getDashboardUrl() }
-        });
+            subject: 'BGM — payment approved, subscription active',
+            headline: 'Your subscription is active',
+            bodyHtml: `<p>We verified your payment of ₹${escapeHtml(data.amount)}. Your <strong>${escapeHtml(data.plan)}</strong> plan is active for the next 30 days.</p>`,
+            button: { text: 'Open BGM dashboard', url: getDashboardUrl() },
+        })
     }
+    revalidatePath('/super-admin/subscriptions')
+    return { success: true }
 }
 
-/**
- * Super Admin Action: Reject Request
- */
+/** Super Admin: reject a manual payment request. */
 export async function rejectSubscription(requestId) {
-    if (!adminDb) return;
-    const reqDoc = await adminDb.collection('subscription_requests').doc(requestId).get();
-    if (!reqDoc.exists) return;
-    const data = reqDoc.data();
+    const session = await authorize('super_admin')
+    if (!session) return UNAUTHORIZED
+    if (!adminDb) return NO_DB
+    if (typeof requestId !== 'string' || !requestId) return { error: 'Invalid request.' }
 
-    // 1. Mark request rejected
-    await adminDb.collection('subscription_requests').doc(requestId).update({ status: 'Rejected' });
+    const reqRef = adminDb.collection('subscription_requests').doc(requestId)
+    let data
+    try {
+        data = await adminDb.runTransaction(async (t) => {
+            const snap = await t.get(reqRef)
+            if (!snap.exists) throw new Error('Request not found.')
+            const d = snap.data()
+            if (d.status !== 'Pending') throw new Error(`Request was already ${String(d.status).toLowerCase()}.`)
+            const subRef = adminDb.collection('gym_subscriptions').doc(d.gymId)
+            const subSnap = await t.get(subRef)
+            t.update(reqRef, { status: 'Rejected', resolvedAt: new Date().toISOString(), resolvedBy: session.uid })
+            // Only undo the "pending payment" marker; never cut short a subscription that is still valid.
+            if (subSnap.exists && subSnap.data().status === 'Pending_Payment') {
+                const prev = subSnap.data()
+                const trialValid = prev.trialEndDate && new Date(prev.trialEndDate).getTime() > Date.now()
+                t.update(subRef, { status: trialValid ? 'Trial' : 'Expired' })
+            }
+            return d
+        })
+    } catch (e) {
+        return { error: e.message }
+    }
 
-    // 2. We put the gym back to Expired since the payment failed
-    await adminDb.collection('gym_subscriptions').doc(data.gymId).update({
-        status: 'Expired'
-    });
-
-    // 3. Send Email
-    const { sendEmail } = await import('@/lib/email');
-    const settingsDoc = await adminDb.collection('gym_settings').doc(data.gymId).get();
-    const email = settingsDoc.exists ? settingsDoc.data().ownerEmail || settingsDoc.data().email : null;
-
+    await audit(session, 'SUBSCRIPTION_REQUEST_REJECTED', { gymId: data.gymId, requestId })
+    const email = await ownerEmailFor(data.gymId)
     if (email) {
+        const { sendEmail, SUPPORT_EMAIL } = await import('@/lib/email')
         await sendEmail({
             to: email,
-            subject: 'BGM - Payment Verification Failed',
-            headline: 'Payment Verification Failed',
-            greeting: 'Important update regarding your account,',
-            bodyHtml: `<p>We were unable to verify your manual payment reference (<strong>${data.referenceNumber}</strong>) for ₹${data.amount}.</p><p>Your account is currently locked in Read-Only mode. Please contact support or retry the payment.</p>`,
-            button: { text: "Contact Support", url: "mailto:support@gymos.app" }
-        });
+            subject: 'BGM — payment could not be verified',
+            headline: 'Payment verification failed',
+            bodyHtml: `<p>We were unable to verify your payment reference (<strong>${escapeHtml(data.referenceNumber)}</strong>) for ₹${escapeHtml(data.amount)}.</p><p>Please retry the payment or contact support.</p>`,
+            button: { text: 'Contact support', url: `mailto:${SUPPORT_EMAIL}` },
+        })
     }
+    revalidatePath('/super-admin/subscriptions')
+    return { success: true }
 }
 
-/**
- * Super Admin Action: Extends a gym's trial securely.
- */
-export async function extendGymTrial(gymId, newExpiryDateStr, reason, authUid = 'SYSTEM') {
-    if (!adminDb || !gymId) return { success: false, error: 'Database unavailable' };
+/** Super Admin: extend a gym's trial. */
+export async function extendGymTrial(gymId, newExpiryDateStr, reason) {
+    const session = await authorize('super_admin')
+    if (!session) return { success: false, error: UNAUTHORIZED.error }
+    if (!adminDb || !gymId) return { success: false, error: 'Database unavailable' }
+
+    const newExpiry = new Date(newExpiryDateStr)
+    if (isNaN(newExpiry.getTime())) return { success: false, error: 'Invalid date.' }
+    if (newExpiry.getTime() <= Date.now()) return { success: false, error: 'The new trial end date must be in the future.' }
+    if (newExpiry.getTime() > Date.now() + 366 * 24 * 60 * 60 * 1000) return { success: false, error: 'A trial cannot be extended by more than one year.' }
 
     try {
-        const subRef = adminDb.collection('gym_subscriptions').doc(gymId);
-        const subDoc = await subRef.get();
-        if (!subDoc.exists) return { success: false, error: 'Subscription missing' };
+        const gymRef = adminDb.collection('gyms').doc(gymId)
+        const gymSnap = await gymRef.get()
+        if (!gymSnap.exists) return { success: false, error: 'Gym not found.' }
 
-        const oldExpiry = subDoc.data().trialEndDate;
-        const newExpiryDate = new Date(newExpiryDateStr).toISOString();
+        await computeSubscriptionStatus(gymId) // ensures the subscription document exists
+        const subRef = adminDb.collection('gym_subscriptions').doc(gymId)
+        const subDoc = await subRef.get()
+        if (subDoc.exists && subDoc.data().status === 'Active' && subDoc.data().subscriptionExpiryDate && new Date(subDoc.data().subscriptionExpiryDate).getTime() > Date.now()) {
+            return { success: false, error: 'This gym has an active paid subscription; a trial cannot be applied.' }
+        }
+        const oldExpiry = subDoc.exists ? subDoc.data().trialEndDate : null
+        const iso = newExpiry.toISOString()
 
-        await subRef.update({
-            trialEndDate: newExpiryDate,
-            status: 'Trial' // Reactivate trial explicitly
-        });
+        const batch = adminDb.batch()
+        batch.set(subRef, { trialEndDate: iso, status: 'Trial' }, { merge: true })
+        batch.update(gymRef, { trialEndDate: iso, subscriptionStatus: 'Trial', isTrial: true })
+        await batch.commit()
 
-        await adminDb.collection('gyms').doc(gymId).update({
-            trialEndDate: newExpiryDate,
-            subscriptionStatus: 'Trial',
-            isTrial: true
-        });
-
-        await adminDb.collection('audit_logs').add({
-            action: 'TRIAL_EXTENSION',
-            gymId,
-            uid: authUid,
-            timestamp: new Date().toISOString(),
-            details: `Trial manually extended from ${new Date(oldExpiry || Date.now()).toLocaleDateString()} to ${new Date(newExpiryDate).toLocaleDateString()}. Reason: ${reason}`
-        });
-
-        return { success: true };
+        await audit(session, 'TRIAL_EXTENSION', { gymId, from: oldExpiry, to: iso, reason: String(reason || '').slice(0, 500) })
+        revalidatePath('/super-admin/gyms')
+        return { success: true }
     } catch (e) {
-        return { success: false, error: e.message };
+        return { success: false, error: e.message }
     }
 }

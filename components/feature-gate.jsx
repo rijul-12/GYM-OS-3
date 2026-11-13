@@ -3,7 +3,7 @@
 import { useBrand } from '@/components/brand-provider';
 import { Lock } from 'lucide-react';
 import Link from 'next/link';
-import { hasFeature } from '@/lib/permissions';
+import { hasFeature } from '@/lib/plan-limits';
 
 export function FeatureGate({ required, currentPlan = 'starter', currentPhase = 'Active', children }) {
     const { brand } = useBrand();

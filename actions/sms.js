@@ -1,181 +1,157 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { adminDb } from '@/lib/firebase/server'
+import { authorize, getGymContext, gymDisplayName, audit, UNAUTHORIZED, NO_DB } from '@/lib/server/session'
+import { loadLiveState } from '@/lib/server/live'
+import { isMembershipActive } from '@/lib/domain/membership'
+import { normalizePhone } from '@/lib/domain/phone'
 
-const getAdminDb = async () => {
-    try {
-        const { adminDb } = await import('@/lib/firebase/server')
-        return adminDb
-    } catch {
-        return null
+// SMS provider used by this codebase: Twilio (REST API, no SDK).
+// Required environment variables:
+//   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and one sender:
+//   TWILIO_MESSAGING_SERVICE_SID (preferred) or TWILIO_PHONE_NUMBER
+//
+// India: promotional/transactional SMS to +91 numbers must be sent from a
+// DLT-registered sender ID with a DLT-approved template. Until the Twilio
+// account has that registration, Twilio/operators will reject or drop these
+// messages — the per-message provider response below reports that honestly.
+
+const MAX_RECIPIENTS = 500
+const COOLDOWN_MS = 6 * 60 * 60 * 1000
+
+function twilioConfig() {
+    const cfg = {
+        accountSid: process.env.TWILIO_ACCOUNT_SID,
+        authToken: process.env.TWILIO_AUTH_TOKEN,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
     }
+    const missing = []
+    if (!cfg.accountSid) missing.push('TWILIO_ACCOUNT_SID')
+    if (!cfg.authToken) missing.push('TWILIO_AUTH_TOKEN')
+    if (!cfg.from && !cfg.messagingServiceSid) missing.push('TWILIO_MESSAGING_SERVICE_SID or TWILIO_PHONE_NUMBER')
+    return { ...cfg, missing }
+}
+
+const missingMessage = (missing) => `SMS is not configured.\n\nProvider: Twilio\nMissing environment variables:\n${missing.join('\n')}`
+
+async function eligibleMembers(gymId, settings, gym, tz) {
+    const [snap, live] = await Promise.all([
+        adminDb.collection('members').where('gymId', '==', gymId).where('status', '==', 'Active').get(),
+        loadLiveState(gymId, { settings, gym, tz, closeStale: false }),
+    ])
+    const inside = new Set(live.live.map(s => s.member_id))
+    const now = new Date()
+    const seen = new Set()
+    const out = []
+    snap.docs.forEach(d => {
+        const m = d.data()
+        if (inside.has(d.id) || m.smsOptOut === true || !isMembershipActive(m, now, tz)) return
+        const phone = normalizePhone(m.phone)
+        if (!phone || seen.has(phone)) return
+        seen.add(phone)
+        out.push({ id: d.id, name: m.name || 'Member', phone })
+    })
+    return out
 }
 
 export async function getOffPeakEligibility() {
-    const { cookies } = await import('next/headers')
-    const sessionStr = (await cookies()).get('gymos_session')?.value
-    if (!sessionStr) return { error: "Unauthorized" };
-
+    const session = await authorize('owner')
+    if (!session) return { error: UNAUTHORIZED.error }
+    if (!adminDb) return { error: NO_DB.error }
+    const cfg = twilioConfig()
+    if (cfg.missing.length) return { error: missingMessage(cfg.missing), notConfigured: true, missing: cfg.missing }
     try {
-        const user = JSON.parse(sessionStr)
-        const gymId = user.gymCode || 'DEMO'
-
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
-        if (!accountSid || !authToken || !fromNumber) {
-            return {
-                error: `SMS provider configured: Twilio\n\nMissing production environment variables:\n${!accountSid ? 'TWILIO_ACCOUNT_SID\n' : ''}${!authToken ? 'TWILIO_AUTH_TOKEN\n' : ''}${!fromNumber ? 'TWILIO_PHONE_NUMBER\n' : ''}`
-            }
-        }
-
-        const adminDb = await getAdminDb()
-        if (!adminDb) return { error: 'Database disconnected' }
-
-        const gymSnap = await adminDb.collection('gyms').where('gymCode', '==', gymId).limit(1).get()
-        const gymName = gymSnap.empty ? "Your Gym" : (gymSnap.docs[0].data().name || "Your Gym")
-
-        // Fetch all active members in this gym who have a valid phone number
-        const snap = await adminDb.collection('members')
-            .where('gymId', '==', gymId)
-            .where('status', '==', 'Active')
-            .get();
-
-        const allActive = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-
-        // Members eligible for SMS MUST have a phone number.
-        const eligible = allActive.filter(m => m.phone && m.phone.length >= 7)
-
-        // Then we subtract those currently checked in
-        const activeLogs = await adminDb.collection('attendance')
-            .where('gymId', '==', gymId)
-            .where('check_out_time', '==', null)
-            .get()
-
-        const checkedInIds = new Set(activeLogs.docs.map(d => d.data().member_id))
-        const offlineEligible = eligible.filter(m => !checkedInIds.has(m.id))
-
+        const { gym, settings, tz } = await getGymContext(session.gymId)
+        const eligible = await eligibleMembers(session.gymId, settings, gym, tz)
         return {
             success: true,
-            gymName,
-            eligibleCount: offlineEligible.length,
-            sampleMemberName: offlineEligible.length > 0 ? offlineEligible[0].name.split(' ')[0] : 'Member'
+            gymName: gymDisplayName(gym),
+            eligibleCount: Math.min(eligible.length, MAX_RECIPIENTS),
+            sampleMemberName: eligible.length > 0 ? eligible[0].name.split(' ')[0] : 'Member',
         }
-
     } catch (e) {
-        return { error: 'Failed to fetch eligibility' }
+        return { error: 'Could not work out who is eligible.' }
     }
 }
 
 export async function blastOffPeakSMS() {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const sessionStr = cookieStore.get('gymos_session')?.value
-    if (!sessionStr) return { error: "Unauthorized" };
+    const session = await authorize('owner')
+    if (!session) return { error: UNAUTHORIZED.error }
+    if (!adminDb) return { error: NO_DB.error }
+    const cfg = twilioConfig()
+    if (cfg.missing.length) return { error: missingMessage(cfg.missing), notConfigured: true, missing: cfg.missing }
+
+    const gymId = session.gymId
+    const { gym, settings, tz } = await getGymContext(gymId)
+
+    // One campaign per gym per cool-down window; the lock also stops double clicks.
+    const lockRef = adminDb.collection('gym_api_settings').doc(gymId)
+    const locked = await adminDb.runTransaction(async (t) => {
+        const snap = await t.get(lockRef)
+        const last = snap.exists ? snap.data().lastSmsCampaignAt : null
+        if (last && Date.now() - new Date(last).getTime() < COOLDOWN_MS) return last
+        t.set(lockRef, { gymId, lastSmsCampaignAt: new Date().toISOString() }, { merge: true })
+        return null
+    })
+    if (locked) {
+        const next = new Date(new Date(locked).getTime() + COOLDOWN_MS)
+        return { error: `An off-peak SMS was already sent recently. You can send the next one after ${next.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: tz })}.` }
+    }
 
     try {
-        const user = JSON.parse(sessionStr)
-        const gymId = user.gymCode || 'DEMO'
-
-        // Abort early with EXPLICIT Provider identification if the config is missing.
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
-        if (!accountSid || !authToken || !fromNumber) {
-            return {
-                error: `SMS provider configured: Twilio\n\nMissing production environment variables:\n${!accountSid ? 'TWILIO_ACCOUNT_SID\n' : ''}${!authToken ? 'TWILIO_AUTH_TOKEN\n' : ''}${!fromNumber ? 'TWILIO_PHONE_NUMBER\n' : ''}`
-            }
+        const recipients = (await eligibleMembers(gymId, settings, gym, tz)).slice(0, MAX_RECIPIENTS)
+        if (recipients.length === 0) {
+            await lockRef.set({ lastSmsCampaignAt: null }, { merge: true })
+            return { error: 'No eligible members with a valid phone number are away from the gym right now.' }
         }
+        const gymName = gymDisplayName(gym)
+        const auth = 'Basic ' + Buffer.from(`${cfg.accountSid}:${cfg.authToken}`).toString('base64')
+        const results = []
 
-        const adminDb = await getAdminDb()
-        if (!adminDb) return { error: 'Database disconnected' }
-
-        const gymSnap = await adminDb.collection('gyms').where('gymCode', '==', gymId).limit(1).get()
-        const gymName = gymSnap.empty ? "BGM" : (gymSnap.docs[0].data().name || "BGM")
-
-        // Find eligible batch
-        const snap = await adminDb.collection('members').where('gymId', '==', gymId).where('status', '==', 'Active').get();
-        const activeLogs = await adminDb.collection('attendance').where('gymId', '==', gymId).where('check_out_time', '==', null).get()
-        const checkedInIds = new Set(activeLogs.docs.map(d => d.data().member_id))
-
-        const offlineEligible = snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .filter(m => m.phone && m.phone.length >= 7 && !checkedInIds.has(m.id))
-
-        if (offlineEligible.length === 0) {
-            return { error: 'No eligible offline members found.' }
-        }
-
-        let deliveredMap = [];
-
-        // Use native HTTP fetch to Twilio REST API since there are no NPM SDKs installed currently.
-        for (const m of offlineEligible) {
-            let internationalPhone = m.phone;
-            // Basic formatting: assuming IN logic if missing code for basic SMS gateways
-            if (!internationalPhone.startsWith('+')) internationalPhone = '+91' + internationalPhone;
-
-            const messageBody = `Hi ${m.name.split(' ')[0]}, ${gymName} suggests a quieter workout period right now! The gym floor is currently calm. Check your BGM Portal for live intensity levels.`;
-
-            const params = new URLSearchParams();
-            params.append('To', internationalPhone);
-            params.append('From', fromNumber);
-            params.append('Body', messageBody);
-
+        for (const m of recipients) {
+            const params = new URLSearchParams()
+            params.append('To', m.phone)
+            if (cfg.messagingServiceSid) params.append('MessagingServiceSid', cfg.messagingServiceSid)
+            else params.append('From', cfg.from)
+            params.append('Body', `Hi ${m.name.split(' ')[0]}, ${gymName} is quiet right now - a great time for your workout. - BGM`)
             try {
-                const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+                const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${cfg.accountSid}/Messages.json`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': 'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64'),
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: params.toString()
-                });
-
-                const dat = await twilioRes.json();
-
-                if (!twilioRes.ok) {
-                    throw new Error(dat.message || "Twilio rejected message");
-                }
-
-                deliveredMap.push({ m, status: 'DELIVERED', error: null, sid: dat.sid });
+                    headers: { Authorization: auth, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString(),
+                    signal: AbortSignal.timeout(10000),
+                })
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) results.push({ m, status: 'REJECTED', error: `${data.code || res.status}: ${data.message || 'rejected by provider'}`, sid: null })
+                else results.push({ m, status: 'ACCEPTED', error: null, sid: data.sid || null, providerStatus: data.status || 'queued' })
             } catch (err) {
-                // If it fails completely, mark it FAILED and break or continue based on preference. 
-                // We will continue to try the rest.
-                deliveredMap.push({ m, status: 'FAILED', error: err.message });
+                results.push({ m, status: 'FAILED', error: err.message, sid: null })
             }
         }
 
-        const fullyFailedCount = deliveredMap.filter(d => d.status === 'FAILED').length;
-        if (fullyFailedCount === offlineEligible.length && fullyFailedCount > 0) {
-            return { error: `Provider (Twilio) failed to deliver all messages. Error: ${deliveredMap[0].error}` }
+        for (let i = 0; i < results.length; i += 400) {
+            const batch = adminDb.batch()
+            results.slice(i, i + 400).forEach(r => batch.set(adminDb.collection('sms_logs').doc(), {
+                gymId, recipient_id: r.m.id, recipient_phone: r.m.phone.replace(/\d(?=\d{4})/g, '•'),
+                messageType: 'OFF_PEAK_PROMO', timestamp: new Date().toISOString(),
+                providerStatus: r.status, providerError: r.error, gatewaySid: r.sid,
+            }))
+            await batch.commit()
         }
 
-        // Create SMS logs
-        const batch = adminDb.batch()
-        const logCol = adminDb.collection('sms_logs')
+        const accepted = results.filter(r => r.status === 'ACCEPTED').length
+        const rejected = results.length - accepted
+        await audit(session, 'SMS_CAMPAIGN_SENT', { accepted, rejected })
 
-        deliveredMap.forEach(d => {
-            const entry = logCol.doc()
-            batch.set(entry, {
-                gymId,
-                recipient_id: d.m.id,
-                recipient_phone: d.m.phone,
-                messageType: 'OFF_PEAK_PROMO',
-                timestamp: new Date().toISOString(),
-                providerStatus: d.status,
-                providerError: d.error,
-                gatewaySid: d.sid || null
-            })
-        })
-        await batch.commit()
-
-        return {
-            success: true,
-            deliveredCount: deliveredMap.filter(d => d.status === 'DELIVERED').length
-        };
+        if (accepted === 0) {
+            await lockRef.set({ lastSmsCampaignAt: null }, { merge: true }) // nothing went out: do not burn the cool-down
+            return { error: `Twilio rejected every message. First error — ${results[0].error}. For Indian numbers the sender must be DLT registered.` }
+        }
+        // "Accepted" means Twilio queued the message; final delivery is reported by the operator later.
+        return { success: true, deliveredCount: accepted, acceptedCount: accepted, rejectedCount: rejected, firstError: rejected ? results.find(r => r.status !== 'ACCEPTED').error : null }
     } catch (e) {
-        return { error: e.message }
+        await lockRef.set({ lastSmsCampaignAt: null }, { merge: true }).catch(() => { })
+        return { error: 'The SMS campaign could not be sent.' }
     }
 }

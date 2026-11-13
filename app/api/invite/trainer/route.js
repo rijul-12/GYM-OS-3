@@ -1,34 +1,18 @@
 import { NextResponse } from 'next/server';
+import { getAppUrl } from '@/lib/url-builder';
 
+// Trainer invitation links land here. Nothing is changed by opening the link
+// (mail scanners pre-fetch URLs): the trainer is sent to the registration form
+// where they set a password, and only that submission accepts the invitation.
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('t');
-
-    if (!id) {
-        return NextResponse.json({ error: 'Invalid or missing invitation token.' }, { status: 400 });
+    const token = new URL(request.url).searchParams.get('t') || '';
+    const target = new URL('/register', getAppUrl());
+    if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) {
+        const login = new URL('/login', getAppUrl());
+        login.searchParams.set('error', 'This invitation link is not valid. Ask your gym owner to send a new one.');
+        return NextResponse.redirect(login);
     }
-
-    try {
-        const { adminDb } = await import('@/lib/firebase/server')
-        if (!adminDb) return NextResponse.redirect(new URL('/login?error=Backend+Database+Disconnected', request.url));
-
-        const ref = adminDb.collection('trainers').doc(id);
-        const doc = await ref.get();
-
-        if (!doc.exists) {
-            return NextResponse.redirect(new URL('/login?error=Trainer+invitation+expired+or+revoked.+Please+request+a+new+one.', request.url));
-        }
-
-        await ref.update({
-            status: 'Active',
-            is_active: true,
-            rating: 5.0,
-            updated_at: new Date().toISOString()
-        });
-
-        return NextResponse.redirect(new URL('/login?message=Trainer+Invite+Successfully+Accepted!+Please+login.', request.url));
-    } catch (e) {
-        console.error(e);
-        return NextResponse.redirect(new URL('/login?error=Internal+Server+Action+Failed.+Contact+Support.', request.url));
-    }
+    target.searchParams.set('role', 'trainer');
+    target.searchParams.set('invite', token);
+    return NextResponse.redirect(target);
 }

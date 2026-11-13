@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server'
 
+// -----------------------------------------------------------------------
+// Routing middleware.
+//
+// This layer only decides where to send the browser. It reads the role claim
+// from the session JWT WITHOUT verifying the signature (the Edge runtime has
+// no Admin SDK), so it is a UX convenience and NOT a security boundary.
+// Every Server Component and Server Action verifies the cookie with the
+// Firebase Admin SDK before returning or changing any data.
+// -----------------------------------------------------------------------
+
+const SESSION_COOKIE = 'gymos_session'
+
 const ROLE_HOMES = {
     super_admin: '/super-admin',
     owner: '/dashboard',
@@ -7,68 +19,58 @@ const ROLE_HOMES = {
     member: '/portal',
 }
 
-export async function middleware(request) {
-    const { pathname } = request.nextUrl
+const OWNER_PREFIXES = ['/dashboard', '/analytics', '/members', '/branding', '/plans', '/settings', '/occupancy', '/attendance-logs', '/attendance-integrations', '/attendance-sync', '/trainers', '/equipments', '/onboarding']
 
-    // 🛑 Firebase Target: Supabase Cookie checking globally disabled preventing unwanted timeouts
-    const response = NextResponse.next()
+const startsWithSegment = (pathname, prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
 
-    // Step 2: Read our gymos_session cookie (works in both Demo Mode and Supabase Mode)
-    const cookie = request.cookies.get('gymos_session')
-    let session = null
+function readClaims(token) {
     try {
-        if (cookie?.value) session = JSON.parse(cookie.value)
-    } catch { }
-
-    // If session has expired, treat as logged out
-    if (session?.expiresAt && new Date(session.expiresAt).getTime() < Date.now()) {
-        session = null
+        const parts = token.split('.')
+        if (parts.length !== 3) return null
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+        const json = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))
+        const claims = JSON.parse(json)
+        if (!claims.exp || claims.exp * 1000 < Date.now()) return null
+        if (!ROLE_HOMES[claims.role]) return null
+        return { role: claims.role }
+    } catch {
+        return null
     }
+}
 
-    // Protection route map
-    const routes = {
-        super_admin: pathname.startsWith('/super-admin'),
-        owner: pathname.startsWith('/dashboard') || pathname.startsWith('/analytics') || pathname.startsWith('/members') || pathname.startsWith('/branding') || pathname.startsWith('/plans') || pathname.startsWith('/settings') || pathname.startsWith('/occupancy') || pathname.startsWith('/attendance-logs') || pathname.startsWith('/attendance-integrations') || pathname.startsWith('/attendance-sync') || pathname.startsWith('/trainers'),
-        trainer: pathname.startsWith('/trainer'),
-        member: pathname.startsWith('/portal'),
+export function middleware(request) {
+    const { pathname } = request.nextUrl
+    const token = request.cookies.get(SESSION_COOKIE)?.value
+    const session = token ? readClaims(token) : null
+
+    const zone = {
+        super_admin: startsWithSegment(pathname, '/super-admin'),
+        owner: OWNER_PREFIXES.some(p => startsWithSegment(pathname, p)),
+        trainer: startsWithSegment(pathname, '/trainer'),
+        member: startsWithSegment(pathname, '/portal'),
     }
+    const isProtected = zone.super_admin || zone.owner || zone.trainer || zone.member
 
-    const isProtected = routes.super_admin || routes.owner || routes.trainer || routes.member
-
-    // Not logged in — redirect to login
     if (!session && isProtected) {
         const loginUrl = new URL('/login', request.url)
         loginUrl.searchParams.set('next', pathname)
-        return NextResponse.redirect(loginUrl)
+        const res = NextResponse.redirect(loginUrl)
+        if (token) res.cookies.delete(SESSION_COOKIE) // expired / legacy cookie
+        return res
     }
 
-    // Already logged in — redirect away from root/login to role dashboard
-    if (session && (pathname === '/' || pathname === '/login')) {
-        const target = ROLE_HOMES[session.role]
-        if (target) return NextResponse.redirect(new URL(target, request.url))
-    }
-
-    // Cross-role boundary enforcement
     if (session) {
-        const role = session.role
-        if (routes.super_admin && role !== 'super_admin') {
-            return NextResponse.redirect(new URL(ROLE_HOMES[role] ?? '/', request.url))
-        }
-        if (routes.owner && role !== 'owner' && role !== 'super_admin') {
-            return NextResponse.redirect(new URL(ROLE_HOMES[role] ?? '/', request.url))
-        }
-        if (routes.trainer && role !== 'trainer' && role !== 'owner') {
-            return NextResponse.redirect(new URL(ROLE_HOMES[role] ?? '/', request.url))
-        }
-        if (routes.member && role !== 'member') {
-            return NextResponse.redirect(new URL(ROLE_HOMES[role] ?? '/', request.url))
-        }
+        const home = ROLE_HOMES[session.role]
+        if (pathname === '/login') return NextResponse.redirect(new URL(home, request.url))
+        if (zone.super_admin && session.role !== 'super_admin') return NextResponse.redirect(new URL(home, request.url))
+        if (zone.owner && session.role !== 'owner') return NextResponse.redirect(new URL(home, request.url))
+        if (zone.trainer && session.role !== 'trainer') return NextResponse.redirect(new URL(home, request.url))
+        if (zone.member && session.role !== 'member') return NextResponse.redirect(new URL(home, request.url))
     }
 
-    // Pass through response
-    return response
+    return NextResponse.next()
 }
 
 export const config = {
-    matcher: ['/((?!api|_next/static|_next/image|favicon.ico|images|mock).*)'],
+    matcher: ['/((?!api|_next/static|_next/image|favicon.ico|images|manifest.webmanifest).*)'],
 }

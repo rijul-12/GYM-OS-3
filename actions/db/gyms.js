@@ -1,447 +1,310 @@
 'use server'
 
-
+import crypto from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { adminDb } from '@/lib/firebase/server'
+import { getSession, authorize, getGymContext, audit, UNAUTHORIZED, NO_DB, plain } from '@/lib/server/session'
+import { sanitizeOwnerPatch, sanitizeWidgets, ownerSettingsView, memberSettingsView } from '@/lib/server/gym-settings'
+import { loadLiveState, queryAttendanceSince, queryGymSince, hourlyCheckins, dailyAttendance, sinceDaysAgo } from '@/lib/server/live'
+import { computeSubscriptionStatus } from '@/lib/server/subscription'
+import { getEffectiveStatus, daysUntilExpiry, getOutstanding, toMoney, MEMBER_STATUS } from '@/lib/domain/membership'
+import { monthKey, dateKey } from '@/lib/domain/dates'
 
+// --------------------------------------------------------------------
+// Settings / branding
+// --------------------------------------------------------------------
 
-function isFirebaseConfigured() {
-    return !!process.env.FIREBASE_PROJECT_ID;
+/** Settings for the caller's own gym, shaped by role. */
+export async function getMyGymSettings() {
+    const session = await getSession()
+    if (!session || !adminDb || !session.gymId) return null
+    const { gym, settings } = await getGymContext(session.gymId)
+    if (!gym) return null
+    return plain(session.role === 'owner' ? ownerSettingsView(gym, settings) : memberSettingsView(gym, settings, session.role))
 }
 
-export async function getGyms() {
-    if (isFirebaseConfigured()) {
-        const { adminDb } = await import('@/lib/firebase/server')
-        if (adminDb) {
-            const snap = await adminDb.collection('gyms').get()
-            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        }
-    }
+/** Legacy name kept for existing callers; the gym id always comes from the session. */
+export async function getGymSettings() {
+    return (await getMyGymSettings()) || {}
+}
 
-    // Offline / Supabase Fallback Bypass
-    return [];
+/** Owner: update gym settings. Only whitelisted, validated keys are written. */
+export async function saveGymBrand(_unused, patch) {
+    const session = await authorize('owner')
+    if (!session) return { success: false, error: UNAUTHORIZED.error }
+    if (!adminDb) return { success: false, error: NO_DB.error }
+
+    const { clean, errors } = sanitizeOwnerPatch(patch)
+    if (Object.keys(clean).length === 0) return { success: false, error: errors[0] || 'Nothing to save.' }
+    // The UPI ID is optional: UPI can be enabled without one, members simply see no UPI option until it is set.
+
+    try {
+        const batch = adminDb.batch()
+        batch.set(adminDb.collection('gym_settings').doc(session.gymId), { ...clean, updatedAt: new Date().toISOString() }, { merge: true })
+        if (clean.gymName) batch.update(adminDb.collection('gyms').doc(session.gymId), { gymName: clean.gymName, name: clean.gymName })
+        await batch.commit()
+        if ('upi_id' in clean || 'upi_enabled' in clean || 'razorpay_enabled' in clean || 'upi_show_to_members' in clean) {
+            await audit(session, 'PAYMENT_SETTINGS_CHANGED', { keys: Object.keys(clean).filter(k => k.startsWith('upi') || k.startsWith('razorpay')) })
+        }
+        return { success: true, saved: clean, errors }
+    } catch (e) {
+        return { success: false, error: 'Could not save settings.' }
+    }
+}
+
+/** Owner: save the gym's facilities / workout zones. */
+export async function saveGymWidgets(_unused, widgets) {
+    const session = await authorize('owner')
+    if (!session || !adminDb) return false
+    const clean = sanitizeWidgets(widgets)
+    if (!clean) return false
+    try {
+        await adminDb.collection('gym_settings').doc(session.gymId).set({ widgets: clean, updatedAt: new Date().toISOString() }, { merge: true })
+        revalidatePath('/settings'); revalidatePath('/dashboard'); revalidatePath('/occupancy'); revalidatePath('/portal')
+        return true
+    } catch {
+        return false
+    }
+}
+
+/**
+ * Owner: rotate the gym's QR / join code. The previous code stops working
+ * immediately because check-in only ever matches the gym's current code.
+ */
+export async function regenerateGymCode() {
+    const session = await authorize('owner')
+    if (!session || !adminDb) return null
+    const gymRef = adminDb.collection('gyms').doc(session.gymId)
+    const gymSnap = await gymRef.get()
+    if (!gymSnap.exists) return null
+    const existing = gymSnap.data()
+
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const suffix = String(existing.gymName || existing.name || 'GYM').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase().padEnd(3, 'X')
+    let newCode = null
+    for (let attempt = 0; attempt < 10 && !newCode; attempt++) {
+        const bytes = crypto.randomBytes(6)
+        const candidate = `GYM-${suffix}-${[...bytes].map(b => alphabet[b % alphabet.length]).join('')}`
+        const [byField, byId] = await Promise.all([
+            adminDb.collection('gyms').where('gymCode', '==', candidate).limit(1).get(),
+            adminDb.collection('gyms').doc(candidate).get(),
+        ])
+        if (byField.empty && !byId.exists) newCode = candidate
+    }
+    if (!newCode) return null
+
+    const now = new Date().toISOString()
+    await gymRef.update({ gymCode: newCode, qrCreatedDate: existing.qrCreatedDate || existing.createdAt || now, qrLastResetDate: now })
+    await audit(session, 'GYM_QR_REGENERATED', {})
+    revalidatePath('/settings')
+    return newCode
+}
+
+// --------------------------------------------------------------------
+// Dashboard
+// --------------------------------------------------------------------
+
+/**
+ * Live + summary statistics for the caller's gym.
+ * Members and trainers only receive anonymous aggregates (head-count and
+ * zone demand); financial and per-member data is owner only.
+ */
+export async function getDashboardStats() {
+    const session = await getSession()
+    const empty = { insideCount: 0, capacity: null, zones: [], dailyLine: [], live: [] }
+    if (!session || !adminDb || !session.gymId) return empty
+
+    const { gym, settings, tz } = await getGymContext(session.gymId)
+    if (!gym) return empty
+    const now = new Date()
+    const [liveState, recent] = await Promise.all([
+        loadLiveState(session.gymId, { settings, gym, tz }),
+        queryAttendanceSince(session.gymId, sinceDaysAgo(7, now)),
+    ])
+    const hourly = hourlyCheckins(recent, tz, now)
+
+    const aggregate = {
+        insideCount: liveState.insideCount,
+        capacity: liveState.capacity,
+        zones: liveState.zones,
+        dailyLine: hourly.series,
+        asOf: liveState.asOf,
+    }
+    if (session.role !== 'owner') return plain({ ...aggregate, live: [] })
+
+    const [membersSnap, trainersSnap, txs, subscription] = await Promise.all([
+        adminDb.collection('members').where('gymId', '==', session.gymId).get(),
+        adminDb.collection('trainers').where('gymId', '==', session.gymId).count().get(),
+        queryGymSince('member_transactions', session.gymId, 'created_at', sinceDaysAgo(32, now)),
+        computeSubscriptionStatus(session.gymId),
+    ])
+
+    const counts = { total: 0, active: 0, expired: 0, pending: 0, suspended: 0, expiringSoon: 0 }
+    let outstandingTotal = 0
+    membersSnap.docs.forEach(d => {
+        const m = d.data()
+        counts.total++
+        const status = getEffectiveStatus(m, now, tz)
+        if (status === MEMBER_STATUS.ACTIVE) {
+            counts.active++
+            const left = daysUntilExpiry(m, now, tz)
+            if (left !== null && left <= 7) counts.expiringSoon++
+        } else if (status === MEMBER_STATUS.EXPIRED) counts.expired++
+        else if (status === MEMBER_STATUS.PENDING) counts.pending++
+        else if (status === MEMBER_STATUS.SUSPENDED) counts.suspended++
+        outstandingTotal += getOutstanding(m)
+    })
+
+    const thisMonth = monthKey(now, tz)
+    const revenueMtd = txs
+        .filter(tx => tx.status === 'PAID' && monthKey(tx.resolved_at || tx.created_at, tz) === thisMonth)
+        .reduce((sum, tx) => sum + toMoney(tx.amount), 0)
+
+    const today = dateKey(now, tz)
+    const todays = recent.filter(a => dateKey(a.check_in_time || a.checkIn, tz) === today)
+    const currencySymbol = String(settings.currency || '₹ INR').split(' ')[0]
+
+    return plain({
+        ...aggregate,
+        live: liveState.live,
+        totalMembers: counts.total,
+        activeMembers: counts.active,
+        expiredMembers: counts.expired,
+        pendingMembers: counts.pending,
+        suspendedMembers: counts.suspended,
+        expiringSoon: counts.expiringSoon,
+        totalTrainers: trainersSnap.data().count,
+        todayCheckins: todays.length,
+        todayUniqueMembers: new Set(todays.map(a => a.member_id).filter(Boolean)).size,
+        weeklyLine: dailyAttendance(recent, tz, 7, now),
+        revenueMtdValue: Math.round(revenueMtd * 100) / 100,
+        revenueMtd: `${currencySymbol}${revenueMtd.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
+        outstandingTotal: Math.round(outstandingTotal * 100) / 100,
+        currencySymbol,
+        subscription,
+    })
+}
+
+// --------------------------------------------------------------------
+// Super Admin
+// --------------------------------------------------------------------
+
+export async function getGyms() {
+    const session = await authorize('super_admin')
+    if (!session || !adminDb) return []
+    const [gymsSnap, subsSnap] = await Promise.all([
+        adminDb.collection('gyms').get(),
+        adminDb.collection('gym_subscriptions').get(),
+    ])
+    const subs = Object.fromEntries(subsSnap.docs.map(d => [d.id, d.data()]))
+
+    const gyms = await Promise.all(gymsSnap.docs.map(async (doc) => {
+        const g = doc.data()
+        let members = 0
+        try { members = (await adminDb.collection('members').where('gymId', '==', doc.id).count().get()).data().count } catch { }
+        const sub = subs[doc.id] || {}
+        return {
+            id: doc.id,
+            name: g.gymName || g.name || doc.id,
+            gymCode: g.gymCode || doc.id,
+            ownerName: g.ownerName || '',
+            email: g.email || g.ownerEmail || '',
+            phone: g.phone || '',
+            city: g.city || '',
+            status: g.status || 'Active',
+            isDemo: !!g.isDemo,
+            createdAt: g.createdAt || g.created_at || null,
+            members,
+            subscriptionStatus: sub.status || g.subscriptionStatus || null,
+            plan: sub.plan || g.plan || null,
+            trialEndDate: sub.trialEndDate || g.trialEndDate || null,
+            subscriptionExpiryDate: sub.subscriptionExpiryDate || null,
+        }
+    }))
+    return plain(gyms.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))))
 }
 
 export async function updateGymStatus(gymId, newStatus) {
-    if (!isFirebaseConfigured()) return false;
-    const { adminDb } = await import('@/lib/firebase/server');
-    if (!adminDb) return false;
-
+    const session = await authorize('super_admin')
+    if (!session || !adminDb) return false
+    if (!['Active', 'Pending', 'Suspended'].includes(newStatus)) return false
+    if (typeof gymId !== 'string' || !gymId || gymId.includes('/')) return false
     try {
-        await adminDb.collection('gyms').doc(gymId).update({ status: newStatus });
-        revalidatePath('/super-admin/gyms');
-        return true;
-    } catch (e) {
-        return false;
+        const ref = adminDb.collection('gyms').doc(gymId)
+        const snap = await ref.get()
+        if (!snap.exists) return false
+        await ref.update({ status: newStatus })
+        await audit(session, 'GYM_STATUS_CHANGED', { gymId, from: snap.data().status || null, to: newStatus })
+        revalidatePath('/super-admin/gyms')
+        return true
+    } catch {
+        return false
     }
-}
-
-export async function getGymSettings(gymId) {
-    if (isFirebaseConfigured()) {
-        const { adminDb } = await import('@/lib/firebase/server')
-        if (adminDb) {
-            const [settingsDoc, gymDoc] = await Promise.all([
-                adminDb.collection('gym_settings').doc(gymId).get(),
-                adminDb.collection('gyms').doc(gymId).get()
-            ]);
-            let result = {};
-            if (settingsDoc.exists) result = { id: settingsDoc.id, ...settingsDoc.data() };
-            if (gymDoc.exists) {
-                const gData = gymDoc.data();
-                result.gymName = gData.gymName || gData.name;
-                result.ownerName = gData.ownerName;
-            }
-            return result;
-        }
-    }
-    // Fallback Mock
-    return {}
 }
 
 export async function deleteGym(gymId) {
-    if (!isFirebaseConfigured()) return false;
-    const { adminDb } = await import('@/lib/firebase/server');
-    if (!adminDb) return false;
-
+    const session = await authorize('super_admin')
+    if (!session || !adminDb) return { success: false, error: UNAUTHORIZED.error }
+    if (typeof gymId !== 'string' || !gymId || gymId.includes('/')) return { success: false, error: 'Invalid gym.' }
     try {
-        const { deleteGymFootprint } = await import('@/actions/db/deletion');
-        await deleteGymFootprint(gymId);
-
-        revalidatePath('/super-admin/gyms');
-        revalidatePath('/super-admin');
-        return true;
+        const { deleteGymFootprint } = await import('@/lib/server/deletion')
+        const result = await deleteGymFootprint(gymId, { actor: session })
+        revalidatePath('/super-admin/gyms'); revalidatePath('/super-admin')
+        return plain(result)
     } catch (e) {
-        return false;
+        return { success: false, error: e.message }
     }
 }
 
-export async function getTrainers() {
-    if (isFirebaseConfigured()) {
-        const { adminDb } = await import('@/lib/firebase/server')
-        if (adminDb) {
-            const snap = await adminDb.collection('trainers').get()
-            return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        }
-    }
-    return [];
-}
-
-export async function getDashboardStats() {
-    if (isFirebaseConfigured()) {
-        const { adminDb } = await import('@/lib/firebase/server')
-        const { cookies } = await import('next/headers')
-        const cookieStore = await cookies()
-        const sessionStr = cookieStore.get('gymos_session')?.value
-        let gymId = 'DEMO'
-        try { if (sessionStr) gymId = JSON.parse(sessionStr).gymCode || 'DEMO' } catch (e) { }
-
-        if (adminDb) {
-            const { getSubscriptionStatus } = await import('@/actions/db/subscriptions');
-
-            const [memSnap, trnSnap, attSnap, settingsSnap, subStatus] = await Promise.all([
-                adminDb.collection('members').where('gymId', '==', gymId).count().get(),
-                adminDb.collection('trainers').where('gymId', '==', gymId).count().get(),
-                adminDb.collection('attendance').where('gymId', '==', gymId).get(),
-                adminDb.collection('gym_settings').doc(gymId).get(),
-                getSubscriptionStatus(gymId)
-            ])
-
-            const totalMembers = memSnap.data().count;
-            const totalTrainers = trnSnap.data().count;
-            const currencyStr = settingsSnap.exists ? (settingsSnap.data().currency || '₹ INR') : '₹ INR';
-            const currencySymbol = currencyStr.split(' ')[0];
-            const capacity = settingsSnap.exists ? (settingsSnap.data().buildingCapacity || 100) : 100;
-
-            const todayIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-            const todayCheckins = attSnap.docs.filter(d => (d.data().checkIn || d.data().check_in_time) >= todayIso).length;
-
-            const activeCheckins = attSnap.docs.filter(d => !d.data().checkOut && !d.data().check_out_time).map(d => d.data());
-            const insideCount = activeCheckins.length;
-
-            // Compute Intelligence securely without mock arrays
-            const [membersListDoc, plansListDoc] = await Promise.all([
-                adminDb.collection('members').where('gymId', '==', gymId).get(),
-                adminDb.collection('plans').where('gymId', '==', gymId).get()
-            ]);
-            const members = membersListDoc.docs.map(d => ({ id: d.id, ...d.data() }));
-
-            const plansMap = {};
-            plansListDoc.docs.forEach(doc => {
-                const pd = doc.data();
-                if (pd.name) plansMap[pd.name.toLowerCase()] = parseFloat(pd.price) || 0;
-            });
-
-            let totalRevenue = 0;
-            members.forEach(m => {
-                if (m.is_active !== false && m.status !== 'Inactive') {
-                    const planName = m.plan ? m.plan.toLowerCase() : '';
-                    totalRevenue += (plansMap[planName] || 0);
-                }
-            });
-
-            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const today = days[new Date().getDay()];
-
-            const getWorkoutForToday = (m) => {
-                if (m.weeklySchedule && m.weeklySchedule[today]) return m.weeklySchedule[today];
-                if (m.workout) return m.workout;
-                if (m.primaryWorkoutSplit) return m.primaryWorkoutSplit;
-                return 'Rest';
-            }
-
-            const widgets = settingsSnap.exists && settingsSnap.data().widgets ? settingsSnap.data().widgets : [
-                { id: 'w1', name: 'Chest Zone', capacity: 10, muscleGroup: 'Chest', isActive: true, emoji: '💪', color: '#ef4444' },
-                { id: 'w2', name: 'Back Zone', capacity: 10, muscleGroup: 'Back', isActive: true, emoji: '🏋️', color: '#f97316' },
-                { id: 'w3', name: 'Leg Zone', capacity: 10, muscleGroup: 'Legs', isActive: true, emoji: '🦵', color: '#22c55e' },
-                { id: 'w4', name: 'Shoulder Zone', capacity: 10, muscleGroup: 'Shoulders', isActive: true, emoji: '🎯', color: '#eab308' },
-                { id: 'w5', name: 'Arms Zone', capacity: 10, muscleGroup: 'Arms', isActive: true, emoji: '💥', color: '#84cc16' },
-                { id: 'w6', name: 'Core Zone', capacity: 10, muscleGroup: 'Core', isActive: true, emoji: '🏃', color: '#3b82f6' }
-            ];
-
-            const activeWidgets = widgets.filter(w => w.isActive !== false);
-            activeWidgets.forEach(w => w._count = 0);
-
-            let str = 0, cardioCount = 0, yogaCount = 0, coreCount = 0;
-
-            activeCheckins.forEach(a => {
-                let workoutArray = [];
-                if (a.actual_workout && Array.isArray(a.actual_workout) && a.actual_workout.length > 0) {
-                    workoutArray = a.actual_workout;
-                } else if (a.actual_workout && typeof a.actual_workout === 'string') {
-                    workoutArray = [a.actual_workout];
-                } else {
-                    const mId = a.memberId || a.member_id || (a.members && a.members.id);
-                    const m = members.find(mbr => mbr.id === mId || mbr.name === (a.members && a.members.name)) || { workout: 'Rest' };
-                    const w = getWorkoutForToday(m);
-                    workoutArray = Array.isArray(w) ? w : [String(w)];
-                }
-
-                const wStr = workoutArray.join(' ').toLowerCase();
-
-                if (wStr.includes('cardio') || wStr.includes('hiit') || wStr.includes('treadmill')) cardioCount++;
-                if (wStr.includes('yoga') || wStr.includes('flex')) yogaCount++;
-                if (wStr.includes('core') || wStr.includes('abs')) coreCount++;
-                if (wStr.includes('chest') || wStr.includes('back') || wStr.includes('leg') || wStr.includes('shoulder') || wStr.includes('arm')) str++;
-                if (wStr.includes('full body')) { str += 1; coreCount += 1; }
-
-                activeWidgets.forEach(w => {
-                    if (!w.muscleGroup) return;
-                    const mg = w.muscleGroup.toLowerCase();
-                    if (mg === 'multiple' || mg === 'multi' || mg === 'full body') {
-                        if (wStr.includes('full body') || wStr.includes('crossfit')) w._count++;
-                    } else if (mg === 'chest' && (wStr.includes('chest') || wStr.includes('push'))) w._count++;
-                    else if (mg === 'back' && (wStr.includes('back') || wStr.includes('pull'))) w._count++;
-                    else if (mg === 'legs' && wStr.includes('leg')) w._count++;
-                    else if (mg === 'shoulders' && wStr.includes('shoulder')) w._count++;
-                    else if (mg === 'arms' && (wStr.includes('arm') || wStr.includes('bicep') || wStr.includes('tricep'))) w._count++;
-                    else if (mg === 'core' && (wStr.includes('core') || wStr.includes('abs'))) w._count++;
-                    else if (mg === 'cardio' && (wStr.includes('cardio') || wStr.includes('hiit') || wStr.includes('treadmill') || wStr.includes('run'))) w._count++;
-                    else if (mg === 'yoga' && (wStr.includes('yoga') || wStr.includes('stretch') || wStr.includes('flex'))) w._count++;
-                    else if (mg === 'swimming' && (wStr.includes('swim') || wStr.includes('pool'))) w._count++;
-                    else if (wStr.includes(mg)) w._count++;
-                });
-            });
-
-            const getDem = (count, maxCapStr) => {
-                const hasCapacity = maxCapStr !== undefined && maxCapStr !== null && maxCapStr !== '';
-                const maxCap = parseInt(maxCapStr);
-                if (hasCapacity && !isNaN(maxCap) && maxCap > 0) {
-                    return Math.min(100, Math.round((count / maxCap) * 100));
-                }
-                // When capacity is NOT configured, percentage can be an arbitrary relative scale (e.g., maxing at 10)
-                return Math.min(100, Math.round((count / 10) * 100));
-            };
-
-            const getStatus = (count, maxCapStr) => {
-                const hasCapacity = maxCapStr !== undefined && maxCapStr !== null && maxCapStr !== '';
-                const maxCap = parseInt(maxCapStr);
-
-                if (hasCapacity && !isNaN(maxCap) && maxCap > 0) {
-                    const perc = (count / maxCap) * 100;
-                    if (perc === 0) return 'Quiet';
-                    if (perc < 25) return 'Low';
-                    if (perc < 50) return 'Moderate';
-                    if (perc < 80) return 'Busy';
-                    if (perc <= 100) return 'Very Busy';
-                    return 'Very Busy / Over Capacity';
-                } else {
-                    if (count === 0) return 'Quiet';
-                    if (count <= 2) return 'Low';
-                    if (count <= 5) return 'Moderate';
-                    if (count <= 9) return 'Busy';
-                    return 'Very Busy';
-                }
-            };
-
-            const ZONES = activeWidgets.map((w, idx) => {
-                let badgeColor = w.color || '#3b82f6';
-                let hex = badgeColor;
-                if (!hex.startsWith('#')) hex = '#3b82f6';
-                let r = 59, g = 130, b = 246;
-                if (hex.length === 7) { r = parseInt(hex.slice(1, 3), 16); g = parseInt(hex.slice(3, 5), 16); b = parseInt(hex.slice(5, 7), 16); }
-                return {
-                    id: w.id || `w${idx}`,
-                    name: w.name,
-                    members: w._count,
-                    demand: getDem(w._count, w.capacity),
-                    emoji: w.emoji || '✓',
-                    color: hex,
-                    status: getStatus(w._count, w.capacity),
-                    bg: `rgba(${r},${g},${b},0.03)`,
-                    border: `rgba(${r},${g},${b},0.1)`
-                }
-            });
-
-            const WORKOUT_DIST = [
-                { name: 'Strength Training', value: str || 0, color: '#ef4444' },
-                { name: 'Cardio Core', value: (cardioCount + coreCount) || 0, color: '#3b82f6' },
-                { name: 'Flexibility / Yoga', value: yogaCount || 0, color: '#10b981' }
-            ].filter(d => d.value > 0);
-            if (WORKOUT_DIST.length === 0) WORKOUT_DIST.push({ name: 'Idle', value: 1, color: '#64748b' });
-
-            const todayStr = new Date().toISOString().split('T')[0];
-            const hourly = {};
-            attSnap.docs.forEach(d => {
-                const t = new Date(d.data().checkIn || d.data().check_in_time);
-                if (t.toISOString().startsWith(todayStr)) {
-                    hourly[t.getHours()] = (hourly[t.getHours()] || 0) + 1;
-                }
-            });
-            const ATTENDANCE_DAILY = Array.from({ length: 15 }).map((_, i) => ({
-                hour: `${i + 6}am`,
-                v: hourly[i + 6] || 0,
-                forecast: Math.floor(capacity * 0.15)
-            }));
-
-            // Map Busy/Quiet metrics
-            let busyHr = 18, peakV = 0, quietHr = 6, minV = 9999;
-            Object.keys(hourly).forEach(h => {
-                if (hourly[h] > peakV) { peakV = hourly[h]; busyHr = h; }
-                if (hourly[h] < minV && hourly[h] > 0) { minV = hourly[h]; quietHr = h; }
-            });
-            const bFmt = `${busyHr > 12 ? busyHr - 12 : busyHr}:00 ${busyHr >= 12 ? 'PM' : 'AM'}`;
-            const qFmt = `${quietHr > 12 ? quietHr - 12 : quietHr}:00 ${quietHr >= 12 ? 'PM' : 'AM'}`;
-
-            const AI_INSIGHTS = [
-                {
-                    title: insideCount > 0 ? `Occupancy at ${Math.floor((insideCount / capacity) * 100)}%` : "Facility Empty",
-                    detail: insideCount > 0 ? `Current active count mapping nominal footprints. Busiest recorded hour tracks to ${bFmt}.` : "No presence detected floor-wide natively. Quiet operations secure.",
-                    confidence: 100,
-                    action: insideCount > (capacity * 0.8) ? "Hold Access" : "Monitor Dashboard"
-                }
-            ]
-
-            return {
-                totalMembers,
-                totalTrainers,
-                todayCheckins,
-                revenueMtd: `${currencySymbol}${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                zones: ZONES,
-                dist: WORKOUT_DIST,
-                dailyLine: ATTENDANCE_DAILY,
-                insights: AI_INSIGHTS,
-                subscription: subStatus
-            }
-        }
-    }
-
-    // Default Fallback Aggregate (Protects Vercel SSR when Firebase is unconfigured)
-    return {
-        totalMembers: 0,
-        totalTrainers: 0,
-        todayCheckins: 0,
-        revenueMtd: '₹ 0.00',
-        zones: [],
-        dist: [],
-        dailyLine: [],
-        insights: []
-    };
-}
-
-export async function regenerateGymCode(gymIdParam) {
-    if (isFirebaseConfigured()) {
-        const { adminDb } = await import('@/lib/firebase/server')
-        const { cookies } = await import('next/headers')
-        const cookieStore = await cookies()
-        const sessionStr = cookieStore.get('gymos_session')?.value
-        let sessionGymId = 'DEMO'
-        try { if (sessionStr) sessionGymId = JSON.parse(sessionStr).gymCode || 'DEMO' } catch (e) { }
-
-        const gymId = gymIdParam || sessionGymId;
-
-        if (adminDb && gymId && gymId !== 'DEMO') {
-            const gymDoc = await adminDb.collection('gyms').doc(gymId).get()
-            const existingData = gymDoc.data() || {}
-
-            const gymName = existingData.name || 'GYM';
-            const suffix = gymName.replace(/[^A-Za-z0-z]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'X');
-            const newCode = `GYM-${suffix}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-            const existingCodeDoc = await adminDb.collection('gyms').where('gymCode', '==', newCode).get()
-            if (!existingCodeDoc.empty) return regenerateGymCode(gymId)
-
-            const now = new Date().toISOString()
-            await adminDb.collection('gyms').doc(gymId).update({
-                gymCode: newCode,
-                qrCreatedDate: existingData.qrCreatedDate || now,
-                qrLastResetDate: now
-            })
-            revalidatePath('/settings')
-            return newCode;
-        }
-    }
-    return null;
-}
-
-export async function saveGymWidgets(gymIdParam, widgets) {
-    if (!isFirebaseConfigured()) return false;
-    const { adminDb } = await import('@/lib/firebase/server');
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const sessionStr = cookieStore.get('gymos_session')?.value;
-    let sessionGymId = null;
-    try { if (sessionStr) sessionGymId = JSON.parse(sessionStr).gymCode; } catch (e) { }
-
-    const gymId = gymIdParam || sessionGymId;
-    if (!adminDb || !gymId) return false;
-
-    try {
-        await adminDb.collection('gym_settings').doc(gymId).set({ widgets }, { merge: true });
-        revalidatePath('/settings');
-        revalidatePath('/portal');
-        revalidatePath('/portal/live');
-        revalidatePath('/super-admin');
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-export async function saveGymBrand(gymIdParam, patch) {
-    if (!isFirebaseConfigured()) return false;
-    const { adminDb } = await import('@/lib/firebase/server');
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const sessionStr = cookieStore.get('gymos_session')?.value;
-
-    let sessionGymId = null;
-    let authRole = null;
-    try {
-        if (sessionStr) {
-            const dec = JSON.parse(sessionStr)
-            sessionGymId = dec.gymCode || dec.gymId;
-            authRole = dec.role;
-        }
-    } catch (e) { }
-
-    const gymId = gymIdParam || sessionGymId;
-    if (!adminDb || !gymId || authRole !== 'owner') return false; // Enforce owner limits natively globally
-
-    try {
-        await adminDb.collection('gym_settings').doc(gymId).set(patch, { merge: true });
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
+/** Platform-wide figures computed from real records only. */
 export async function getSuperAdminAnalytics() {
-    if (!isFirebaseConfigured()) return { totalMembers: 0, totalTrainers: 0, todayAttendance: 0, monthlyRevenue: 0, arr: 0 };
-    const { adminDb } = await import('@/lib/firebase/server');
-    if (!adminDb) return { totalMembers: 0, totalTrainers: 0, todayAttendance: 0, monthlyRevenue: 0, arr: 0 };
-
+    const session = await authorize('super_admin')
+    const zero = { totalGyms: 0, activeGyms: 0, pendingGyms: 0, trialGyms: 0, paidGyms: 0, totalMembers: 0, totalTrainers: 0, todayAttendance: 0, collectedThisMonth: 0, collectedLast12Months: 0, monthly: [] }
+    if (!session || !adminDb) return zero
     try {
-        const [memSnap, trnSnap] = await Promise.all([
+        const now = new Date()
+        const tz = 'Asia/Kolkata'
+        const todayStartIso = new Date(`${dateKey(now, tz)}T00:00:00+05:30`).toISOString()
+        const [gymsSnap, subsSnap, memCount, trnCount, attCount, txSnap] = await Promise.all([
+            adminDb.collection('gyms').get(),
+            adminDb.collection('gym_subscriptions').get(),
             adminDb.collection('members').count().get(),
-            adminDb.collection('trainers').count().get()
-        ]);
+            adminDb.collection('trainers').count().get(),
+            adminDb.collection('attendance').where('check_in_time', '>=', todayStartIso).count().get(),
+            adminDb.collection('transactions').where('status', '==', 'captured').get(),
+        ])
+        const gyms = gymsSnap.docs.map(d => d.data())
+        const status = (g) => String(g.status || 'Active').toLowerCase()
+        const subs = subsSnap.docs.map(d => d.data())
+        const nowMs = now.getTime()
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        let todayAttendance = 0;
-        try {
-            const attSnap = await adminDb.collection('attendance')
-                .where('check_in_time', '>=', todayStart.toISOString())
-                .count().get();
-            todayAttendance = attSnap.data().count;
-        } catch (e) {
-            // Unindexed fallback ignore
+        const byMonth = new Map()
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 15))
+            byMonth.set(d.toISOString().slice(0, 7), 0)
         }
-
-        const gymSnap = await adminDb.collection('gyms').where('status', '==', 'Active').count().get();
-        const activeGyms = gymSnap.data().count;
-        const activeMembers = memSnap.data().count;
-
-        const mrr = (activeGyms * 1999) + (activeMembers * 20);
+        txSnap.docs.forEach(d => {
+            const t = d.data()
+            const key = monthKey(t.verified_at || t.created_at, tz)
+            if (key && byMonth.has(key)) byMonth.set(key, byMonth.get(key) + toMoney(t.amount))
+        })
+        const monthly = [...byMonth.entries()].map(([month, revenue]) => ({ month, revenue: Math.round(revenue) }))
 
         return {
-            totalMembers: memSnap.data().count,
-            totalTrainers: trnSnap.data().count,
-            todayAttendance,
-            monthlyRevenue: mrr,
-            arr: mrr * 12
+            totalGyms: gyms.length,
+            activeGyms: gyms.filter(g => status(g) === 'active').length,
+            pendingGyms: gyms.filter(g => status(g) === 'pending').length,
+            trialGyms: subs.filter(s => s.status === 'Trial' && s.trialEndDate && new Date(s.trialEndDate).getTime() > nowMs).length,
+            paidGyms: subs.filter(s => s.status === 'Active' && s.subscriptionExpiryDate && new Date(s.subscriptionExpiryDate).getTime() > nowMs).length,
+            totalMembers: memCount.data().count,
+            totalTrainers: trnCount.data().count,
+            todayAttendance: attCount.data().count,
+            collectedThisMonth: monthly[monthly.length - 1]?.revenue || 0,
+            collectedLast12Months: monthly.reduce((a, m) => a + m.revenue, 0),
+            monthly,
         }
     } catch (e) {
-        return { totalMembers: 0, totalTrainers: 0, todayAttendance: 0, monthlyRevenue: 0, arr: 0 };
+        console.error('super admin analytics failed:', e.message)
+        return zero
     }
 }

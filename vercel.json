@@ -1,1 +1,5 @@
-{"name":"gym-os-main"}
+{
+  "crons": [
+    { "path": "/api/cron/subscriptions", "schedule": "30 1 * * *" }
+  ]
+}
