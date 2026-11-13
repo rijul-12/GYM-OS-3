@@ -40,7 +40,7 @@ export function OffPeakSMSModal({ open, onOpenChange }) {
             if (res.error) {
                 setErrorMsg(res.error)
             } else {
-                toast.success(`SMS dispatched successfully to ${res.deliveredCount} members!`, { id: 'sms' })
+                toast.success(`Twilio accepted ${res.acceptedCount} message${res.acceptedCount === 1 ? '' : 's'}${res.rejectedCount ? ` · ${res.rejectedCount} rejected` : ''}.`, { id: 'sms' })
                 onOpenChange(false)
             }
         } catch (e) {
@@ -72,7 +72,7 @@ export function OffPeakSMSModal({ open, onOpenChange }) {
                                     <AlertTriangle className="h-6 w-6 text-red-500" />
                                 </div>
                                 <div className="text-sm font-medium mb-1">Configuration Error</div>
-                                <div className="text-foreground/50 text-xs px-4">{errorMsg}</div>
+                                <div className="text-foreground/50 text-xs px-4 whitespace-pre-line">{errorMsg}</div>
                             </div>
                         ) : eligibility?.eligibleCount === 0 ? (
                             <div className="py-8 flex flex-col items-center justify-center text-center">
@@ -99,7 +99,7 @@ export function OffPeakSMSModal({ open, onOpenChange }) {
                                         <MessageSquare className="h-4 w-4" /> Message Preview
                                     </div>
                                     <div className="bg-[#1f2937] text-white p-4 rounded-[1.25rem] rounded-tr-sm text-sm leading-relaxed shadow-inner">
-                                        Hi {eligibility.sampleMemberName}, {eligibility.gymName} suggests a quieter workout period right now! The gym floor is currently calm. Check your BGM Portal for live intensity levels.
+                                        Hi {eligibility.sampleMemberName}, {eligibility.gymName} is quiet right now - a great time for your workout. - BGM
                                     </div>
                                     <div className="text-[10px] text-foreground/40 mt-2 text-right">Preview based on standard template</div>
                                 </div>

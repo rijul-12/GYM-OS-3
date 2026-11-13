@@ -1,21 +1,12 @@
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import PaymentsClient from './payments-client'
+import { getMemberTransactions } from '@/actions/db/member_payments'
+import { requireRole, getGymContext } from '@/lib/server/session'
+import { razorpayConfigStatus } from '@/lib/server/payments'
 
-export const metadata = {
-    title: 'Payment Verification',
-}
+export const metadata = { title: 'Payments' }
 
 export default async function PaymentsPage() {
-    const sessionStr = (await cookies()).get('gymos_session')?.value
-    if (!sessionStr) redirect('/login')
-
-    let user;
-    try { user = JSON.parse(sessionStr) } catch { redirect('/login') }
-
-    if (user.role !== 'owner' && user.role !== 'superadmin') {
-        redirect('/portal')
-    }
-
-    return <PaymentsClient user={user} />
+  const session = await requireRole('owner')
+  const [transactions, ctx] = await Promise.all([getMemberTransactions(), getGymContext(session.gymId)])
+  return <PaymentsClient transactions={transactions} symbol={String(ctx.settings.currency || '₹ INR').split(' ')[0]} options={{ upi: !!ctx.settings.upi_enabled, razorpay: !!ctx.settings.razorpay_enabled, razorpayConfigured: razorpayConfigStatus().configured }} />
 }

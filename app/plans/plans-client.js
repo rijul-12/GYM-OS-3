@@ -1,235 +1,82 @@
 'use client'
-import Image from 'next/image'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Users, TrendingUp, RefreshCw, Plus, X, Trash2 } from 'lucide-react'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { Plus } from 'lucide-react'
 import { DashShell } from '@/components/dash-shell'
-import { useBrand } from '@/components/brand-provider'
 import { Button } from '@/components/ui/button'
+import { Modal, Field, inputClass, Empty, formatMoney } from '@/components/ui-kit'
+import { useBrand } from '@/components/brand-provider'
+import { useAuth } from '@/lib/auth'
 import { createPlan, updatePlan, deletePlan } from '@/actions/db/plans'
 
-export default function PlansClient({ initialPlans, members }) {
-    const { brand } = useBrand()
-    const router = useRouter()
-    const [showAdd, setShowAdd] = useState(false)
-    const [editingPlan, setEditingPlan] = useState(null)
-    const [isPending, startTransition] = useTransition()
-    const [newPlan, setNewPlan] = useState({ name: '', price: '', features: '', color: brand.primaryColor, popular: false })
+const CYCLES = ['Monthly', 'Quarterly', 'Half-Yearly', 'Yearly']
 
-    const handleExportCSV = () => {
-        const headers = ['Member Name', 'Membership Plan', 'Expiry Date', 'Status']
-        const csvContent = [
-            headers.join(','),
-            ...enhancedMembers.map(m => `"${m.name || 'Unknown'}","${m.plan}","${m.expiry}","${m.status}"`)
-        ].join('\n')
+export default function PlansClient({ initialPlans }) {
+  const router = useRouter()
+  const { brand } = useBrand()
+  const { user } = useAuth()
+  const [pending, start] = useTransition()
+  const [dialog, setDialog] = useState(null)
+  const plans = initialPlans || []
+  const readOnly = !!user?.readOnly
+  const symbol = String(brand.currency || '₹').split(' ')[0]
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const link = document.createElement('a')
-        const url = URL.createObjectURL(blob)
-        link.setAttribute('href', url)
-        link.setAttribute('download', `Upcoming_Renewals_${new Date().toISOString().split('T')[0]}.csv`)
-        link.style.visibility = 'hidden'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-    }
+  const run = (fn, ok) => start(async () => {
+    try {
+      const res = await fn()
+      if (!res || res.error) { toast.error(res?.error || 'The action failed.'); return }
+      toast.success(ok); setDialog(null); router.refresh()
+    } catch { toast.error('Network error. Please try again.') }
+  })
 
-    const handleEditClick = (p) => {
-        setEditingPlan(p.id)
-        setNewPlan({
-            name: p.name,
-            price: p.price,
-            features: (p.features || []).join(', '),
-            color: p.color || brand.primaryColor,
-            popular: p.popular || false
-        })
-        setShowAdd(true)
-    }
-
-    const handleDeletePlan = async (id) => {
-        if (!confirm('Are you sure you want to permanently delete this plan? This will orphan existing members.')) return;
-        startTransition(async () => {
-            await deletePlan(id)
-        })
-    }
-
-    // Strictly map native Firebase payloads with no synthetic data per Phase 15 requirements
-    const enhancedPlans = initialPlans;
-
-    const enhancedMembers = members.map(m => ({
-        ...m,
-        photo: m.photo_url || `https://i.pravatar.cc/150?u=${m.id}`,
-        plan: m.membership_type || 'Basic Pass',
-        expiry: m.expiry_date || 'N/A',
-        status: m.is_active ? 'Active' : 'Expired'
-    }))
-
-    const totalMembers = enhancedPlans.reduce((s, p) => s + p.members, 0)
-    const totalRevenue = enhancedPlans.reduce((s, p) => s + p.members * p.price, 0)
-    const renewals = enhancedMembers.filter(m => m.status === 'Expiring' || m.status === 'Active')
-
-    return (
-        <DashShell
-            title="Membership Plans"
-            subtitle="Configure pricing and track renewals"
-            actions={
-                <Button onClick={() => { setEditingPlan(null); setNewPlan({ name: '', price: '', features: '', color: brand.primaryColor, popular: false }); setShowAdd(true) }} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
-                    <Plus className="h-4 w-4 mr-2" /> New Plan
-                </Button>
-            }
-        >
-            <div className="grid md:grid-cols-3 gap-3 mb-6">
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5">
-                    <div className="text-xs text-foreground/50">Total subscribed members</div>
-                    <div className="font-display text-3xl font-bold mt-1">{totalMembers.toLocaleString()}</div>
+  return (
+    <DashShell title="Membership Plans" subtitle="The plans you sell to members"
+      actions={!readOnly && <Button onClick={() => setDialog({ type: 'form' })} style={{ background: brand.primaryColor }} className="text-white border-0 h-10"><Plus className="h-4 w-4 mr-2" />New plan</Button>}>
+      {plans.length === 0 ? <Empty title="No plans yet" hint="Create your first membership plan — its price and duration are used when you add or renew members." /> : (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {plans.map(p => (
+            <div key={p.id} className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-5 flex flex-col" style={p.popular ? { borderColor: `${p.color}80` } : undefined}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0"><div className="font-display font-semibold text-lg truncate">{p.name}</div><div className="text-xs text-foreground/50">{p.cycle}</div></div>
+                {p.popular && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${p.color}25`, color: p.color }}>Popular</span>}
+              </div>
+              <div className="mt-3 font-display text-3xl font-bold">{formatMoney(p.price, symbol)}</div>
+              <div className="text-xs text-foreground/50 mt-1">{p.members} member{p.members === 1 ? '' : 's'} on this plan</div>
+              {p.features.length > 0 && <ul className="mt-3 space-y-1 text-sm text-foreground/70 flex-1">{p.features.map(f => <li key={f}>• {f}</li>)}</ul>}
+              {!readOnly && (
+                <div className="mt-4 flex gap-2">
+                  <Button variant="outline" className="h-9 text-xs flex-1" onClick={() => setDialog({ type: 'form', plan: p })}>Edit</Button>
+                  <Button variant="outline" className="h-9 text-xs text-red-400" disabled={pending} onClick={() => setDialog({ type: 'delete', plan: p })}>Delete</Button>
                 </div>
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5">
-                    <div className="text-xs text-foreground/50">Monthly recurring revenue</div>
-                    <div className="font-display text-3xl font-bold mt-1">{brand.currency?.charAt(0) || '$'}{totalRevenue.toLocaleString()}</div>
-                </div>
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5">
-                    <div className="text-xs text-foreground/50">Renewals this week</div>
-                    <div className="font-display text-3xl font-bold mt-1">{renewals.length}</div>
-                </div>
+              )}
             </div>
+          ))}
+        </div>
+      )}
+      {dialog?.type === 'form' && <PlanForm plan={dialog.plan} pending={pending} onClose={() => setDialog(null)} onSave={(f) => run(() => dialog.plan ? updatePlan(dialog.plan.id, f) : createPlan(f), dialog.plan ? 'Plan updated' : 'Plan created')} />}
+      {dialog?.type === 'delete' && (
+        <Modal open onClose={() => setDialog(null)} title={`Delete ${dialog.plan.name}?`} footer={<><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button disabled={pending} className="bg-red-500 hover:bg-red-600 text-white border-0" onClick={() => run(() => deletePlan(dialog.plan.id), 'Plan deleted')}>Delete plan</Button></>}>
+          <p className="text-sm text-foreground/70">A plan can only be deleted when no member is on it.</p>
+        </Modal>
+      )}
+    </DashShell>
+  )
+}
 
-            {enhancedPlans.length === 0 ? (
-                <div className="col-span-3 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-12 text-center mb-8">
-                    <div className="text-foreground/40 text-sm mb-4">No active membership plans found in the database.</div>
-                    <Button onClick={() => { setEditingPlan(null); setNewPlan({ name: '', price: '', features: '', color: brand.primaryColor, popular: false }); setShowAdd(true) }} style={{ background: brand.primaryColor }} className="text-foreground border-0 h-10">
-                        <Plus className="h-4 w-4 mr-2" /> Create First Plan
-                    </Button>
-                </div>
-            ) : (
-                <div className="grid md:grid-cols-3 gap-4 mb-8">
-                    {enhancedPlans.map((p, i) => (
-                        <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className={`relative rounded-2xl border p-7 ${p.popular ? 'border-foreground/20 bg-gradient-to-b from-white/[0.06] to-transparent' : 'border-foreground/5 bg-foreground/[0.02]'}`}>
-                            {p.popular && <div className="absolute -top-3 left-6 px-3 py-1 text-xs font-medium rounded-full text-foreground" style={{ background: brand.primaryColor }}>Most popular</div>}
-                            <div className="flex items-center gap-2">
-                                <div className="h-3 w-3 rounded-full" style={{ background: p.color || brand.primaryColor }} />
-                                <div className="font-display text-2xl font-bold">{p.name}</div>
-                            </div>
-                            <div className="flex items-baseline gap-1 mt-3">
-                                <span className="font-display text-4xl font-bold">{brand.currency?.charAt(0) || '$'}{p.price}</span>
-                                <span className="text-foreground/40 text-sm">/mo</span>
-                            </div>
-                            <div className="flex items-center gap-4 mt-3 text-xs text-foreground/50">
-                                <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {p.members || 0} members</span>
-                                <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> {brand.currency?.charAt(0) || '$'}{((p.members || 0) * p.price).toLocaleString()}/mo</span>
-                            </div>
-                            <ul className="space-y-2 mt-6">
-                                {(p.features || []).map((f, j) => (
-                                    <li key={j} className="flex items-start gap-2 text-sm text-foreground/70">
-                                        <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: p.color || brand.primaryColor }} /> {f}
-                                    </li>
-                                ))}
-                            </ul>
-                            <div className="flex items-center gap-2 mt-6">
-                                <Button onClick={() => handleEditClick(p)} className={`w-full ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground border-0 hover:bg-foreground/[0.12]'}`} style={p.popular ? { background: brand.primaryColor } : {}}>Edit plan</Button>
-                                <Button variant="outline" onClick={() => handleDeletePlan(p.id)} className="px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/20"><Trash2 className="h-4 w-4" /></Button>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
-            )}
-
-            <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
-                <div className="flex items-center justify-between mb-5">
-                    <div>
-                        <div className="flex items-center gap-2"><RefreshCw className="h-4 w-4 text-foreground/50" /><div className="text-sm font-medium">Upcoming renewals</div></div>
-                        <div className="text-xs text-foreground/40">Members expiring soon</div>
-                    </div>
-                    <Button onClick={handleExportCSV} variant="outline" className="bg-foreground/[0.03] border-foreground/10 text-xs h-9">Export CSV</Button>
-                </div>
-
-                {enhancedMembers.length === 0 ? (
-                    <div className="p-8 text-center border-t border-foreground/5">
-                        <p className="text-foreground/40 text-sm">No active members found on the server.</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto -mx-2">
-                        <table className="w-full text-sm min-w-[600px]">
-                            <thead className="text-xs font-semibold text-foreground/50 bg-background sticky top-0 shadow-sm border-b border-foreground/10">
-                                <tr>
-                                    <th className="text-left px-2 py-3 font-medium">Member</th>
-                                    <th className="text-left px-2 py-3 font-medium">Plan</th>
-                                    <th className="text-left px-2 py-3 font-medium">Expiry</th>
-                                    <th className="text-left px-2 py-3 font-medium">Status</th>
-                                    <th className="text-right px-2 py-3 font-medium">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {enhancedMembers.slice(0, 6).map((m) => (
-                                    <tr key={m.id} className="border-t border-foreground/5">
-                                        <td className="px-2 py-3"><div className="flex items-center gap-3"><Image src={m.photo} className="h-8 w-8 rounded-full object-cover" alt="" width={120} height={120} /><span>{m.name || 'Unknown'}</span></div></td>
-                                        <td className="px-2 py-3 text-foreground/60">{m.plan}</td>
-                                        <td className="px-2 py-3 text-foreground/60">{m.expiry}</td>
-                                        <td className="px-2 py-3"><span className={`text-[10px] px-2 py-0.5 rounded-full ${m.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-foreground/50'}`}>{m.status}</span></td>
-                                        <td className="px-2 py-3 text-right"><button onClick={() => router.push('/members')} className="text-xs px-3 py-1.5 rounded-md" style={{ background: brand.primaryColor, color: 'white' }}>Manage</button></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            <AnimatePresence>
-                {showAdd && (
-                    <>
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAdd(false)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
-                        <motion.div initial={{ y: 400, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 400, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-full bg-card border border-foreground/10 rounded-2xl p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="text-lg font-bold">{editingPlan ? 'Edit Plan' : 'Create New Plan'}</div>
-                                <button onClick={() => setShowAdd(false)}><X className="h-5 w-5 text-foreground/50 hover:text-foreground" /></button>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Plan Name</label>
-                                    <input value={newPlan.name} onChange={(e) => setNewPlan({ ...newPlan, name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="e.g. VIP Pass" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs text-foreground/50 uppercase tracking-wider">Monthly Price ({brand.currency?.charAt(0) || '$'})</label>
-                                        <input type="number" value={newPlan.price} onChange={(e) => setNewPlan({ ...newPlan, price: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" placeholder="49.99" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-foreground/50 uppercase tracking-wider">Hex Color</label>
-                                        <input type="text" value={newPlan.color} onChange={(e) => setNewPlan({ ...newPlan, color: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-foreground/50 uppercase tracking-wider">Plan Features (Comma separated)</label>
-                                    <textarea value={newPlan.features} onChange={(e) => setNewPlan({ ...newPlan, features: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium mt-1 text-sm resize-none" placeholder="24/7 Access, Pool, Locker" rows={3} />
-                                </div>
-                                <label className="flex items-center gap-2 text-sm text-foreground/70">
-                                    <input type="checkbox" checked={newPlan.popular} onChange={(e) => setNewPlan({ ...newPlan, popular: e.target.checked })} /> Mark as Most Popular
-                                </label>
-                                <Button
-                                    disabled={isPending || !newPlan.name || !newPlan.price}
-                                    style={{ background: brand.primaryColor }}
-                                    className="w-full text-foreground border-0 h-11 mt-2 font-medium"
-                                    onClick={() => {
-                                        startTransition(async () => {
-                                            if (editingPlan) {
-                                                await updatePlan(editingPlan, newPlan);
-                                            } else {
-                                                await createPlan(newPlan);
-                                            }
-                                            setShowAdd(false);
-                                            setEditingPlan(null);
-                                            setNewPlan({ name: '', price: '', features: '', color: brand.primaryColor, popular: false });
-                                        })
-                                    }}
-                                >
-                                    {isPending ? 'Syncing to Registry...' : (editingPlan ? 'Save Changes' : 'Save Plan Package')}
-                                </Button>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-        </DashShell>
-    )
+function PlanForm({ plan, pending, onClose, onSave }) {
+  const [f, setF] = useState({ name: plan?.name || '', price: plan?.price ?? '', cycle: plan?.cycle || 'Monthly', features: (plan?.features || []).join(', '), color: plan?.color || '#ef4444', popular: !!plan?.popular })
+  const set = (p) => setF(x => ({ ...x, ...p }))
+  return (
+    <Modal open onClose={onClose} title={plan ? 'Edit plan' : 'New plan'} footer={<><Button variant="outline" onClick={onClose}>Cancel</Button><Button disabled={pending} onClick={() => onSave(f)}>{pending ? 'Saving…' : 'Save plan'}</Button></>}>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Plan name *"><input className={inputClass} value={f.name} onChange={e => set({ name: e.target.value })} /></Field>
+        <Field label="Price *"><input className={inputClass} type="number" inputMode="decimal" min="0" value={f.price} onChange={e => set({ price: e.target.value })} /></Field>
+        <Field label="Duration"><select className={inputClass} value={f.cycle} onChange={e => set({ cycle: e.target.value })}>{CYCLES.map(c => <option key={c}>{c}</option>)}</select></Field>
+        <Field label="Colour"><input className={`${inputClass} p-1`} type="color" value={f.color} onChange={e => set({ color: e.target.value })} /></Field>
+        <div className="sm:col-span-2"><Field label="Features" hint="Separate with commas."><input className={inputClass} value={f.features} onChange={e => set({ features: e.target.value })} /></Field></div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-red-500" checked={f.popular} onChange={e => set({ popular: e.target.checked })} /> Mark as popular</label>
+      </div>
+    </Modal>
+  )
 }

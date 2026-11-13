@@ -1,190 +1,73 @@
 'use client'
-import Image from 'next/image'
-import { motion } from 'framer-motion'
-import { TrendingUp, Users, Clock, Award, Flame, Download } from 'lucide-react'
+import { BarChart, Bar, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { DashShell } from '@/components/dash-shell'
-import { Button } from '@/components/ui/button'
 import { useBrand } from '@/components/brand-provider'
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, ComposedChart } from 'recharts'
+import { Card, Stat, formatMoney } from '@/components/ui-kit'
 
-import { FeatureGate } from '@/components/feature-gate'
-import { toast } from 'sonner'
+const tip = { background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }
+const monthLabel = (m) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' })
+const NoData = ({ children = 'Not enough data yet.' }) => <div className="text-sm text-foreground/40 py-10 text-center">{children}</div>
 
-export default function AnalyticsClient({ stats, subscription = {} }) {
-    const { brand } = useBrand()
-    const { ATTENDANCE_DAILY, ATTENDANCE_WEEKLY, ATTENDANCE_MONTHLY, GROWTH, MEMBERS } = stats;
+export default function AnalyticsClient({ stats }) {
+  const { brand } = useBrand()
+  const m = stats.members || {}
+  const a = stats.attendance || {}
+  const r = stats.revenue || {}
+  const sym = stats.currencySymbol || '₹'
+  const c = brand.primaryColor
+  const hasAttendance = (a.totalCheckins || 0) > 0
+  const hasRevenue = (r.monthly || []).some(x => x.amount > 0)
 
-    const enhancedMembers = MEMBERS.map(m => ({
-        ...m,
-        photo: m.photo_url || `https://i.pravatar.cc/150?u=${m.id}`,
-        plan: m.membership_type || 'Basic Pass',
-        attendance: m.attendance || Math.floor(Math.random() * 100)
-    }))
+  return (
+    <DashShell title="Analytics" subtitle={`Calculated from your records${stats.timezone ? ` · ${stats.timezone}` : ''}`}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Total members" value={m.total ?? 0} />
+        <Stat label="Active" value={m.Active ?? 0} />
+        <Stat label="Expired" value={m.Expired ?? 0} tone={m.Expired ? '#f59e0b' : undefined} />
+        <Stat label="Pending approval" value={m.Pending ?? 0} />
+        <Stat label="Revenue this month" value={formatMoney(r.thisMonth, sym)} hint="Confirmed payments" />
+        <Stat label="Outstanding dues" value={formatMoney(m.outstandingTotal, sym)} hint={`${m.membersWithDues ?? 0} member${m.membersWithDues === 1 ? '' : 's'}`} />
+        <Stat label="Check-ins (30 days)" value={a.totalCheckins ?? 0} hint={`${a.avgDailyCheckins ?? 0} per day on average`} />
+        <Stat label="Avg. session" value={a.avgSessionMinutes ? `${a.avgSessionMinutes} min` : '—'} hint={a.avgSessionMinutes ? `From ${a.sessionsWithDuration} completed sessions` : 'Needs completed sessions'} />
+      </div>
 
-    const top = [...enhancedMembers].sort((a, b) => b.attendance - a.attendance).slice(0, 5)
+      <div className="grid lg:grid-cols-2 gap-4 mt-5">
+        <Card title="Daily attendance" subtitle="Last 30 days · unique members per day">
+          {hasAttendance ? <div className="h-60"><ResponsiveContainer><BarChart data={a.daily}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" /><XAxis dataKey="date" tickFormatter={d => d.slice(8)} stroke="#88888880" fontSize={10} interval={3} /><YAxis stroke="#88888880" fontSize={11} allowDecimals={false} width={28} /><Tooltip contentStyle={tip} /><Bar dataKey="unique" name="Unique members" fill={c} radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div> : <NoData>No check-ins in the last 30 days.</NoData>}
+        </Card>
+        <Card title="Busiest hours" subtitle={a.peakHour !== null && a.peakHour !== undefined ? `Peak: ${a.hourly.find(h => h.hour === a.peakHour)?.label}` : 'Check-ins by hour, last 30 days'}>
+          {hasAttendance ? <div className="h-60"><ResponsiveContainer><BarChart data={a.hourly}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" /><XAxis dataKey="label" stroke="#88888880" fontSize={10} interval={2} /><YAxis stroke="#88888880" fontSize={11} allowDecimals={false} width={28} /><Tooltip contentStyle={tip} /><Bar dataKey="count" name="Check-ins" fill={c} radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div> : <NoData />}
+        </Card>
+        <Card title="Membership trend" subtitle="Members over the last 6 months">
+          {(m.total || 0) > 0 ? <div className="h-60"><ResponsiveContainer><LineChart data={m.growth}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" /><XAxis dataKey="month" tickFormatter={monthLabel} stroke="#88888880" fontSize={11} /><YAxis stroke="#88888880" fontSize={11} allowDecimals={false} width={32} /><Tooltip contentStyle={tip} labelFormatter={monthLabel} /><Line type="monotone" dataKey="total" name="Total members" stroke={c} strokeWidth={2} dot /><Line type="monotone" dataKey="joined" name="Joined that month" stroke="#a3a3a3" strokeWidth={2} dot /></LineChart></ResponsiveContainer></div> : <NoData>Add members to see the trend.</NoData>}
+        </Card>
+        <Card title="Revenue" subtitle="Confirmed member payments per month">
+          {hasRevenue ? <div className="h-60"><ResponsiveContainer><BarChart data={r.monthly}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" /><XAxis dataKey="month" tickFormatter={monthLabel} stroke="#88888880" fontSize={11} /><YAxis stroke="#88888880" fontSize={11} width={48} /><Tooltip contentStyle={tip} labelFormatter={monthLabel} formatter={(v) => formatMoney(v, sym)} /><Bar dataKey="amount" name="Revenue" fill={c} radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div> : <NoData>No confirmed payments yet.</NoData>}
+          {r.pendingVerification > 0 && <div className="text-xs text-amber-400 mt-2">{formatMoney(r.pendingVerification, sym)} in UPI payments is waiting for your verification and is not counted.</div>}
+        </Card>
+      </div>
 
-    const handleExport = () => {
-        if (!MEMBERS || MEMBERS.length === 0) return toast.info('No data available to export.');
+      <div className="grid lg:grid-cols-3 gap-4 mt-5">
+        <Card title="Workout demand" subtitle="Sessions per muscle group, last 30 days">
+          {(stats.demand || []).some(d => d.sessions > 0) ? <ul className="space-y-2.5">{stats.demand.map(d => { const max = Math.max(...stats.demand.map(x => x.sessions), 1); return (<li key={d.name}><div className="flex justify-between text-sm"><span>{d.name}</span><span className="tabular-nums text-foreground/60">{d.sessions}</span></div><div className="h-1.5 rounded-full bg-foreground/10 mt-1 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(d.sessions / max) * 100}%`, background: d.color }} /></div></li>) })}</ul> : <NoData />}
+        </Card>
+        <Card title="Most frequent members" subtitle="Visits in the last 30 days">
+          {(a.topMembers || []).length ? <ol className="space-y-2">{a.topMembers.map((t, i) => <li key={t.id} className="flex justify-between text-sm"><span className="truncate">{i + 1}. {t.name}</span><span className="tabular-nums text-foreground/60 shrink-0">{t.visits}</span></li>)}</ol> : <NoData />}
+          {a.activeMembers > 0 && <div className="text-xs text-foreground/50 mt-3">{a.activeMembersVisited} of {a.activeMembers} active members visited in the last 30 days.</div>}
+        </Card>
+        <Card title="Trainer activity" subtitle="Assigned members and their visits (30 days)">
+          {(stats.trainers || []).length ? <ul className="space-y-2.5">{stats.trainers.map(t => <li key={t.id} className="text-sm"><div className="flex justify-between"><span className="truncate">{t.name}</span><span className="text-foreground/60 shrink-0">{t.assignedMembers} member{t.assignedMembers === 1 ? '' : 's'}</span></div><div className="text-[11px] text-foreground/40">{t.activeMembers} active · {t.memberVisits30d} visits</div></li>)}</ul> : <NoData>No trainers yet.</NoData>}
+        </Card>
+      </div>
 
-        const headers = ['Name', 'Email', 'Plan', 'Status', 'Attendance Score'];
-        const rows = [headers.join(',')];
-
-        enhancedMembers.forEach(m => {
-            rows.push([
-                `"${m.name || 'Unknown'}"`,
-                `"${m.email || 'N/A'}"`,
-                `"${m.plan || 'N/A'}"`,
-                `"${m.status || 'Active'}"`,
-                `${m.attendance}`
-            ].join(','));
-        });
-
-        const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `gymos_members_report_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    return (
-        <DashShell title="Analytics" subtitle="Understand your gym at a glance">
-            <FeatureGate required="advanced_analytics" currentPlan={subscription.plan} currentPhase={subscription.currentPhase}>
-
-                {/* Embedded Report Generator */}
-                <div className="flex flex-col sm:flex-row items-center justify-between bg-black/40 border border-foreground/5 p-4 rounded-xl mb-5">
-                    <div>
-                        <div className="font-semibold text-sm">Member Analytics Export</div>
-                        <div className="text-xs text-foreground/50 mt-1">Generate a full CSV spreadsheet of all members, plans, and attendance scores.</div>
-                    </div>
-                    <Button onClick={handleExport} className="mt-3 sm:mt-0 h-10 px-6 text-foreground border-0 hover:opacity-90 shadow-lg" style={{ background: brand.primaryColor }}>
-                        <Download className="h-4 w-4 mr-2" /> Download Full Report
-                    </Button>
-                </div>
-
-                <div className="grid md:grid-cols-4 gap-3">
-                    {[
-                        { label: 'Peak Hour', value: MEMBERS.length > 0 ? '6-7PM' : 'N/A', sub: MEMBERS.length > 0 ? '94 check-ins' : '0 check-ins', icon: Clock },
-                        { label: 'Busiest Day', value: MEMBERS.length > 0 ? 'Wednesday' : 'N/A', sub: `${MEMBERS.length} members`, icon: Flame },
-                        { label: 'Popular Split', value: MEMBERS.length > 0 ? 'Push Day' : 'N/A', sub: MEMBERS.length > 0 ? '32% of members' : '0%', icon: Award },
-                        { label: 'Growth Rate', value: MEMBERS.length > 0 ? '+12.4%' : '0%', sub: 'MoM new signups', icon: TrendingUp },
-                    ].map((s, i) => {
-                        const Icon = s.icon
-                        return (
-                            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5 card-hover">
-                                <Icon className="h-5 w-5" style={{ color: brand.primaryColor }} />
-                                <div className="text-xs text-foreground/50 mt-3">{s.label}</div>
-                                <div className="font-display text-2xl font-bold mt-1">{s.value}</div>
-                                <div className="text-xs text-foreground/40 mt-1">{s.sub}</div>
-                            </motion.div>
-                        )
-                    })}
-                </div>
-
-                <div className="grid lg:grid-cols-2 gap-4 mt-5">
-                    <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
-                        <div className="text-sm font-medium mb-1">Daily attendance</div>
-                        <div className="text-xs text-foreground/40 mb-4">Check-ins by hour today</div>
-                        <div className="h-64">
-                            <ResponsiveContainer>
-                                <AreaChart data={ATTENDANCE_DAILY}>
-                                    <defs>
-                                        <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={brand.primaryColor} stopOpacity={0.6} /><stop offset="100%" stopColor={brand.primaryColor} stopOpacity={0} /></linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                    <XAxis dataKey="hour" stroke="#ffffff40" fontSize={11} />
-                                    <YAxis stroke="#ffffff40" fontSize={11} />
-                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                    <Area type="monotone" dataKey="v" stroke={brand.primaryColor} fill="url(#gA)" strokeWidth={2.5} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
-                        <div className="text-sm font-medium mb-1">Weekly attendance</div>
-                        <div className="text-xs text-foreground/40 mb-4">Ins & outs by day</div>
-                        <div className="h-64">
-                            <ResponsiveContainer>
-                                <BarChart data={ATTENDANCE_WEEKLY}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                    <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} />
-                                    <YAxis stroke="#ffffff40" fontSize={11} />
-                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                    <Bar dataKey="in" fill={brand.primaryColor} radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="out" fill="#525252" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 mt-5">
-                    <div className="text-sm font-medium mb-1">Monthly attendance</div>
-                    <div className="text-xs text-foreground/40 mb-4">Last 30 days</div>
-                    <div className="h-64">
-                        <ResponsiveContainer>
-                            <AreaChart data={ATTENDANCE_MONTHLY}>
-                                <defs>
-                                    <linearGradient id="gM" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={brand.primaryColor} stopOpacity={0.4} /><stop offset="100%" stopColor={brand.primaryColor} stopOpacity={0} /></linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} />
-                                <YAxis stroke="#ffffff40" fontSize={11} />
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                <Area type="monotone" dataKey="count" stroke={brand.primaryColor} fill="url(#gM)" strokeWidth={2} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                <div className="grid lg:grid-cols-3 gap-4 mt-5">
-                    <div className="lg:col-span-2 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
-                        <div className="text-sm font-medium mb-1">Growth</div>
-                        <div className="text-xs text-foreground/40 mb-4">Members vs revenue</div>
-                        <div className="h-64">
-                            <ResponsiveContainer>
-                                <ComposedChart data={GROWTH}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                    <XAxis dataKey="month" stroke="#ffffff40" fontSize={11} />
-                                    <YAxis yAxisId="l" stroke="#ffffff40" fontSize={11} />
-                                    <YAxis yAxisId="r" orientation="right" stroke="#ffffff40" fontSize={11} />
-                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                    <Bar yAxisId="l" dataKey="members" fill="#525252" radius={[4, 4, 0, 0]} />
-                                    <Line yAxisId="r" type="monotone" dataKey="revenue" stroke={brand.primaryColor} strokeWidth={3} dot={{ fill: brand.primaryColor, r: 4 }} />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6">
-                        <div className="flex items-center gap-2 mb-1"><Award className="h-4 w-4 text-foreground/50" /><div className="text-sm font-medium">Most active members</div></div>
-                        <div className="text-xs text-foreground/40 mb-4">Top 5 by attendance</div>
-
-                        {MEMBERS.length === 0 ? (
-                            <div className="h-32 flex items-center justify-center text-xs text-foreground/30 border border-foreground/5 rounded-xl bg-foreground/[0.01]">
-                                No members found.
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {top.map((m, i) => (
-                                    <div key={m.id} className="flex items-center gap-3">
-                                        <div className="font-display text-lg font-bold w-6 text-foreground/40">{i + 1}</div>
-                                        <Image src={m.photo} className="h-10 w-10 rounded-full object-cover" alt="" width={120} height={120} />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm truncate">{m.name}</div>
-                                            <div className="text-xs text-foreground/40">{m.plan}</div>
-                                        </div>
-                                        <div className="text-sm font-bold" style={{ color: brand.primaryColor }}>{m.attendance}%</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </FeatureGate>
-        </DashShell>
-    )
+      <div className="grid lg:grid-cols-2 gap-4 mt-5">
+        <Card title="Active members by plan">
+          {(stats.plans || []).length ? <ul className="space-y-2">{stats.plans.map(p => <li key={p.name} className="flex justify-between text-sm"><span className="truncate">{p.name}</span><span className="tabular-nums text-foreground/60">{p.count}</span></li>)}</ul> : <NoData />}
+        </Card>
+        <Card title="This month by payment method">
+          {(r.byMethod || []).length ? <ul className="space-y-2">{r.byMethod.map(p => <li key={p.method} className="flex justify-between text-sm"><span>{p.method}</span><span className="tabular-nums text-foreground/60">{formatMoney(p.amount, sym)}</span></li>)}</ul> : <NoData>No payments this month.</NoData>}
+        </Card>
+      </div>
+    </DashShell>
+  )
 }

@@ -7,16 +7,18 @@ const nextConfig = {
     TZ: 'Asia/Kolkata', // Force Vercel & Node instances to adhere to standard IST 
   },
   output: 'standalone',
+  experimental: {
+    // Profile photos (compressed in the browser) and member import batches are sent through Server Actions.
+    serverActions: { bodySizeLimit: '4mb' },
+  },
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
       { protocol: 'https', hostname: 'images.pexels.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'i.pravatar.cc', pathname: '/**' },
-      { protocol: 'https', hostname: 'avatars.githubusercontent.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com', pathname: '/**' },
     ],
   },
   // Renamed from experimental.serverComponentsExternalPackages in Next 15
-  serverExternalPackages: ['mongodb', '@google-cloud/firestore', '@grpc/grpc-js', '@grpc/proto-loader'],
+  serverExternalPackages: ['@google-cloud/firestore', '@grpc/grpc-js', '@grpc/proto-loader'],
   transpilePackages: ['firebase-admin', '@firebase/auth', 'firebase', 'jwks-rsa', 'jose', 'jsonwebtoken'],
   webpack(config, { dev }) {
     if (dev) {
@@ -34,15 +36,18 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
   async headers() {
+    // The app is never meant to be embedded by other sites, and its Server
+    // Actions / API routes are same-origin only, so no permissive CORS.
     return [
       {
         source: "/(.*)",
         headers: [
-          { key: "X-Frame-Options", value: "ALLOWALL" },
-          { key: "Content-Security-Policy", value: "frame-ancestors *;" },
-          { key: "Access-Control-Allow-Origin", value: process.env.CORS_ORIGINS || "*" },
-          { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, DELETE, OPTIONS" },
-          { key: "Access-Control-Allow-Headers", value: "*" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self';" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
         ],
       },
     ];

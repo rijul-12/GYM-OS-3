@@ -1,321 +1,120 @@
 'use client'
-import { useState, useTransition, useEffect } from 'react'
-import { toast } from 'sonner'
-import { blastOffPeakSMS } from '@/actions/sms'
-import Image from 'next/image'
-import { motion } from 'framer-motion'
-import { Users, LogIn, TrendingUp, DollarSign, Clock, AlertCircle, ArrowUpRight, ArrowDownRight, UserPlus, CalendarPlus, FileText, Zap, Brain, Sparkles, ChevronRight, MapPin } from 'lucide-react'
+import { useState } from 'react'
 import Link from 'next/link'
+import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { MessageSquare, UserPlus, Database, QrCode } from 'lucide-react'
 import { DashShell } from '@/components/dash-shell'
 import { useBrand } from '@/components/brand-provider'
-import { ZoneDemandGrid } from '@/components/zone-demand'
-import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
-import { Button } from '@/components/ui/button'
-import { StatCard } from '@/components/ui/stat-card'
-import { useAuth } from '@/lib/auth'
-import { NotificationDropdown } from '@/components/notifications-dropdown'
+import { ZoneDemandGrid, OccupancyCard } from '@/components/zone-demand'
+import { Card, Stat, formatTime, formatMoney } from '@/components/ui-kit'
+import { UserAvatar } from '@/components/user-avatar'
 import { OffPeakSMSModal } from '@/components/off-peak-sms-modal'
 import { RecentActivityTimeline } from '@/components/recent-activity'
-import { OperationsInsights } from '@/components/operations-insights'
+import { useLiveRefresh } from '@/components/use-live-refresh'
+import { Button } from '@/components/ui/button'
 
-import { useRouter } from 'next/navigation'
+const tooltipStyle = { background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }
 
-const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
+export default function DashboardClient({ stats }) {
+  const { brand } = useBrand()
+  const [showSMS, setShowSMS] = useState(false)
+  useLiveRefresh(20000)
 
-export default function DashboardClient({ stats, latestAttendance }) {
-    const { brand } = useBrand()
-    const { user } = useAuth()
-    const router = useRouter()
-    const [isPending, startTransition] = useTransition()
-    const [showSMS, setShowSMS] = useState(false)
+  const sub = stats.subscription
+  const symbol = stats.currencySymbol || '₹'
+  const live = stats.live || []
+  const weekly = stats.weeklyLine || []
+  const hasWeekly = weekly.some(d => d.checkins > 0)
+  const hasToday = (stats.dailyLine || []).some(d => d.v > 0)
 
-    // Enforce implicit Live Status by quietly validating Server Component data routinely
-    useEffect(() => {
-        const interval = setInterval(() => {
-            router.refresh()
-        }, 15000)
-        return () => clearInterval(interval)
-    }, [router])
-
-    const topInsight = stats.insights?.[0] || { tone: 'info', category: 'General', title: 'System Running', detail: 'Operations nominal', confidence: 100, action: 'View' }
-
-    // The system now expects `stats.weeklyLine` from Firebase. Fallbacks stripped.
-    const weeklyData = stats?.weeklyLine || [];
-
-    const inside = (latestAttendance || []).map(a => {
-        let w = 'General Fitness';
-        if (a.actual_workout && Array.isArray(a.actual_workout)) {
-            w = a.actual_workout.length > 0 ? a.actual_workout.join(', ') : 'Rest';
-        } else if (a.actual_workout) {
-            w = a.actual_workout;
-        } else if (a.workout) {
-            w = a.workout;
-        }
-        return {
-            id: a.id,
-            name: a.members?.name || 'Unknown Member',
-            photo: a.members?.photo_url || `https://i.pravatar.cc/150?u=${a.member_id}`,
-            stage: a.stage || 'Floor',
-            progress: a.progress || 50,
-            workout: w,
-            eta: a.eta || '45m'
-        }
-    })
-
-    const sub = stats.subscription || { plan: 'Starter', currentPhase: 'Active', daysRemaining: 0, activeMembers: 0, memberLimit: 75, usageProgressBar: 0, storageUsed: '0 GB' }
-    const usageColor = sub.usageProgressBar > 90 ? '#ef4444' : sub.usageProgressBar > 75 ? '#f59e0b' : '#10b981'
-
-    return (
-        <DashShell title="Command Center" subtitle="Live intelligence · predictive crowd flow · revenue signals">
-
-            {/* Global Subscription Banner */}
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="mb-6 rounded-2xl border bg-black/40 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden group shadow-lg hover:shadow-2xl hover:border-foreground/20 transition-all duration-500" style={{ borderColor: `${brand.primaryColor}30` }}>
-                <motion.div className="absolute inset-0 z-0 bg-gradient-to-r from-transparent to-background/5" style={{ backgroundImage: `linear-gradient(90deg, transparent, ${brand.primaryColor}08)` }} animate={{ backgroundPosition: ["0% 0%", "100% 0%", "0% 0%"] }} transition={{ duration: 15, ease: "linear", repeat: Infinity }} />
-                <div className="relative z-10 flex gap-4">
-                    <motion.div initial={{ scale: 0.8, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", delay: 0.2 }} className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${brand.primaryColor}20`, borderColor: `${brand.primaryColor}40` }}>
-                        <Sparkles className="h-6 w-6" style={{ color: brand.primaryColor }} />
-                    </motion.div>
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-display font-bold text-lg uppercase tracking-wide text-foreground group-hover:text-white transition-colors">{sub.plan.replace('-monthly', '').replace('-annual', '')} Tier</span>
-                            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold" style={{ backgroundColor: sub.currentPhase === 'Active' ? '#10b98120' : '#ef444420', color: sub.currentPhase === 'Active' ? '#10b981' : '#ef4444', border: `1px solid ${sub.currentPhase === 'Active' ? '#10b98140' : '#ef444440'}` }}>
-                                {sub.currentPhase}
-                            </span>
-                        </div>
-                        <div className="text-xs text-foreground/50 group-hover:text-foreground/70 transition-colors">
-                            {sub.currentPhase === 'Trial' ? `${sub.daysRemaining} days remaining in trial` : `Renews in ${sub.daysRemaining} days`} · {sub.storageUsed} Cloud Storage used
-                        </div>
-                    </div>
-                </div>
-
-                <div className="relative z-10 flex-1 w-full lg:max-w-md bg-background/40 border border-foreground/5 p-4 rounded-xl group-hover:bg-background/60 transition-colors">
-                    <div className="flex justify-between text-xs mb-2">
-                        <span className="font-medium text-foreground/70">Member Usage</span>
-                        <span className="font-bold">{sub.activeMembers} <span className="opacity-40">/ {sub.memberLimit === 999999 ? 'Unlimited' : sub.memberLimit}</span></span>
-                    </div>
-
-                    <div className="h-2 w-full bg-foreground/10 rounded-full overflow-hidden mb-1 relative">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${sub.usageProgressBar}%` }} transition={{ duration: 1.2, delay: 0.3, ease: [0.16, 1, 0.3, 1] }} className="h-full rounded-full" style={{ backgroundColor: usageColor, boxShadow: `0 0 10px ${usageColor}80` }} />
-                    </div>
-                    {sub.usageProgressBar >= 80 && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="text-[10px] flex items-center gap-1 mt-2 font-medium" style={{ color: usageColor }}>
-                            <AlertCircle className="h-3 w-3" /> Warning: {sub.usageProgressBar}% capacity reached.
-                        </motion.div>
-                    )}
-                </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
-                <OperationsInsights />
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} whileHover={{ scale: 1.005, transition: { duration: 0.2 } }} className="rounded-2xl border p-5 mb-5 relative overflow-hidden group hover:shadow-2xl transition-all" style={{ borderColor: `${brand.primaryColor}55`, background: `linear-gradient(135deg, ${brand.primaryColor}12, transparent)` }}>
-                <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full blur-3xl opacity-40" style={{ background: brand.primaryColor }} />
-                <div className="relative flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-[280px]">
-                        <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${brand.primaryColor}25`, border: `1px solid ${brand.primaryColor}55` }}>
-                            <Brain className="h-5 w-5" style={{ color: brand.primaryColor }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] uppercase tracking-widest font-bold" style={{ color: brand.primaryColor }}>AI · Priority Insight</span>
-                                <span className="text-[10px] text-foreground/40">· {topInsight.confidence}% confidence · Refreshed 2s ago</span>
-                            </div>
-                            <div className="font-display text-lg md:text-xl font-semibold mt-1 leading-tight">{topInsight.title}</div>
-                            <div className="text-sm text-foreground/60 mt-1">{topInsight.detail}</div>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <Link href="/occupancy"><Button variant="outline" className="bg-foreground/[0.03] border-foreground/10 h-9 text-xs">View all insights</Button></Link>
-                        <Button className="h-9 text-foreground border-0" style={{ background: brand.primaryColor }}>{topInsight.action}</Button>
-                    </div>
-                </div>
-            </motion.div>
-
-            <motion.div
-                initial="hidden" animate="show"
-                variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.2 } } }}
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
-            >
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={Users} label="Total Members" value={stats.totalMembers || '0'} delta="Live" /></motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={LogIn} label="Staff/Trainers" value={stats.totalTrainers || '0'} delta="Live" tone="#22c55e" /></motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={TrendingUp} label="Today's Check -ins" value={stats.todayCheckins || '0'} delta="Live DB" /></motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={DollarSign} label="Revenue MTD" value={stats.revenueMtd} delta={stats.totalMembers > 0 ? "+4.2%" : "0%"} /></motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={AlertCircle} label="Expiring Soon" value={stats.expiringMembers || "0"} delta={stats.totalMembers > 0 ? "-3" : "0"} positive={false} tone="#f97316" /></motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 20 } } }} whileHover={{ y: -4 }}><StatCard icon={Clock} label="Avg Wait Time" value={stats.todayCheckins > 0 ? "3.4m" : "0m"} delta={stats.todayCheckins > 0 ? "-12%" : "0%"} positive={false} tone="#a3a3a3" /></motion.div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }} className="mt-6">
-                <div className="flex items-center justify-between mb-3">
-                    <div>
-                        <div className="flex items-center gap-2"><MapPin className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm font-medium">Workout Zone Demand</div></div>
-                        <div className="text-xs text-foreground/40">Schedule + attendance derived — most crowded workout right now</div>
-                    </div>
-                    <Link href="/occupancy" className="text-xs text-foreground/50 hover:text-foreground flex items-center gap-1 group">Full breakdown <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" /></Link>
-                </div>
-                <ZoneDemandGrid zones={stats.zones} />
-            </motion.div>
-
-            <motion.div initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.2 } } }} className="grid lg:grid-cols-3 gap-4 mt-5">
-                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.005, transition: { duration: 0.2 } }} className="lg:col-span-2 rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <div className="text-sm text-foreground/70 font-medium">Attendance today · actual vs forecast</div>
-                            <div className="text-xs text-foreground/40">Solid = actual · dashed = predicted</div>
-                        </div>
-                        <div className="flex gap-2 text-xs">
-                            <span className="px-2 py-1 rounded-md bg-foreground/[0.06]">Today</span>
-                            <span className="px-2 py-1 rounded-md text-foreground/50">Week</span>
-                            <span className="px-2 py-1 rounded-md text-foreground/50">Month</span>
-                        </div>
-                    </div>
-                    <div className="h-64">
-                        <ResponsiveContainer>
-                            <AreaChart data={stats.dailyLine || []}>
-                                <defs>
-                                    <linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={brand.primaryColor} stopOpacity={0.5} /><stop offset="100%" stopColor={brand.primaryColor} stopOpacity={0} /></linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                <XAxis dataKey="hour" stroke="#ffffff40" fontSize={11} />
-                                <YAxis stroke="#ffffff40" fontSize={11} />
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                <Area type="monotone" dataKey="v" stroke={brand.primaryColor} fill="url(#gd)" strokeWidth={2.5} />
-                                <Area type="monotone" dataKey="forecast" stroke="#ffffff80" strokeWidth={2} strokeDasharray="4 4" fill="transparent" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </motion.div>
-
-                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.005, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all group">
-                    <div className="flex items-center gap-2 mb-1"><Sparkles className="h-4 w-4" style={{ color: brand.primaryColor }} /><div className="text-sm text-foreground/70 font-medium">Live now on the floor</div></div>
-                    <div className="h-[1px] w-full bg-gradient-to-r from-foreground/5 to-transparent mb-4" />
-
-                    {inside.length === 0 ? (
-                        <div className="mt-8 text-center bg-foreground/[0.02] p-5 rounded-lg border border-foreground/5">
-                            <div className="text-foreground/40 text-sm mb-1">No one is inside</div>
-                            <div className="text-foreground/20 text-xs">Gym floor is empty</div>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="text-xs text-foreground/40 mb-4 mt-1">Found {inside.length} members inside</div>
-                            <div className="space-y-3">
-                                {(inside || []).slice(0, 5).map((m) => (
-                                    <div key={m.id} className="flex items-center gap-3">
-                                        <div className="relative shrink-0">
-                                            <Image src={m.photo} className="h-9 w-9 rounded-full object-cover" alt="" width={120} height={120} />
-                                            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0a0a0a]" style={{ background: stageColor(m.stage) }} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm truncate">{m.name}</div>
-                                            <div className="text-[10px] text-foreground/50 truncate">{m.workout}</div>
-                                        </div>
-                                        <div className="text-[10px] text-right">
-                                            <div style={{ color: stageColor(m.stage) }}>{m.progress}%</div>
-                                            <div className="text-foreground/40">ETA {m.eta}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <Link href="/occupancy" className="mt-6 flex items-center gap-1 text-xs hover:gap-2 transition-all flex-row justify-end group-hover:opacity-100 opacity-60" style={{ color: brand.primaryColor }}>
-                                View live intelligence <ChevronRight className="h-3 w-3" />
-                            </Link>
-                        </>
-                    )}
-                </motion.div>
-            </motion.div>
-
-            <motion.div initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.35 } } }} className="grid lg:grid-cols-3 gap-4 mt-5">
-                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.01, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
-                    <div className="text-sm text-foreground/70 font-medium mb-1">Weekly attendance</div>
-                    <div className="text-xs text-foreground/40 mb-4">Ins vs outs</div>
-                    <div className="h-52">
-                        {weeklyData.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center bg-foreground/[0.02] rounded-lg border border-foreground/5">
-                                <div className="text-foreground/40 text-sm mb-1">No data yet</div>
-                                <div className="text-foreground/20 text-xs text-center px-4">Attendance will appear after your first check-in.</div>
-                            </div>
-                        ) : (
-                            <ResponsiveContainer>
-                                <BarChart data={weeklyData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                                    <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} />
-                                    <YAxis stroke="#ffffff40" fontSize={11} />
-                                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                                    <Bar dataKey="in" fill={brand.primaryColor} radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="out" fill="#525252" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        )}
-                    </div>
-                </motion.div>
-
-                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} whileHover={{ scale: 1.01, transition: { duration: 0.2 } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl hover:border-foreground/10 transition-all">
-                    <div className="text-sm text-foreground/70 font-medium mb-1">Workout distribution</div>
-                    <div className="text-xs text-foreground/40 mb-4">Right now on the floor</div>
-                    <div className="h-52 flex items-center">
-                        <ResponsiveContainer>
-                            <PieChart>
-                                <Pie data={stats?.dist || []} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={4}>
-                                    {(stats?.dist || []).map((e, i) => <Cell key={i} fill={e.color} />)}
-                                </Pie>
-                                <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1.5 text-xs mt-2">
-                        {(stats?.dist || []).map((w) => (
-                            <div key={w.name} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: w.color }} /> {w.name}</div>
-                        ))}
-                    </div>
-                </motion.div>
-
-                <motion.div variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } } }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 hover:shadow-xl transition-shadow flex flex-col">
-                    <div className="text-sm text-foreground/70 font-medium mb-1">Quick Actions</div>
-                    <div className="text-xs text-foreground/40 mb-5">One click to optimize</div>
-                    <div className="space-y-2">
-                        {[
-                            { icon: UserPlus, label: 'Add new member', href: '/members' },
-                            { icon: CalendarPlus, label: 'Schedule class', href: '/trainers' },
-                            { icon: FileText, label: 'Generate report', href: '/analytics' },
-                            {
-                                icon: Zap,
-                                label: 'Push off-peak SMS',
-                                action: () => {
-                                    setShowSMS(true)
-                                }
-                            },
-                        ].map((a, i) => (
-                            a.href ? (
-                                <motion.div key={i} whileHover={{ scale: 1.03, x: 4 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-                                    <Link href={a.href} className="flex items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] hover:border-foreground/10 transition-colors shadow-sm">
-                                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${brand.primaryColor}15` }}>
-                                            <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
-                                        </div>
-                                        <span className="text-sm flex-1 truncate">{a.label}</span>
-                                        <ArrowUpRight className="h-3.5 w-3.5 text-foreground/30 shrink-0" />
-                                    </Link>
-                                </motion.div>
-                            ) : (
-                                <motion.div key={i} whileHover={{ scale: 1.03, x: 4 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-                                    <button onClick={a.action} disabled={isPending} className="flex w-full items-center gap-3 rounded-lg border border-foreground/5 bg-foreground/[0.02] px-4 py-3 hover:bg-foreground/[0.06] hover:border-foreground/10 transition-colors text-left cursor-pointer disabled:opacity-50 shadow-sm">
-                                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${brand.primaryColor}15` }}>
-                                            <a.icon className="h-4 w-4" style={{ color: brand.primaryColor }} />
-                                        </div>
-                                        <span className="text-sm flex-1 truncate">{a.label}</span>
-                                        {isPending ? <Clock className="h-3.5 w-3.5 text-foreground/30 animate-spin shrink-0" /> : <Zap className="h-3.5 w-3.5 text-foreground/30 shrink-0" />}
-                                    </button>
-                                </motion.div>
-                            )
-                        ))}
-                    </div>
-                </motion.div>
-            </motion.div >
-
-            <div className="mt-8 mb-5">
-                <RecentActivityTimeline gymCode={user?.gymCode} />
+  return (
+    <DashShell title="Dashboard" subtitle="Live view of your gym">
+      {sub && (
+        <div className="mb-5 rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 flex flex-col md:flex-row md:items-center gap-4 justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-foreground/50">BGM subscription</div>
+            <div className="font-display font-semibold mt-0.5 capitalize">
+              {sub.currentPhase === 'Trial' ? 'Free trial' : String(sub.plan || '').replace(/-(monthly|annual)$/, '') || '—'}
+              <span className={`ml-2 text-[11px] px-2 py-0.5 rounded-full align-middle ${sub.isReadOnly ? 'bg-red-500/15 text-red-400' : 'bg-emerald-500/15 text-emerald-400'}`}>{sub.isReadOnly ? 'Expired' : sub.currentPhase}</span>
             </div>
+            {!sub.isReadOnly && sub.daysRemaining !== null && <div className="text-xs text-foreground/50 mt-0.5">{sub.daysRemaining} day{sub.daysRemaining === 1 ? '' : 's'} remaining</div>}
+          </div>
+          <div className="md:w-72">
+            <div className="flex justify-between text-xs mb-1.5"><span className="text-foreground/60">Members on plan</span><span className="font-semibold">{sub.activeMembers} / {sub.memberLimit >= 999999 ? 'Unlimited' : sub.memberLimit}</span></div>
+            {sub.memberLimit < 999999 && <div className="h-1.5 rounded-full bg-foreground/10 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${sub.usageProgressBar}%`, background: sub.usageProgressBar > 90 ? '#ef4444' : brand.primaryColor }} /></div>}
+          </div>
+          <Link href="/dashboard/subscription" className="text-sm font-medium hover:underline shrink-0" style={{ color: brand.primaryColor }}>Manage</Link>
+        </div>
+      )}
 
-            <OffPeakSMSModal open={showSMS} onOpenChange={setShowSMS} />
-        </DashShell >
-    )
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        <Stat label="Total members" value={stats.totalMembers ?? 0} />
+        <Stat label="Active" value={stats.activeMembers ?? 0} hint={stats.pendingMembers ? `${stats.pendingMembers} awaiting approval` : null} />
+        <Stat label="Expired" value={stats.expiredMembers ?? 0} hint={stats.expiringSoon ? `${stats.expiringSoon} expiring in 7 days` : null} tone={stats.expiredMembers ? '#f59e0b' : undefined} />
+        <Stat label="Check-ins today" value={stats.todayCheckins ?? 0} hint={`${stats.todayUniqueMembers ?? 0} unique members`} />
+        <Stat label="Revenue this month" value={formatMoney(stats.revenueMtdValue, symbol)} hint="Confirmed payments" />
+        <Stat label="Outstanding dues" value={formatMoney(stats.outstandingTotal, symbol)} tone={stats.outstandingTotal > 0 ? '#f59e0b' : undefined} />
+      </div>
+
+      {stats.pendingMembers > 0 && (
+        <Link href="/members" className="mt-4 block rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+          <strong>{stats.pendingMembers}</strong> member{stats.pendingMembers === 1 ? '' : 's'} waiting for your review and approval →
+        </Link>
+      )}
+
+      <div className="grid lg:grid-cols-3 gap-4 mt-5">
+        <OccupancyCard insideCount={stats.insideCount} capacity={stats.capacity} asOf={stats.asOf} />
+        <Card className="lg:col-span-2" title="Live now on the floor" subtitle="Members with an open session" action={<Link href="/occupancy" className="text-xs text-foreground/50 hover:text-foreground">Live traffic →</Link>}>
+          {live.length === 0 ? <div className="text-sm text-foreground/40 py-4">Nobody is checked in right now.</div> : (
+            <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+              {live.slice(0, 8).map(m => (
+                <li key={m.id} className="flex items-center gap-3 min-w-0">
+                  <UserAvatar src={m.member_photo} name={m.member_name} size={34} />
+                  <div className="min-w-0 flex-1"><div className="text-sm truncate">{m.member_name}</div><div className="text-[11px] text-foreground/50 truncate">{m.workout.length ? m.workout.join(' + ') : 'No workout selected'}</div></div>
+                  <div className="text-[11px] text-foreground/40 shrink-0">in {formatTime(m.check_in_time)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {live.length > 8 && <div className="text-xs text-foreground/40 mt-3">+ {live.length - 8} more</div>}
+        </Card>
+      </div>
+
+      <div className="mt-5">
+        <div className="flex items-baseline justify-between mb-2"><h2 className="text-sm font-semibold">Workout demand right now</h2><span className="text-xs text-foreground/40">Members present, by muscle group they chose</span></div>
+        <ZoneDemandGrid zones={stats.zones} emptyHint="Add facilities under Settings → Facilities to see workout demand." />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4 mt-5">
+        <Card title="Check-ins today" subtitle="Per hour, gym local time">
+          {hasToday ? (
+            <div className="h-56"><ResponsiveContainer>
+              <AreaChart data={stats.dailyLine}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" /><XAxis dataKey="hour" stroke="#88888880" fontSize={11} interval={2} /><YAxis stroke="#88888880" fontSize={11} allowDecimals={false} width={28} /><Tooltip contentStyle={tooltipStyle} /><Area type="monotone" dataKey="v" name="Check-ins" stroke={brand.primaryColor} fill={brand.primaryColor} fillOpacity={0.2} strokeWidth={2} connectNulls={false} /></AreaChart>
+            </ResponsiveContainer></div>
+          ) : <div className="text-sm text-foreground/40 py-10 text-center">No check-ins yet today.</div>}
+        </Card>
+        <Card title="Last 7 days" subtitle="Check-ins and unique members per day">
+          {hasWeekly ? (
+            <div className="h-56"><ResponsiveContainer>
+              <BarChart data={weekly}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" /><XAxis dataKey="day" stroke="#88888880" fontSize={11} /><YAxis stroke="#88888880" fontSize={11} allowDecimals={false} width={28} /><Tooltip contentStyle={tooltipStyle} /><Bar dataKey="checkins" name="Check-ins" fill={brand.primaryColor} radius={[4, 4, 0, 0]} /><Bar dataKey="unique" name="Unique members" fill="#737373" radius={[4, 4, 0, 0]} /></BarChart>
+            </ResponsiveContainer></div>
+          ) : <div className="text-sm text-foreground/40 py-10 text-center">Attendance will appear after the first check-in.</div>}
+        </Card>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4 mt-5">
+        <Card title="Quick actions">
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/members"><Button variant="outline" className="w-full h-11 justify-start"><UserPlus className="h-4 w-4 mr-2" />Members</Button></Link>
+            <Link href="/settings?tab=attendance"><Button variant="outline" className="w-full h-11 justify-start"><QrCode className="h-4 w-4 mr-2" />Gym QR</Button></Link>
+            <Link href="/dashboard/import"><Button variant="outline" className="w-full h-11 justify-start"><Database className="h-4 w-4 mr-2" />Import</Button></Link>
+            <Button variant="outline" className="w-full h-11 justify-start" onClick={() => setShowSMS(true)}><MessageSquare className="h-4 w-4 mr-2" />Off-peak SMS</Button>
+          </div>
+        </Card>
+        <div className="lg:col-span-2"><RecentActivityTimeline limit={8} /></div>
+      </div>
+
+      <OffPeakSMSModal open={showSMS} onOpenChange={setShowSMS} />
+    </DashShell>
+  )
 }

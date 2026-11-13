@@ -1,24 +1,10 @@
-import { Suspense } from 'react'
-import ClientView from './insights-client'
-import { getMyProfile } from '@/actions/db/members'
-import { getAttendanceLogs } from '@/actions/db/attendance'
-import { getDashboardStats } from '@/actions/db/gyms'
-import { CardSkeleton, DataErrorState } from '@/components/ui/skeletons'
+import InsightsClient from './insights-client'
+import { getMemberInsights } from '@/actions/db/insights'
+
+export const metadata = { title: 'GymAI' }
 
 export default async function InsightsPage() {
-  try {
-    const [profile, attendance, stats] = await Promise.all([
-      getMyProfile(),
-      getAttendanceLogs(150),
-      getDashboardStats()
-    ])
-    return (
-      <Suspense fallback={<div className="p-8"><CardSkeleton /></div>}>
-        <ClientView member={profile} globalAttendance={attendance} stats={stats} />
-      </Suspense>
-    )
-  } catch (error) {
-    return <div className="p-8"><DataErrorState error={{ message: error?.message || 'Server Error' }} /></div>
-  }
+  let data
+  try { data = await getMemberInsights() } catch { data = { available: false, insights: [], failed: true } }
+  return <InsightsClient data={data} />
 }
-

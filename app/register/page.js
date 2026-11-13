@@ -1,8 +1,8 @@
 'use client'
 import Image from 'next/image'
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Loader2, ShieldCheck, Dumbbell, MapPin, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Logo } from '@/components/logo'
 import { useBrand } from '@/components/brand-provider'
 import { toast } from 'sonner'
-import { processOwnerRegistration, processTrainerRegistration, processMemberRegistration } from '@/actions/db/registration'
+import { processOwnerRegistration, processTrainerRegistration, processMemberRegistration, getTrainerInvite } from '@/actions/db/registration'
 
 const IMAGES = {
     feature3: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg'
@@ -22,17 +22,21 @@ const ROLES = {
     member: { label: 'Member', icon: <Search /> },
 }
 
-const MUSCLES = ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core', 'Cardio', 'Mobility', 'Full Body', 'Other']
+const MUSCLES = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core']
 
 const ROLE_LIST = [
-    { id: 'owner', accent: '#ef4444', title: 'Gym Owner', tagline: 'Create a new BGM Workspace', points: ['Generate Gym Code', 'Full Command Center'] },
-    { id: 'trainer', accent: '#f59e0b', title: 'Trainer', tagline: 'Join an existing Gym', points: ['Requires Gym Code', 'Training dashboard'] },
-    { id: 'member', accent: '#22c55e', title: 'Member', tagline: 'Sign up to your Gym', points: ['Requires Gym Code', 'Live workout tracking'] },
+    { id: 'owner', accent: '#ef4444', title: 'Gym Owner', tagline: 'Register your gym on BGM', points: ['Get your gym code', 'Free trial'] },
+    { id: 'trainer', accent: '#f59e0b', title: 'Trainer', tagline: 'Join an existing Gym', points: ['Needs your gym code', 'Owner approves you'] },
+    { id: 'member', accent: '#22c55e', title: 'Member', tagline: 'Sign up to your Gym', points: ['Needs your gym code', 'QR check-in'] },
 ]
 
 function RegisterContent() {
     const router = useRouter()
+    const params = useSearchParams()
     const { brand } = useBrand()
+    const inviteToken = params.get('invite') || ''
+    const [invite, setInvite] = useState(null)
+    const [pendingApproval, setPendingApproval] = useState(false)
 
     const [role, setRole] = useState(null)
     const [step, setStep] = useState('role') // 'role' | 'form' | 'success'
@@ -51,11 +55,28 @@ function RegisterContent() {
         // Member
         name: '', age: '', gender: 'Male', height: '', weight: '', fitnessGoal: '', medicalConditions: 'None', emergencyContact: '',
         workoutSchedule: 'Morning', preferredWorkoutTime: '6:00 AM', trainingDays: '5 Days', primaryWorkoutSplit: 'Push Pull Legs', preferredWorkoutDuration: '60 min',
-        noFixedSchedule: false,
-        weeklySchedule: { Monday: ['Chest'], Tuesday: ['Back'], Wednesday: [], Thursday: ['Legs'], Friday: ['Shoulders', 'Triceps'], Saturday: ['Cardio'], Sunday: [] }
+        noFixedSchedule: true,
+        weeklySchedule: { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] }
     })
 
     const [gymCodeFinal, setGymCodeFinal] = useState('')
+
+    // Links from invitation e-mails pre-select the role and pre-fill the gym code / e-mail.
+    useEffect(() => {
+        const r = params.get('role')
+        const gym = params.get('gym')
+        const email = params.get('email')
+        if (gym || email) setFormData(prev => ({ ...prev, gymCode: gym || prev.gymCode, email: email || prev.email }))
+        if (['owner', 'trainer', 'member'].includes(r)) { setRole(r); setStep('form') }
+        if (inviteToken) {
+            getTrainerInvite(inviteToken).then(res => {
+                if (res.error) { setError(res.error); return }
+                setInvite(res)
+                setFormData(prev => ({ ...prev, email: res.email, trainerName: res.name || prev.trainerName, gymCode: 'INVITED' }))
+            }).catch(() => setError('The invitation could not be checked. Please try again.'))
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const pickRole = (r) => {
         setRole(r)
@@ -71,6 +92,12 @@ function RegisterContent() {
         e.preventDefault()
         setError(''); setLoading(true)
 
+        if (formData.password.length < 8) {
+            setError('Password must be at least 8 characters.')
+            setShake(s => s + 1)
+            setLoading(false)
+            return
+        }
         if (formData.password !== formData.confirmPassword) {
             setError("Passwords do not match!")
             setShake(s => s + 1)
@@ -85,11 +112,13 @@ function RegisterContent() {
                 if (res.error) throw new Error(res.error)
                 setGymCodeFinal(res.gymCode)
             } else if (role === 'trainer') {
-                res = await processTrainerRegistration(formData)
+                res = await processTrainerRegistration({ ...formData, inviteToken: inviteToken || undefined, workingDays: undefined })
                 if (res.error) throw new Error(res.error)
+                setPendingApproval(!!res.pendingApproval)
             } else if (role === 'member') {
-                res = await processMemberRegistration(formData)
+                res = await processMemberRegistration({ ...formData, weeklySchedule: formData.noFixedSchedule ? null : formData.weeklySchedule })
                 if (res.error) throw new Error(res.error)
+                setPendingApproval(!!res.pendingApproval)
             }
 
             setStep('success')
@@ -110,15 +139,9 @@ function RegisterContent() {
                 <div className="absolute top-8 left-8"><Link href="/"><Logo size="lg" /></Link></div>
                 <div className="absolute bottom-10 left-10 right-10">
                     <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="font-display text-4xl xl:text-5xl font-bold tracking-tight leading-tight">
-                        "Your fitness empire, engineered for the digital age."
+                        Your gym runs. BGM handles the rest.
                     </motion.h2>
-                    <div className="mt-6 flex items-center gap-3">
-                        <Image src="https://i.pravatar.cc/60?img=60" className="h-10 w-10 rounded-full" alt="" width={60} height={60} />
-                        <div>
-                            <div className="text-sm font-semibold">Join BGM</div>
-                            <div className="text-xs text-foreground/50">Next-Generation Infrastructure</div>
-                        </div>
-                    </div>
+                    <p className="mt-4 text-sm text-foreground/60">Memberships, attendance, trainers and payments in one place.</p>
                 </div>
             </div>
 
@@ -189,7 +212,7 @@ function RegisterContent() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="col-span-2">
                                                 <label className="text-xs text-foreground/60">Email Address *</label>
-                                                <Input required type="email" name="email" value={formData.email} onChange={handleChange} className="mt-1.5 h-11 bg-foreground/[0.03]" />
+                                                <Input required readOnly={!!invite} autoCapitalize="none" type="email" name="email" value={formData.email} onChange={handleChange} className="mt-1.5 h-11 bg-foreground/[0.03]" />
                                             </div>
                                             <div>
                                                 <label className="text-xs text-foreground/60">Password *</label>
@@ -273,7 +296,7 @@ function RegisterContent() {
                                             <h3 className="text-xs uppercase tracking-widest text-[#f59e0b] font-bold">2. Security Gateway</h3>
                                             <div className="col-span-2">
                                                 <label className="text-xs text-foreground/60">Facility Gym Code *</label>
-                                                <Input required name="gymCode" value={formData.gymCode} onChange={handleChange} placeholder="GYM-XXX-0000" className="mt-1.5 h-12 bg-foreground/[0.03] border-[#f59e0b]/50 text-xl tracking-widest text-center uppercase" />
+                                                <Input required readOnly={!!invite} name="gymCode" value={formData.gymCode} onChange={handleChange} placeholder="GYM-XXX-0000" className="mt-1.5 h-12 bg-foreground/[0.03] border-[#f59e0b]/50 text-xl tracking-widest text-center uppercase" />
                                             </div>
                                             <h3 className="text-xs uppercase tracking-widest text-foreground/50 font-bold mt-8 block">3. Trainer Profile</h3>
                                             <div className="grid grid-cols-2 gap-4">
@@ -453,11 +476,11 @@ function RegisterContent() {
 
                                 {role === 'owner' ? (
                                     <>
-                                        <h2 className="font-display text-3xl font-bold mb-3">Facility Configured!</h2>
-                                        <p className="text-sm text-foreground/70 max-w-md mx-auto mb-6">Your workspace is successfully initialized. Please save your master Gym Code securely. All trainers and members will require this code to link their accounts.</p>
+                                        <h2 className="font-display text-3xl font-bold mb-3">Your gym is ready</h2>
+                                        <p className="text-sm text-foreground/70 max-w-md mx-auto mb-6">Save your gym code. Trainers and members use it to join your gym, and it is the code behind your check-in QRs.</p>
 
                                         <div className="rounded-2xl border border-foreground/20 bg-foreground/[0.05] p-6 mb-8 w-full">
-                                            <p className="text-xs uppercase tracking-widest text-foreground/50 font-bold mb-2">Master Gym Code</p>
+                                            <p className="text-xs uppercase tracking-widest text-foreground/50 font-bold mb-2">Gym code</p>
                                             <div className="text-3xl font-display font-black tracking-wider" style={{ color: brand.primaryColor }}>
                                                 {gymCodeFinal}
                                             </div>
@@ -466,12 +489,12 @@ function RegisterContent() {
                                 ) : (
                                     <>
                                         <h2 className="font-display text-3xl font-bold mb-3">Registration Complete</h2>
-                                        <p className="text-sm text-foreground/70 max-w-md mx-auto mb-6">Your profile is safely stored. Proceed to the login portal to finalize authentication.</p>
+                                        <p className="text-sm text-foreground/70 max-w-md mx-auto mb-6">{pendingApproval ? (role === 'trainer' ? 'Your account is created. The gym owner needs to approve your profile before you can sign in.' : 'Your account is created. You can sign in now; your gym will review and activate your membership before you can check in.') : 'Your account is ready. You can sign in now.'}</p>
                                     </>
                                 )}
 
                                 <Button onClick={() => router.push('/login')} variant="outline" className="h-11 px-8 rounded-full border-foreground/10 hover:bg-white/5 text-foreground">
-                                    Proceed to Login <ArrowRight className="h-4 w-4 ml-2" />
+                                    Go to sign in <ArrowRight className="h-4 w-4 ml-2" />
                                 </Button>
                             </motion.div>
                         )}

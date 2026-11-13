@@ -1,20 +1,16 @@
-import { getSubscriptionStatus } from '@/actions/db/subscriptions'
-import { getMonthlyGymOsCost } from '@/actions/db/pricing'
-import { cookies } from 'next/headers'
 import SubscriptionClient from './subscription-client'
+import { requireRole, getGymContext } from '@/lib/server/session'
+import { computeSubscriptionStatus } from '@/lib/server/subscription'
+import { computeMonthlyCost } from '@/lib/server/pricing'
+import { razorpayConfigStatus } from '@/lib/server/payments'
+import { getGymBillingHistory } from '@/actions/payments'
+
+export const metadata = { title: 'BGM Subscription' }
 
 export default async function SubscriptionPage() {
-    const cookieStore = await cookies()
-    const sessionStr = cookieStore.get('gymos_session')?.value
-    let gymId = 'DEMO'
-    if (sessionStr) {
-        try {
-            gymId = JSON.parse(sessionStr).gymCode || 'DEMO'
-        } catch (e) { }
-    }
-
-    const subStatus = await getSubscriptionStatus(gymId)
-    const costData = await getMonthlyGymOsCost(gymId)
-
-    return <SubscriptionClient status={subStatus} gymId={gymId} costData={costData} />
+  const session = await requireRole('owner')
+  const [status, cost, history, ctx] = await Promise.all([
+    computeSubscriptionStatus(session.gymId), computeMonthlyCost(session.gymId), getGymBillingHistory(), getGymContext(session.gymId),
+  ])
+  return <SubscriptionClient status={status} cost={cost} history={history} razorpay={razorpayConfigStatus()} owner={{ name: ctx.gym?.ownerName || session.name, email: session.email }} />
 }

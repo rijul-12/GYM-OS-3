@@ -13,28 +13,34 @@ export function NotificationDropdown() {
     const [open, setOpen] = useState(false)
     const [notifications, setNotifications] = useState([])
     const [loading, setLoading] = useState(true)
+    const [serverUnread, setServerUnread] = useState(0)
 
     const fetchNots = async () => {
-        setLoading(true)
-        const res = await getNotifications()
-        if (res?.success) {
-            setNotifications(res.items || [])
-        }
+        try {
+            const res = await getNotifications()
+            if (res?.success) {
+                setNotifications(res.items || [])
+                setServerUnread(res.unreadCount || 0)
+            }
+        } catch { /* offline: keep the last known list */ }
         setLoading(false)
     }
 
     useEffect(() => {
         fetchNots()
-        // Poll every 30s
-        const iv = setInterval(fetchNots, 30000)
-        return () => clearInterval(iv)
+        // Near-real-time: refresh every 30s while the tab is visible, and when it regains focus.
+        const iv = setInterval(() => { if (document.visibilityState === 'visible') fetchNots() }, 30000)
+        const onVisible = () => { if (document.visibilityState === 'visible') fetchNots() }
+        document.addEventListener('visibilitychange', onVisible)
+        return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVisible) }
     }, [])
 
-    const unreadCount = notifications.filter(n => !n.read).length
+    const unreadCount = Math.max(serverUnread, notifications.filter(n => !n.read).length)
 
     const handleRead = async (id, url) => {
+        const wasUnread = notifications.some(n => n.id === id && !n.read)
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-        await markAsRead(id)
+        if (wasUnread) { setServerUnread(c => Math.max(0, c - 1)); await markAsRead(id) }
         if (url) {
             router.push(url)
             setOpen(false)
@@ -43,12 +49,15 @@ export function NotificationDropdown() {
 
     const handleMarkAll = async () => {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-        await markAllAsRead()
+        setServerUnread(0)
+        const res = await markAllAsRead()
+        if (res?.error) fetchNots()
     }
 
     return (
         <div className="relative">
             <motion.button
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
                 onClick={() => { setOpen(!open); if (!open) fetchNots(); }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -75,7 +84,7 @@ export function NotificationDropdown() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute right-0 top-12 z-50 w-80 max-h-[400px] bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/5"
+                            className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-16 sm:top-12 z-50 sm:w-80 max-h-[70dvh] sm:max-h-[400px] bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/5"
                         >
                             <div className="p-4 border-b border-foreground/5 flex items-center justify-between bg-foreground/[0.02]">
                                 <h3 className="font-display font-semibold text-sm">Notifications {unreadCount > 0 && `(${unreadCount})`}</h3>

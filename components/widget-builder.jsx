@@ -4,6 +4,7 @@ import { motion, Reorder } from 'framer-motion'
 import { Plus, GripVertical, Trash2, Edit2, MapPin, Eye, EyeOff } from 'lucide-react'
 import { useBrand } from '@/components/brand-provider'
 import { saveGymWidgets } from '@/actions/db/gyms'
+import { sanitizeZones } from '@/lib/domain/occupancy'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,7 @@ export function WidgetBuilder() {
     const widgets = brand.widgets && brand.widgets.length > 0 ? brand.widgets : PRESETS.slice(0, 6).map(p => ({
         id: uuidv4(),
         ...p,
-        capacity: 10,
+        capacity: '',
         isActive: true,
         category: 'Preset'
     }));
@@ -46,7 +47,7 @@ export function WidgetBuilder() {
 
     const handleSave = async (newItems) => {
         setItems(newItems);
-        setBrand({ widgets: newItems });
+        setBrand({ widgets: newItems, zones: sanitizeZones(newItems) });
 
         startTransition(async () => {
             const ok = await saveGymWidgets(null, newItems);
@@ -67,7 +68,7 @@ export function WidgetBuilder() {
 
     const openEditor = (item = null) => {
         if (!item) {
-            setEditorData({ id: uuidv4(), name: '', capacity: 10, muscleGroup: 'Multi', emoji: '📍', color: brand.primaryColor || '#ef4444', isActive: true, category: 'Custom' });
+            setEditorData({ id: uuidv4(), name: '', capacity: '', muscleGroup: 'Multi', emoji: '📍', color: brand.primaryColor || '#ef4444', isActive: true, category: 'Custom' });
         } else {
             setEditorData({ ...item });
         }
@@ -121,7 +122,7 @@ export function WidgetBuilder() {
 
                     <div className="col-span-2 md:col-span-1 border border-foreground/5 bg-foreground/[0.02] p-4 rounded-xl">
                         <Label className="text-xs text-foreground/50 uppercase tracking-widest mb-1.5 block">Live Traffic Capacity</Label>
-                        <Input type="number" min="1" value={editorData.capacity} onChange={e => setEditorData({ ...editorData, capacity: parseInt(e.target.value) || 1 })} className="bg-white/5 border-white/10" />
+                        <Input type="number" min="1" inputMode="numeric" placeholder="Optional" value={editorData.capacity ?? ''} onChange={e => setEditorData({ ...editorData, capacity: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || '') })} className="bg-white/5 border-white/10" />
 
                         <div className="mt-4">
                             <Label className="text-xs text-foreground/50 uppercase tracking-widest mb-1.5 block">Muscle Link (AI AIgos)</Label>
@@ -173,7 +174,7 @@ export function WidgetBuilder() {
                                 {!item.isActive && <span className="text-[9px] uppercase font-bold bg-foreground/10 px-1.5 py-0.5 rounded-full text-foreground/60">Hidden</span>}
                             </div>
                             <div className="text-xs text-foreground/50 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
-                                Mapping: {item.muscleGroup} • Cap: {item.capacity}
+                                Muscle group: {item.muscleGroup} • Capacity: {item.capacity || 'not set'}
                             </div>
                         </div>
                         <div className="flex items-center gap-2">

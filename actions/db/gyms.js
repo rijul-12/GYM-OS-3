@@ -308,3 +308,34 @@ export async function getSuperAdminAnalytics() {
         return zero
     }
 }
+
+/** Owner: save the gym's equipment inventory. */
+export async function saveGymEquipment(equipment) {
+    const session = await authorize('owner')
+    if (!session) return UNAUTHORIZED
+    if (!adminDb) return NO_DB
+    if (!equipment || typeof equipment !== 'object' || Array.isArray(equipment)) return { error: 'Invalid equipment list.' }
+    const clean = {}
+    for (const [cat, items] of Object.entries(equipment).slice(0, 30)) {
+        if (!Array.isArray(items)) continue
+        clean[String(cat).trim().slice(0, 40)] = items.slice(0, 100).map(i => ({
+            name: String(typeof i === 'string' ? i : i?.name || '').trim().slice(0, 60),
+            qty: Math.max(0, Math.min(9999, parseInt(typeof i === 'string' ? 1 : i?.qty, 10) || 0)),
+        })).filter(i => i.name)
+    }
+    await adminDb.collection('gym_settings').doc(session.gymId).set({ equipment: clean, updatedAt: new Date().toISOString() }, { merge: true })
+    revalidatePath('/equipments')
+    return { success: true, equipment: clean }
+}
+
+/** Owner: the gym's equipment inventory. */
+export async function getGymEquipment() {
+    const session = await authorize('owner')
+    if (!session || !adminDb) return {}
+    const { settings } = await getGymContext(session.gymId)
+    const out = {}
+    for (const [cat, items] of Object.entries(settings.equipment || {})) {
+        if (Array.isArray(items)) out[cat] = items.map(i => (typeof i === 'string' ? { name: i, qty: 1 } : { name: String(i?.name || ''), qty: parseInt(i?.qty, 10) || 0 })).filter(i => i.name)
+    }
+    return plain(out)
+}

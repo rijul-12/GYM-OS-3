@@ -1,22 +1,10 @@
-import { Suspense } from 'react'
 import TrainerPlansClient from './plans-client'
 import { getAssignedMembers } from '@/actions/db/trainer_operations'
-import { ListSkeleton, DataErrorState } from '@/components/ui/skeletons'
+import { getMyGymSettings } from '@/actions/db/gyms'
+
+export const metadata = { title: 'Workout Schedules' }
 
 export default async function TrainerPlansPage() {
-  try {
-    const members = await getAssignedMembers()
-    return (
-      <Suspense fallback={<ListSkeleton count={4} />}>
-        <TrainerPlansClient initialMembers={members} />
-      </Suspense>
-    )
-  } catch (error) {
-    return (
-      <div className="p-8">
-        <DataErrorState error={{ message: error?.message || 'Server Error' }} />
-      </div>
-    )
-  }
+  const [members, settings] = await Promise.all([getAssignedMembers(), getMyGymSettings()])
+  return <TrainerPlansClient initialMembers={members} zones={settings?.zones || []} />
 }
-

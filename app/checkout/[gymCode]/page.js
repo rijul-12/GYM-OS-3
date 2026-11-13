@@ -22,12 +22,13 @@ export default function CheckoutPage({ params }) {
     useEffect(() => {
         if (loading) return;
         if (!user) {
-            router.replace(`/login?callback=/checkout/${gymCode}`)
+            router.replace(`/login?next=${encodeURIComponent(`/checkout/${gymCode}`)}`)
             return;
         }
 
         const fetchContext = async () => {
-            const res = await getActiveCheckoutContext();
+            let res
+            try { res = await getActiveCheckoutContext() } catch { res = { error: 'Connection error. Please try again.' } }
             if (res.error) {
                 setErrorMsg(res.error)
                 setStatus('error')
@@ -48,7 +49,12 @@ export default function CheckoutPage({ params }) {
         const mins = diffMins % 60
         setDurationStr(hours > 0 ? `${hours}h ${mins}m` : `${mins}m`)
 
-        const res = await markQrCheckout(gymCode)
+        let res
+        try { res = await markQrCheckout(gymCode) } catch { res = { error: 'Network error. Your session is still open — please try again.' } }
+        if (res.durationMinutes !== undefined) {
+            const m = res.durationMinutes
+            setDurationStr(m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`)
+        }
         if (res.error) {
             setErrorMsg(res.error)
             setStatus('error')

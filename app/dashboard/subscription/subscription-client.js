@@ -1,193 +1,101 @@
 'use client'
-
-import { useState, useTransition } from 'react'
-import { DashShell } from '@/components/dash-shell'
-import { useBrand } from '@/components/brand-provider'
-import { CheckCircle2, Shield, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import Script from 'next/script'
+import { DashShell } from '@/components/dash-shell'
+import { useBrand } from '@/components/brand-provider'
+import { useAuth } from '@/lib/auth'
+import { Button } from '@/components/ui/button'
+import { Card, StatusBadge, formatDate, formatMoney } from '@/components/ui-kit'
+import { loadRazorpay } from '@/lib/razorpay-client'
 import { createRazorpayOrder, verifyPaymentSignature } from '@/actions/payments'
 
-// Removed Fixed Strategy Framework
+// Gym → BGM payment. Completely separate from member → gym payments.
+export default function SubscriptionClient({ status, cost, history, razorpay, owner }) {
+  const { brand } = useBrand()
+  const { refresh } = useAuth()
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const firstPayment = !status?.registrationFeePaid
+  const dueNow = (cost?.totalCost || 0) + (firstPayment ? (cost?.registrationFee || 0) : 0)
+  const endDate = status?.currentPhase === 'Trial' ? status.trialEndDate : status?.subscriptionExpiryDate
 
-export default function SubscriptionClient({ status, gymId, costData }) {
-    const { brand } = useBrand()
-    const router = useRouter()
-    const [billingCycle, setBillingCycle] = useState('monthly') // 'monthly' | 'annual'
-    const [isPending, startTransition] = useTransition()
+  const pay = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      if (!(await loadRazorpay())) { toast.error('The payment window could not be loaded. Check your connection.'); return }
+      const order = await createRazorpayOrder('usage-v1')
+      if (order.error || !order.orderId) { toast.error(order.error || 'Could not start the payment.'); return }
 
-    // Determine if this is the first payment converting from Trial
-    const isFirstPayment = status.currentPhase === 'Trial'
-
-    const handleCheckout = async (basePlanId) => {
-        const planKey = `${basePlanId}-${billingCycle}`
-
-        startTransition(async () => {
-            const toastId = toast.loading('Initializing Secure Gateway...')
-            // 1. Create Order Server-Side
-            const orderRes = await createRazorpayOrder(planKey, gymId, isFirstPayment)
-
-            if (orderRes.error || !orderRes.orderId) {
-                toast.error(orderRes.error || 'Failed to initialize payment gateway', { id: toastId })
-                return
-            }
-
-            toast.dismiss(toastId)
-
-            // 2. Open Razorpay Custom Overlay
-            const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: orderRes.amountInPaise,
-                currency: orderRes.currency,
-                name: brand.gymName || "BGM",
-                description: `Subscription: ${planKey.toUpperCase()}`,
-                order_id: orderRes.orderId,
-                handler: async function (response) {
-                    toast.loading('Verifying secure transaction...', { id: 'payment_verify' })
-
-                    // 3. Frontend Fallback Verification
-                    const verifyRes = await verifyPaymentSignature(
-                        response.razorpay_order_id,
-                        response.razorpay_payment_id,
-                        response.razorpay_signature,
-                        gymId,
-                        planKey
-                    )
-
-                    if (verifyRes.success) {
-                        toast.success('Payment verified successfully! Welcome aboard.', { id: 'payment_verify', duration: 4000 })
-                        router.refresh()
-                    } else {
-                        toast.error(verifyRes.error || 'Signature verification failed', { id: 'payment_verify' })
-                    }
-                },
-                prefill: {
-                    name: status.ownerName || "Gym Owner",
-                    email: status.ownerEmail || ""
-                },
-                theme: {
-                    color: brand.primaryColor || "#ef4444"
-                }
-            };
-
-            const rzp = new window.Razorpay(options);
-
-            rzp.on('payment.failed', function (response) {
-                console.error("Payment Failed:", response.error)
-                toast.error(`Payment Failed: ${response.error.description}`)
-            });
-
-            rzp.open();
+      await new Promise((resolve) => {
+        const rzp = new window.Razorpay({
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: order.amountInPaise, currency: order.currency, order_id: order.orderId,
+          name: 'BGM — Best Gym Manager', description: 'BGM subscription',
+          prefill: { name: owner.name || '', email: owner.email || '' },
+          theme: { color: '#ef4444' },
+          modal: { ondismiss: resolve },
+          handler: async (response) => {
+            const tid = toast.loading('Confirming your payment…')
+            try {
+              const res = await verifyPaymentSignature(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature)
+              if (res.success) { toast.success('Payment confirmed. Your subscription is active.', { id: tid }); await refresh(); router.refresh() }
+              else if (res.pending) toast.message('Payment received and being confirmed. This page will update shortly.', { id: tid })
+              else toast.error(res.error || 'The payment could not be confirmed.', { id: tid })
+            } catch { toast.error('We could not confirm the payment. If money was deducted it will be reconciled automatically.', { id: tid }) }
+            resolve()
+          },
         })
-    }
+        rzp.on('payment.failed', (r) => toast.error(`Payment failed: ${r?.error?.description || 'please try again'}`))
+        rzp.open()
+      })
+    } finally { setBusy(false) }
+  }
 
-    return (
-        <DashShell title="Subscription" subtitle="Manage your BGM plan and billing">
-            <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+  return (
+    <DashShell title="BGM Subscription" subtitle="What your gym pays BGM">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2" title="Current status">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="font-display text-2xl font-bold">{status?.currentPhase === 'Trial' ? 'Free trial' : status?.currentPhase === 'Active' ? 'Active' : 'Expired'}</div>
+            <StatusBadge status={status?.isReadOnly ? 'Expired' : status?.currentPhase} />
+          </div>
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 text-sm">
+            <div><dt className="text-[11px] uppercase tracking-widest text-foreground/40">{status?.isReadOnly ? 'Ended' : 'Valid until'}</dt><dd className="font-medium">{endDate ? formatDate(endDate) : '—'}</dd></div>
+            <div><dt className="text-[11px] uppercase tracking-widest text-foreground/40">Days remaining</dt><dd className="font-medium">{status?.isReadOnly ? 0 : status?.daysRemaining ?? '—'}</dd></div>
+            <div><dt className="text-[11px] uppercase tracking-widest text-foreground/40">Members counted</dt><dd className="font-medium">{status?.activeMembers ?? 0}</dd></div>
+          </dl>
+          {status?.isReadOnly && <p className="mt-4 text-sm text-red-400">Your account is read-only. Renew to add members, record payments and edit settings again. Check-ins keep working for active members.</p>}
+        </Card>
+        <Card title="Pay now">
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-foreground/60">Platform fee</span><span>{formatMoney(cost.baseFee)}</span></div>
+            <div className="flex justify-between"><span className="text-foreground/60">{cost.activePaidMembers} active member{cost.activePaidMembers === 1 ? '' : 's'} × {formatMoney(cost.rate)}</span><span>{formatMoney(cost.usageCost)}</span></div>
+            {firstPayment && <div className="flex justify-between"><span className="text-foreground/60">One-time registration fee</span><span>{formatMoney(cost.registrationFee)}</span></div>}
+            <div className="flex justify-between font-semibold border-t border-foreground/10 pt-2"><span>Total for 1 month</span><span data-testid="bgm-total">{formatMoney(dueNow)}</span></div>
+          </div>
+          {razorpay.configured ? (
+            <Button disabled={busy} onClick={pay} className="w-full mt-4 h-11 text-white border-0" style={{ background: brand.primaryColor }}>{busy ? 'Opening payment…' : status?.currentPhase === 'Active' ? 'Renew for 1 month' : 'Activate subscription'}</Button>
+          ) : (
+            <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs p-3">Online payment is not available yet — BGM has not finished payment setup. Contact support@gymos.app to renew.</div>
+          )}
+          <p className="text-[11px] text-foreground/40 mt-2">The amount is calculated by BGM at payment time. Paying while active extends your current period.</p>
+        </Card>
+      </div>
 
-            <div className="grid md:grid-cols-3 gap-4 mt-6">
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 md:col-span-2 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 h-48 w-48 rounded-full blur-3xl opacity-20 -mr-20 -mt-20" style={{ background: brand.primaryColor }} />
-                    <div className="relative">
-                        <div className="text-sm font-medium text-foreground/50 mb-1">{status.currentPhase === 'Trial' ? 'Current Status' : 'Current Active Plan'}</div>
-                        <div className="text-3xl font-display font-bold flex items-center gap-3 capitalize">
-                            {status.currentPhase === 'Trial' ? 'BGM FREE TRIAL' : (status.plan || 'Development Mode')} {status.isReadOnly && <span className="text-sm px-2 py-1 bg-red-500/20 text-red-500 rounded-md font-medium tracking-wide uppercase">Expired</span>}
-                        </div>
-
-                        <div className="mt-8 flex flex-wrap gap-6">
-                            {status.currentPhase === 'Trial' && !status.isReadOnly ? (
-                                <div className={`p-4 rounded-xl border w-full flex justify-between items-center ${status.daysRemaining < 7 ? 'bg-orange-500/10 border-orange-500/20 text-orange-200' : 'bg-foreground/[0.03] border-foreground/5'}`}>
-                                    <div>
-                                        <div className="font-bold text-lg">{status.daysRemaining} days remaining</div>
-                                        <div className="text-sm opacity-80 mt-0.5">Trial ends: {new Date(status.trialEndDate).toLocaleDateString()}</div>
-                                    </div>
-                                    {status.daysRemaining < 7 && <Clock className="h-6 w-6 text-orange-400 opacity-50" />}
-                                </div>
-                            ) : (
-                                <>
-                                    <div>
-                                        <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Status Phase</div>
-                                        <div className="font-medium">{status.currentPhase}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Days Remaining</div>
-                                        <div className="font-medium">{status.daysRemaining} days</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-foreground/40 uppercase tracking-widest mb-1">Renewal Date</div>
-                                        <div className="font-medium">{new Date(status.subscriptionExpiryDate || status.trialEndDate).toLocaleDateString()}</div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-6 flex flex-col">
-                    <div className="text-sm font-medium text-foreground/50 mb-4">Billing Information</div>
-                    {isFirstPayment && (
-                        <div className="flex items-start gap-3 p-3 bg-blue-500/10 rounded-xl mb-4 border border-blue-500/20">
-                            <Shield className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                            <div className="text-xs text-blue-200">A one-time Registration Fee of <strong className="text-blue-100">₹2,999</strong> will be applied to your primary invoice today automatically.</div>
-                        </div>
-                    )}
-                    <div className="space-y-3 mt-auto">
-                        <Button variant="outline" className="w-full border-foreground/10 text-foreground hover:bg-white/5">Download Last Invoice</Button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-12">
-                <div className="text-xl font-display font-bold text-center mb-2">Platform & Billing</div>
-                <div className="text-center text-foreground/50 text-sm mb-6">BGM uses a transparent, usage-based pricing model that scales with your business automatically.</div>
-
-                <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                    {/* Calculation Card */}
-                    <div className="rounded-2xl border border-foreground/10 bg-black/40 p-6">
-                        <div className="text-lg font-bold mb-6 flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-500" /> Usage Calculation</div>
-
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-foreground/70">Base Platform Fee</span>
-                                <span className="font-medium">₹{costData.baseFee.toLocaleString()}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center text-sm border-b border-foreground/10 pb-4">
-                                <span className="text-foreground/70 flex flex-col">
-                                    <span>Active Member Usage</span>
-                                    <span className="text-xs opacity-60">{costData.activePaidMembers} members × ₹{costData.rate}</span>
-                                </span>
-                                <span className="font-medium">₹{costData.usageCost.toLocaleString()}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center bg-foreground/5 p-3 rounded-lg">
-                                <span className="font-bold">Estimated Monthly Cost</span>
-                                <span className="font-bold text-xl" style={{ color: brand.primaryColor }}>₹{costData.totalCost.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Features & Checkout */}
-                    <div className="rounded-2xl border border-foreground/10 bg-black/40 p-6 flex flex-col">
-                        <div className="text-lg font-bold flex items-center justify-between mb-2">
-                            BGM Core <span className="text-[10px] uppercase font-bold tracking-widest bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">No Tier Limits</span>
-                        </div>
-                        <ul className="space-y-2 mt-4 text-sm text-foreground/70 mb-8 flex-1">
-                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Unlimited Members (pay as you grow)</li>
-                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Full Platform Access</li>
-                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Advanced AI Analytics</li>
-                            <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground/40" /> Automated Attendance</li>
-                        </ul>
-
-                        <Button disabled={isPending} onClick={() => handleCheckout('usage-v1')} className="w-full mt-auto font-medium" style={{ background: brand.primaryColor, color: '#fff' }}>
-                            {status.currentPhase === 'Trial' ? 'Activate Platform' : 'Renew Subscription'}
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-        </DashShell>
-    )
+      <Card className="mt-5" title="Payment history">
+        {history.length === 0 ? <div className="text-sm text-foreground/40">No payments yet.</div> : (
+          <ul className="divide-y divide-foreground/5 -my-2">
+            {history.map(h => (
+              <li key={h.id} className="py-2.5 flex items-center justify-between gap-3 text-sm">
+                <div className="min-w-0"><div className="truncate">{formatDate(h.date)}</div><div className="text-[11px] text-foreground/40 font-mono truncate">{h.id}</div></div>
+                <div className="text-right shrink-0"><div className="font-medium">{formatMoney(h.amount)}</div><StatusBadge status={h.status === 'captured' ? 'PAID' : h.status === 'refunded' ? 'REFUNDED' : h.status} /></div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </DashShell>
+  )
 }

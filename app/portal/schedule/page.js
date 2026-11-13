@@ -1,14 +1,10 @@
-import { cookies } from 'next/headers'
-import { getMyProfile } from '@/actions/db/members'
 import ScheduleClient from './schedule-client'
+import { getMyProfile } from '@/actions/db/members'
+import { getMyGymSettings } from '@/actions/db/gyms'
+
+export const metadata = { title: 'Workout Schedule' }
 
 export default async function SchedulePage() {
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('gymos_session')?.value
-
-    let session = {}
-    try { if (sessionCookie) session = JSON.parse(sessionCookie) } catch (e) { }
-
-    const memberData = await getMyProfile()
-    return <ScheduleClient initialData={memberData} />
+  const [member, settings] = await Promise.all([getMyProfile(), getMyGymSettings()])
+  return <ScheduleClient member={member} zones={settings?.zones || []} />
 }

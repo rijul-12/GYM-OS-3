@@ -251,3 +251,14 @@ export async function submitDirectUpiPayment(reference) {
     revalidatePath('/portal/billing')
     return { success: true }
 }
+
+/** Owner: the gym's own payments to BGM. */
+export async function getGymBillingHistory() {
+    const session = await authorize('owner')
+    if (!session || !adminDb) return []
+    const snap = await adminDb.collection('transactions').where('gymId', '==', session.gymId).get()
+    return snap.docs.map(d => {
+        const t = d.data()
+        return { id: d.id, plan: t.plan || '', amount: toMoney(t.amount), status: t.status || '', date: t.verified_at || null }
+    }).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 50)
+}

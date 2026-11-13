@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, CheckCircle2, AlertTriangle, ArrowRight, Check, Edit3, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-const MUSCLES = ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core', 'Cardio', 'Mobility', 'Full Body', 'Other']
+const DEFAULT_OPTIONS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core']
 
 export default function CheckinPage({ params }) {
     const unwrappedParams = use(params)
@@ -24,11 +24,13 @@ export default function CheckinPage({ params }) {
     const [isEditing, setIsEditing] = useState(false)
     const [checkInTime, setCheckInTime] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [options, setOptions] = useState(DEFAULT_OPTIONS)
+    const [attempt, setAttempt] = useState(0)
 
     useEffect(() => {
         if (loading) return; // Wait for Firebase Auth
         if (!user) {
-            router.replace(`/login?callback=/checkin/${gymCode}`)
+            router.replace(`/login?next=${encodeURIComponent(`/checkin/${gymCode}`)}`)
             return;
         }
 
@@ -39,16 +41,17 @@ export default function CheckinPage({ params }) {
                 if (!isMounted) return;
 
                 if (res.error) {
-                    if (res.requireLogin) router.replace(`/login?callback=/checkin/${gymCode}`)
+                    if (res.requireLogin) router.replace(`/login?next=${encodeURIComponent(`/checkin/${gymCode}`)}`)
                     else {
                         setErrorMsg(res.error)
                         setStatus('error')
                     }
                 } else if (res.message === 'Already checked in') {
                     // Fast bypass if already legitimately inside
-                    setCheckInTime(new Date())
+                    setCheckInTime(res.checkInTime ? new Date(res.checkInTime) : new Date())
                     setStatus('success')
                 } else {
+                    if (Array.isArray(res.options) && res.options.length) setOptions(res.options)
                     const plan = res.plannedWorkout || []
                     setPlannedWorkout(plan)
                     setActualWorkout(plan)
@@ -72,7 +75,7 @@ export default function CheckinPage({ params }) {
         preCheck()
 
         return () => { isMounted = false }
-    }, [user, loading, gymCode, router])
+    }, [user, loading, gymCode, router, attempt])
 
     const confirmCheckin = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
@@ -87,7 +90,7 @@ export default function CheckinPage({ params }) {
                 setErrorMsg(res.error)
                 setStatus('error')
             } else {
-                setCheckInTime(new Date())
+                setCheckInTime(res.checkInTime ? new Date(res.checkInTime) : new Date())
                 setStatus('success')
             }
         } catch (e) {
@@ -136,7 +139,7 @@ export default function CheckinPage({ params }) {
                 <p className="text-foreground/60 mb-10 max-w-sm text-[15px] leading-relaxed">{errorMsg}</p>
                 <div className="space-y-3 w-full max-w-xs mx-auto">
                     {errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('connection') ? (
-                        <Button onClick={() => window.location.reload()} variant="outline" className="w-full h-[52px] bg-white/5 border border-foreground/10 text-foreground rounded-xl text-[16px]">
+                        <Button onClick={() => { setErrorMsg(''); setStatus('verifying'); setAttempt(a => a + 1) }} variant="outline" className="w-full h-[52px] bg-white/5 border border-foreground/10 text-foreground rounded-xl text-[16px]">
                             Try Again
                         </Button>
                     ) : (
@@ -187,7 +190,7 @@ export default function CheckinPage({ params }) {
                                 </h3>
 
                                 <div className="flex flex-wrap gap-2.5 mb-10 overflow-y-auto pr-2" style={{ maxHeight: 'calc(100dvh - 350px)' }}>
-                                    {MUSCLES.map(muscle => {
+                                    {options.map(muscle => {
                                         const isSelected = actualWorkout.includes(muscle);
                                         return (
                                             <button
@@ -259,7 +262,7 @@ export default function CheckinPage({ params }) {
                 </motion.div>
 
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="mt-8">
-                    <Button onClick={() => window.location.href = '/portal'} className="w-full min-h-[56px] h-auto bg-white text-black text-[16px] font-bold rounded-2xl shadow-xl shadow-white/5 active:scale-[0.98] touch-manipulation transition-transform">
+                    <Button onClick={() => router.push('/portal')} className="w-full min-h-[56px] h-auto bg-white text-black text-[16px] font-bold rounded-2xl shadow-xl shadow-white/5 active:scale-[0.98] touch-manipulation transition-transform">
                         Go to Portal <ArrowRight className="h-5 w-5 ml-2" />
                     </Button>
                 </motion.div>

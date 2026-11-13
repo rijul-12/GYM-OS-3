@@ -48,19 +48,26 @@ export const metadata = {
   }
 }
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#000000',
+}
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <Providers>
-            <BrandProvider>
-              <AuthProvider>
+            <AuthProvider>
+              <BrandProvider>
                 {children}
                 <GlobalSearch />
                 <Toaster theme="system" position="bottom-right" />
-              </AuthProvider>
-            </BrandProvider>
+              </BrandProvider>
+            </AuthProvider>
           </Providers>
         </ThemeProvider>
       </body>

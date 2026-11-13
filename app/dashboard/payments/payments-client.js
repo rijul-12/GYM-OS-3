@@ -1,108 +1,75 @@
 'use client'
-
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, CreditCard, Clock } from 'lucide-react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { toast } from 'sonner'
 import { DashShell } from '@/components/dash-shell'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import { getPendingMemberTransactions, resolveUpiPayment } from '@/actions/db/member_payments'
+import { Card, Stat, Empty, StatusBadge, formatDate, formatMoney } from '@/components/ui-kit'
+import { useLiveRefresh } from '@/components/use-live-refresh'
+import { resolveUpiPayment } from '@/actions/db/member_payments'
 
-export default function PaymentsClient({ user }) {
-    const [transactions, setTransactions] = useState([])
-    const [isLoading, setIsLoading] = useState(true)
+export default function PaymentsClient({ transactions, symbol, options }) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  const [filter, setFilter] = useState('All')
+  useLiveRefresh(30000)
 
-    const fetchPending = async () => {
-        setIsLoading(true)
-        try {
-            const data = await getPendingMemberTransactions(user.gymCode)
-            setTransactions(data)
-        } catch (e) {
-            toast.error("Failed to fetch pending transactions")
-        }
-        setIsLoading(false)
-    }
+  const pendingTx = transactions.filter(t => t.status === 'PENDING_VERIFICATION')
+  const month = new Date().toISOString().slice(0, 7)
+  const paidThisMonth = transactions.filter(t => t.status === 'PAID' && String(t.resolved_at || t.created_at || '').slice(0, 7) === month).reduce((s, t) => s + t.amount, 0)
+  const list = useMemo(() => transactions.filter(t => filter === 'All' || t.status === filter), [transactions, filter])
 
-    useEffect(() => {
-        fetchPending()
-    }, [])
+  const resolve = (tx, status) => start(async () => {
+    const res = await resolveUpiPayment(tx.id, status)
+    if (res?.error) toast.error(res.error)
+    else { toast.success(status === 'PAID' ? `Payment from ${tx.memberName} confirmed` : 'Payment rejected'); router.refresh() }
+  })
 
-    const handleAction = async (txId, action) => {
-        toast.loading(`Processing verification...`)
-        const res = await resolveUpiPayment(txId, action)
-        toast.dismiss()
-        if (res.error) {
-            toast.error(res.error)
-        } else {
-            toast.success(action === 'PAID' ? "Payment Confirmed!" : "Payment Rejected")
-            setTransactions(prev => prev.filter(t => t.id !== txId))
-        }
-    }
+  return (
+    <DashShell title="Payments" subtitle="Payments from your members">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Stat label="Collected this month" value={formatMoney(paidThisMonth, symbol)} hint="Confirmed payments only" />
+        <Stat label="Waiting for you" value={pendingTx.length} hint="UPI transfers to verify" tone={pendingTx.length ? '#f59e0b' : undefined} />
+        <div className="col-span-2 md:col-span-1 rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 text-xs text-foreground/60">
+          <div className="text-[11px] uppercase tracking-widest text-foreground/50 mb-1">Member payment options</div>
+          Direct UPI: <strong className="text-foreground">{options.upi ? 'On' : 'Off'}</strong> · Online (Razorpay): <strong className="text-foreground">{options.razorpay ? (options.razorpayConfigured ? 'On' : 'On — not configured by BGM yet') : 'Off'}</strong>
+          <div className="mt-1"><Link href="/settings?tab=billing" className="underline">Change in Settings</Link></div>
+        </div>
+      </div>
 
-    return (
-        <DashShell title="Manual Payment Verifications" subtitle="Approve incoming direct UPI transfers from your members">
-            <div className="max-w-5xl mx-auto space-y-6">
-
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold font-display">Pending UPI Verifications</h2>
-                        <p className="text-[13px] text-foreground/50 mt-1">Cross-reference your bank app to confirm these amounts.</p>
-                    </div>
-                    <Button variant="outline" onClick={fetchPending} disabled={isLoading} className="border-foreground/10 bg-foreground/[0.03]">
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
-                    </Button>
+      <Card className="mt-5" title="UPI payments to verify" subtitle="A member says they transferred this amount to your UPI ID. Check your bank or UPI app before confirming — BGM cannot see the transfer.">
+        {pendingTx.length === 0 ? <div className="text-sm text-foreground/40">Nothing waiting for verification.</div> : (
+          <ul className="divide-y divide-foreground/5 -my-2" data-testid="pending-upi">
+            {pendingTx.map(tx => (
+              <li key={tx.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{tx.memberName} · {formatMoney(tx.amount, symbol)}</div>
+                  <div className="text-xs text-foreground/50">Reported {formatDate(tx.created_at)}{tx.utr ? ` · Ref ${tx.utr}` : ' · no reference given'}</div>
                 </div>
-
-                <div className="rounded-3xl border border-foreground/10 bg-foreground/[0.02] p-2 overflow-hidden">
-                    <div className="min-w-[700px] w-full">
-                        <div className="grid grid-cols-6 gap-4 p-4 text-[10px] uppercase font-bold tracking-widest text-foreground/40 border-b border-foreground/5">
-                            <div className="col-span-2">Member Details</div>
-                            <div>Gateway</div>
-                            <div>Amount Claimed</div>
-                            <div>Date Submitted</div>
-                            <div className="text-right">Admin Actions</div>
-                        </div>
-
-                        {transactions.length === 0 && !isLoading && (
-                            <div className="text-center py-20">
-                                <CheckCircle2 className="h-10 w-10 text-emerald-500/40 mx-auto mb-4" />
-                                <h3 className="font-semibold text-lg text-foreground/70">All clear!</h3>
-                                <p className="text-sm text-foreground/40 mt-1">There are no pending UPI transfers waiting for your approval.</p>
-                            </div>
-                        )}
-
-                        <AnimatePresence>
-                            {transactions.map(tx => (
-                                <motion.div key={tx.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="grid grid-cols-6 gap-4 items-center p-4 border-b border-foreground/5 last:border-0 hover:bg-foreground/[0.02] transition-colors">
-                                    <div className="col-span-2">
-                                        <div className="font-semibold text-[15px]">{tx.memberName}</div>
-                                        <div className="text-[11px] text-foreground/40 font-mono mt-0.5">TX: {tx.id}</div>
-                                    </div>
-                                    <div>
-                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 text-orange-500 text-[10px] uppercase tracking-widest font-bold">
-                                            <AlertCircle className="h-3 w-3" /> {tx.method}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-lg font-bold font-display text-emerald-400">₹{tx.amount.toLocaleString()}</div>
-                                    </div>
-                                    <div className="text-xs text-foreground/60 flex items-center gap-1">
-                                        <Clock className="h-3 w-3" /> {new Date(tx.created_at).toLocaleDateString()}
-                                    </div>
-                                    <div className="flex items-center justify-end gap-2">
-                                        <Button size="sm" onClick={() => handleAction(tx.id, 'REJECTED')} variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10 hover:text-red-500 h-9">
-                                            Reject
-                                        </Button>
-                                        <Button size="sm" onClick={() => handleAction(tx.id, 'PAID')} className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold h-9">
-                                            Verify & Clear
-                                        </Button>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
+                <div className="flex gap-2">
+                  <Button disabled={pending} variant="outline" className="flex-1 sm:flex-none h-10" onClick={() => resolve(tx, 'REJECTED')}>Not received</Button>
+                  <Button disabled={pending} className="flex-1 sm:flex-none h-10 bg-emerald-600 hover:bg-emerald-700 text-white border-0" onClick={() => resolve(tx, 'PAID')}>Confirm received</Button>
                 </div>
-            </div>
-        </DashShell>
-    )
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card className="mt-5" title="Payment history" action={
+        <select value={filter} onChange={e => setFilter(e.target.value)} className="h-9 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-2 text-xs"><option>All</option><option value="PAID">Paid</option><option value="PENDING_VERIFICATION">Pending</option><option value="REJECTED">Rejected</option><option value="REFUNDED">Refunded</option><option value="FAILED">Failed</option></select>}>
+        {list.length === 0 ? <Empty title="No payments yet" hint="Payments you record for members, UPI confirmations and online payments appear here." /> : (
+          <ul className="divide-y divide-foreground/5 -my-2">
+            {list.slice(0, 200).map(tx => (
+              <li key={tx.id} className="py-2.5 flex items-center gap-3 text-sm">
+                <div className="flex-1 min-w-0"><div className="truncate">{tx.memberName}</div><div className="text-[11px] text-foreground/50">{formatDate(tx.resolved_at || tx.created_at)} · {tx.method}{tx.note ? ` · ${tx.note}` : ''}</div></div>
+                <div className="text-right shrink-0"><div className="font-medium tabular-nums">{formatMoney(tx.amount, symbol)}</div><StatusBadge status={tx.status} /></div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </DashShell>
+  )
 }

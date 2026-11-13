@@ -27,17 +27,11 @@ export function FeedbackButton({ wrapperClass = "flex items-center gap-3 px-3 py
         if (!text.trim()) return
         setLoading(true)
         try {
-            await submitFeedback({
-                uid: user?.uid,
-                email: user?.email,
-                role: user?.role,
-                gymCode: user?.gymCode || 'DEMO',
-                category,
-                text
-            })
+            const ok = await submitFeedback({ category, text, page: typeof window !== 'undefined' ? window.location.pathname : '' })
+            if (!ok) throw new Error('not saved')
 
             setSubmitted(true)
-            toast.success("Feedback submitted to engineering.")
+            toast.success("Thanks — your feedback was sent.")
             setTimeout(() => { setOpen(false); setSubmitted(false); setText('') }, 2000)
         } catch (e) {
             toast.error("Failed to submit feedback")

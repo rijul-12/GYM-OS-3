@@ -1,118 +1,59 @@
-import { motion } from 'framer-motion'
-import { EmptyState } from '@/components/ui/empty-state'
+'use client'
 
-// -------- Workout Zone Demand Grid --------
-export function ZoneDemandGrid({ compact = false, zones = [] }) {
+/**
+ * Workout demand per facility: how many of the members currently in the gym
+ * chose that muscle group. A percentage is shown only when the owner set a
+ * capacity for the zone — otherwise just the head-count.
+ */
+export function ZoneDemandGrid({ zones = [], compact = false, emptyHint = 'No facilities are configured yet.' }) {
   if (!zones || zones.length === 0) {
-    return <EmptyState title="No Zone Traffic" description="Add physical facilities in Settings to begin predicting AI Live Traffic estimations." />
+    return <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-6 text-center text-sm text-foreground/50">{emptyHint}</div>
   }
-
   return (
-    <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-6'}`}>
-      {zones.map((z, i) => (
-        <motion.div
-          key={z.id || i}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.05, duration: 0.4 }}
-          className="relative rounded-2xl border p-4 overflow-hidden card-hover"
-          style={{ borderColor: z.border, background: z.bg }}
-        >
-          <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full blur-2xl opacity-40" style={{ background: z.color }} />
-          <div className="relative">
-            <div className="flex items-start justify-between">
-              <div className="text-2xl">{z.emoji}</div>
-              <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${z.color}25`, color: z.color }}>{z.status}</span>
-            </div>
-            <div className="mt-3 font-display font-semibold text-sm md:text-base">{z.name}</div>
-            <div className="mt-1 text-xs text-foreground/50">{z.members} active workout intents</div>
-            <div className="mt-3 flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${z.demand}%` }}
-                  transition={{ duration: 1.1, ease: 'easeOut', delay: i * 0.05 + 0.15 }}
-                  className="h-full rounded-full"
-                  style={{ background: z.color }}
-                />
-              </div>
-              <span className="text-xs font-bold tabular-nums" style={{ color: z.color }}>{z.demand}%</span>
-            </div>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  )
-}
-
-// -------- Crowd Heatmap Horizontal Timeline --------
-export function CrowdHeatmap({ heatmapData = [] }) {
-  if (!heatmapData || heatmapData.length === 0) {
-    return <EmptyState title="Heatmap Unavailable" description="Prediction engine requires at least 24 hours of live check-in data." />
-  }
-
-  return (
-    <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-      {heatmapData.map((h, i) => (
-        <motion.div
-          key={h.time || i}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.06 }}
-          className="relative shrink-0 min-w-[110px] md:flex-1 rounded-2xl border p-4 overflow-hidden"
-          style={{ borderColor: `${h.color}45`, background: `linear-gradient(180deg, ${h.color}18, transparent 90%)` }}
-        >
-          <div className="text-xs uppercase tracking-widest font-semibold text-foreground/60">{h.time}</div>
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="text-base">{h.dot}</span>
-            <span className="font-display text-sm md:text-base font-bold" style={{ color: h.color }}>{h.level}</span>
-          </div>
-          <div className="mt-3 h-1 rounded-full bg-white/5 overflow-hidden">
-            <motion.div initial={{ width: 0 }} animate={{ width: `${h.percent}%` }} transition={{ duration: 1.1, delay: i * 0.06 + 0.1 }} className="h-full rounded-full" style={{ background: h.color }} />
-          </div>
-          <div className="mt-2 text-[10px] text-foreground/50 tabular-nums">{h.percent}% capacity</div>
-        </motion.div>
-      ))}
-    </div>
-  )
-}
-
-// -------- Zone AI Insights Grid --------
-const TONE = {
-  critical: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.35)' },
-  warning: { color: '#f97316', bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.35)' },
-  positive: { color: '#22c55e', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.30)' },
-  info: { color: '#a3a3a3', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.10)' },
-}
-
-export function ZoneInsightsGrid({ insights = [], limit = 6 }) {
-  if (!insights || insights.length === 0) {
-    return <EmptyState title="No Insights Detected" description="Physical zone ML models currently have no real-time telemetry to analyze." />
-  }
-
-  return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {insights.slice(0, limit).map((ins, i) => {
-        const t = TONE[ins.tone] || TONE.info
+    <div className={`grid gap-3 grid-cols-2 ${compact ? 'md:grid-cols-3' : 'md:grid-cols-3 xl:grid-cols-6'}`} data-testid="zone-grid">
+      {zones.map((z) => {
+        const pct = typeof z.demand === 'number' ? Math.min(100, z.demand) : null
         return (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06 }}
-            className="rounded-2xl p-5 relative overflow-hidden card-hover"
-            style={{ background: t.bg, border: `1px solid ${t.border}` }}
-          >
-            <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full blur-2xl opacity-30" style={{ background: t.color }} />
-            <div className="relative">
-              <div className="text-2xl leading-none">{ins.icon || '✨'}</div>
-              <div className="mt-3 font-display font-semibold leading-snug">{ins.title || ins.text}</div>
-              <div className="text-xs text-foreground/55 mt-2">{ins.detail || ins.hint}</div>
+          <div key={z.id} className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 min-w-0" data-zone={z.muscleGroup}>
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xl leading-none" aria-hidden>{z.emoji}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full truncate" style={{ background: `${z.color}22`, color: z.color }}>{z.status}</span>
             </div>
-          </motion.div>
+            <div className="mt-3 font-display font-semibold text-sm truncate">{z.name}</div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tabular-nums" data-testid="zone-count">{z.members}</span>
+              <span className="text-xs text-foreground/50">{z.capacity ? `of ${z.capacity}` : (z.members === 1 ? 'member' : 'members')}</span>
+            </div>
+            {pct !== null && (
+              <div className="mt-2 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: z.color }} />
+              </div>
+            )}
+          </div>
         )
       })}
     </div>
   )
 }
 
+/** Unique members currently checked in, against capacity when the owner configured one. */
+export function OccupancyCard({ insideCount = 0, capacity = null, asOf = null }) {
+  const pct = capacity ? Math.min(100, Math.round((insideCount / capacity) * 100)) : null
+  return (
+    <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-5">
+      <div className="text-[11px] uppercase tracking-widest text-foreground/50">In the gym right now</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className="font-display text-4xl font-bold tabular-nums" data-testid="inside-count">{insideCount}</span>
+        <span className="text-sm text-foreground/50">{capacity ? `of ${capacity} capacity` : (insideCount === 1 ? 'member' : 'members')}</span>
+      </div>
+      {pct !== null && (
+        <div className="mt-3 h-2 rounded-full bg-foreground/10 overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 90 ? '#ef4444' : pct >= 60 ? '#f59e0b' : '#22c55e' }} />
+        </div>
+      )}
+      <div className="mt-2 text-[11px] text-foreground/40">
+        Unique members checked in{asOf ? ` · updated ${new Date(asOf).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+      </div>
+    </div>
+  )
+}

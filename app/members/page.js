@@ -1,22 +1,13 @@
-import { Suspense } from 'react'
 import MembersClient from './members-client'
 import { getMembers } from '@/actions/db/members'
-import { ListSkeleton, DataErrorState } from '@/components/ui/skeletons'
+import { getPlans } from '@/actions/db/plans'
+import { getTrainers } from '@/actions/db/trainers'
+import { requireRole } from '@/lib/server/session'
+
+export const metadata = { title: 'Members' }
 
 export default async function MembersPage() {
-  try {
-    const members = await getMembers()
-    return (
-      <Suspense fallback={<ListSkeleton count={12} />}>
-        <MembersClient initialMembers={members} />
-      </Suspense>
-    )
-  } catch (error) {
-    return (
-      <div className="p-8">
-        <DataErrorState error={{ message: error?.message || 'Server Error' }} />
-      </div>
-    )
-  }
+  await requireRole('owner')
+  const [members, plans, trainers] = await Promise.all([getMembers(), getPlans(), getTrainers()])
+  return <MembersClient initialMembers={members} plans={plans} trainers={trainers} />
 }
-

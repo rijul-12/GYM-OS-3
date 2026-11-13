@@ -1,29 +1,10 @@
-import { Suspense } from 'react'
 import TrainerClient from './trainer-client'
-import { getMembers } from '@/actions/db/members'
-import { CardSkeleton, DataErrorState } from '@/components/ui/skeletons'
+import { getAssignedMembers } from '@/actions/db/trainer_operations'
+import { getMyTrainerProfile } from '@/actions/db/trainers'
+import { getDashboardStats } from '@/actions/db/gyms'
+import { getAttendanceLogs } from '@/actions/db/attendance'
 
 export default async function TrainerDashboardPage() {
-  try {
-    // Thanks to user_metadata and RLS policies on Supabase, getMembers() implicitly
-    // only returns members where trainer_id = auth.uid() when accessed by a trainer.
-    const assignedMembers = await getMembers()
-
-    return (
-      <Suspense fallback={
-        <div className="p-6 grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <CardSkeleton /><CardSkeleton /><CardSkeleton />
-        </div>
-      }>
-        <TrainerClient members={assignedMembers} />
-      </Suspense>
-    )
-  } catch (error) {
-    return (
-      <div className="p-8">
-        <DataErrorState error={{ message: error?.message || 'Server Error' }} />
-      </div>
-    )
-  }
+  const [members, profile, live, logs] = await Promise.all([getAssignedMembers(), getMyTrainerProfile(), getDashboardStats(), getAttendanceLogs(30)])
+  return <TrainerClient members={members} profile={profile} live={live} logs={logs} />
 }
-

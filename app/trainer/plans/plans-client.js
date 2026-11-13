@@ -1,124 +1,52 @@
 'use client'
-import Image from 'next/image'
 import { useState, useTransition } from 'react'
-import { motion } from 'framer-motion'
-import { ClipboardList, Copy, Edit3, Plus, Calendar, Check } from 'lucide-react'
-import { TrainerShell } from '@/components/trainer-shell'
-import { useBrand } from '@/components/brand-provider'
-
-import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { TrainerShell } from '@/components/trainer-shell'
+import { Button } from '@/components/ui/button'
+import { UserAvatar } from '@/components/user-avatar'
+import { ScheduleEditor } from '@/components/schedule-editor'
+import { Modal, Empty } from '@/components/ui-kit'
+import { MUSCLE_GROUPS } from '@/lib/domain/schedule'
 import { updateWorkoutPlan } from '@/actions/db/trainer_operations'
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const WORKOUT_TYPES = ['Hypertrophy', 'Strength', 'Endurance', 'Mobility', 'Recovery', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Functional', 'Full Body', 'Rest']
+export default function TrainerPlansClient({ initialMembers, zones }) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  const [edit, setEdit] = useState(null)
+  const [value, setValue] = useState(null)
+  const members = initialMembers || []
+  const options = [...new Set([...MUSCLE_GROUPS, ...zones.map(z => z.muscleGroup)])]
 
-const TYPE_COLOR = {
-    Chest: '#ef4444',
-    Back: '#f87171',
-    Legs: '#22c55e',
-    Shoulders: '#facc15',
-    Arms: '#84cc16',
-    Cardio: '#3b82f6',
-    Functional: '#8b5cf6',
-    'Full Body': '#ec4899',
-    Rest: '#525252',
-    Hypertrophy: '#ef4444',
-    Strength: '#3b82f6',
-    Endurance: '#22c55e',
-    Mobility: '#10b981',
-    Recovery: '#10b981'
-}
+  const openFor = (m) => { setEdit(m); setValue({ noFixedSchedule: m.noFixedSchedule, schedule: m.schedule || {} }) }
+  const save = () => start(async () => {
+    try {
+      const res = await updateWorkoutPlan(edit.id, value.noFixedSchedule ? {} : value.schedule)
+      if (res?.error) return toast.error(res.error)
+      setEdit(null); toast.success(`Schedule saved for ${edit.name}`); router.refresh()
+    } catch { toast.error('Network error. The schedule was not saved.') }
+  })
 
-export default function TrainerPlansClient({ initialMembers }) {
-    const { brand } = useBrand()
-    // Maps initial trainer_plan payload onto local reactivity tracking
-    const [plans, setPlans] = useState(
-        initialMembers.reduce((acc, m) => {
-            acc[m.id] = m.trainer_plan || { Mon: 'Rest', Tue: 'Rest', Wed: 'Rest', Thu: 'Rest', Fri: 'Rest', Sat: 'Rest', Sun: 'Rest' }
-            return acc
-        }, {})
-    )
-    const [view, setView] = useState('weekly')
-    const [isPending, startTransition] = useTransition()
-
-    const setDay = (mid, d, v) => {
-        const newPlan = { ...(plans[mid] || {}), [d]: v }
-        // Optimistic UI updates
-        setPlans({ ...plans, [mid]: newPlan })
-        // Sync to DB
-        startTransition(async () => {
-            await updateWorkoutPlan(mid, newPlan)
-        })
-    }
-
-    const duplicate = (mid) => {
-        const sourcePlan = plans[mid] || {};
-        const newPlans = { ...plans };
-        initialMembers.forEach(m => {
-            if (m.id !== mid) {
-                newPlans[m.id] = { ...sourcePlan };
-                startTransition(async () => {
-                    await updateWorkoutPlan(m.id, sourcePlan);
-                });
-            }
-        });
-        setPlans(newPlans);
-        toast.success(`Plan duplicated to all ${initialMembers.length - 1} other clients successfully.`);
-    }
-
-    return (
-        <TrainerShell
-            title="Workout Plans"
-            subtitle="Assign, edit, and orchestrate weekly structural programs pushed natively."
-        >
-
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-                <div className="flex gap-1 bg-foreground/[0.03] border border-foreground/10 rounded-lg p-1">
-                    {[{ id: 'weekly', label: 'Weekly plan' }, { id: 'monthly', label: 'Monthly plan' }].map((t) => (
-                        <button key={t.id} onClick={() => setView(t.id)} className={`px-3 py-1.5 rounded-md text-xs font-medium ${view === t.id ? 'text-foreground' : 'text-foreground/50 hover:text-foreground'}`} style={view === t.id ? { background: brand.primaryColor } : {}}>{t.label}</button>
-                    ))}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                    {WORKOUT_TYPES.map((t) => (
-                        <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1.5" style={{ background: `${TYPE_COLOR[t] || '#333'}22`, color: TYPE_COLOR[t] || '#aaa' }}>
-                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: TYPE_COLOR[t] || '#aaa' }} /> {t}
-                        </span>
-                    ))}
-                </div>
+  return (
+    <TrainerShell title="Workout Schedules" subtitle="Weekly plans for your members">
+      {members.length === 0 ? <Empty title="No members assigned yet" /> : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {members.map(m => (
+            <div key={m.id} className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4">
+              <div className="flex items-center gap-3"><UserAvatar src={m.photoURL} name={m.name} size={36} /><div className="flex-1 min-w-0"><div className="font-medium truncate">{m.name}</div><div className="text-xs text-foreground/50 truncate">{m.goal || 'No goal set'}</div></div><Button variant="outline" className="h-9 text-xs" onClick={() => openFor(m)}>Edit</Button></div>
+              {m.noFixedSchedule ? <div className="mt-3 text-sm text-foreground/50">No Fixed Schedule</div> : (
+                <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">{Object.entries(m.schedule || {}).map(([d, v]) => <div key={d} className="flex justify-between gap-2 rounded-lg bg-foreground/[0.04] px-2 py-1.5"><span className="text-foreground/40">{d.slice(0, 3)}</span><span className="truncate">{v?.length ? v.join(' + ') : 'Rest'}</span></div>)}</div>
+              )}
             </div>
-
-            <div className="space-y-4">
-                {initialMembers.map((m, i) => {
-                    const plan = plans[m.id] || {}
-                    return (
-                        <motion.div key={m.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-5">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Image src={m.photo_url || `https://i.pravatar.cc/150?u=${m.id}`} className="h-11 w-11 rounded-full object-cover ring-1 ring-white/10" alt="" width={120} height={120} />
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-display font-semibold">{m.name}</div>
-                                    <div className="text-xs text-foreground/50">{m.plan || 'Assign Program'} · {Object.values(plan).filter(v => v !== 'Rest').length} training days/week</div>
-                                </div>
-                                <Button onClick={() => duplicate(m.id)} size="sm" variant="outline" className="h-8 text-xs bg-foreground/[0.03] border-foreground/10"><Copy className="h-3 w-3 mr-1" /> Duplicate</Button>
-                            </div>
-                            <div className="grid grid-cols-7 gap-2">
-                                {DAYS.map((d) => {
-                                    const t = plan[d] || 'Rest'
-                                    const c = TYPE_COLOR[t] || '#333'
-                                    return (
-                                        <div key={d} className="rounded-xl border p-3" style={{ borderColor: `${c}35`, background: `${c}0d` }}>
-                                            <div className="text-[9px] uppercase text-foreground/40">{d}</div>
-                                            <select disabled={isPending} value={t} onChange={(e) => setDay(m.id, d, e.target.value)} className="mt-1 w-full bg-transparent text-xs font-medium outline-none" style={{ color: c }}>
-                                                {WORKOUT_TYPES.map(w => <option key={w} value={w} className="bg-card text-foreground">{w}</option>)}
-                                            </select>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </motion.div>
-                    )
-                })}
-            </div>
-        </TrainerShell >
-    )
+          ))}
+        </div>
+      )}
+      {edit && value && (
+        <Modal open onClose={() => !pending && setEdit(null)} wide title={`${edit.name} — weekly schedule`} footer={<><Button variant="outline" disabled={pending} onClick={() => setEdit(null)}>Cancel</Button><Button disabled={pending} onClick={save}>{pending ? 'Saving…' : 'Save schedule'}</Button></>}>
+          <p className="text-xs text-foreground/50 mb-3">The member sees this in their portal and is offered it at check-in.</p>
+          <ScheduleEditor value={value.schedule} noFixedSchedule={value.noFixedSchedule} options={options} onChange={setValue} />
+        </Modal>
+      )}
+    </TrainerShell>
+  )
 }

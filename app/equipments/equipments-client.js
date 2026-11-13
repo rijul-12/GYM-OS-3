@@ -1,83 +1,55 @@
 'use client'
-import { useState } from 'react'
-import { Save, Loader2, Dumbbell, ArchiveX } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { useBrand } from '@/components/brand-provider'
+import { Plus, Trash2 } from 'lucide-react'
+import { DashShell } from '@/components/dash-shell'
+import { Button } from '@/components/ui/button'
+import { Card, Empty, inputClass } from '@/components/ui-kit'
+import { saveGymEquipment } from '@/actions/db/gyms'
 
-export default function EquipmentsClient({ initialData, gymCode }) {
-    const { brand } = useBrand()
-    const [equipment, setEquipment] = useState(Object.keys(initialData).length > 0 ? initialData : {
-        Cardio: [{ id: 'treadmill', name: 'Treadmill', qty: 0 }],
-        Legs: [{ id: 'leg_press', name: 'Leg Press', qty: 0 }],
-        Chest: [{ id: 'bench_press', name: 'Bench Press', qty: 0 }],
-        Back: [{ id: 'lat_pull', name: 'Lat Pulldown', qty: 0 }],
-        Weights: [{ id: 'dumbbells', name: 'Dumbbell Set', qty: 0 }]
-    })
-    const [loading, setLoading] = useState(false)
+export default function EquipmentsClient({ initialData }) {
+  const [equipment, setEquipment] = useState(initialData || {})
+  const [dirty, setDirty] = useState(false)
+  const [newCat, setNewCat] = useState('')
+  const [pending, start] = useTransition()
+  const change = (next) => { setEquipment(next); setDirty(true) }
 
-    const updateEquipment = (category, index, increment) => {
-        setEquipment(prev => {
-            const copy = { ...prev }
-            const currentItem = copy[category][index]
-            currentItem.qty = Math.max(0, currentItem.qty + increment)
-            return copy
-        })
-    }
+  const save = () => start(async () => {
+    const res = await saveGymEquipment(equipment)
+    if (res?.error) return toast.error(res.error)
+    setEquipment(res.equipment); setDirty(false); toast.success('Equipment saved')
+  })
+  const addCategory = () => {
+    const name = newCat.trim()
+    if (!name || equipment[name]) return
+    change({ ...equipment, [name]: [] }); setNewCat('')
+  }
+  const cats = Object.keys(equipment)
 
-    const saveInventory = async () => {
-        setLoading(true)
-        try {
-            await fetch('/api/equipments/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ equipment, gymCode })
-            })
-            toast.success("Inventory fully synchronized.")
-        } catch (err) {
-            toast.error("Failed to commit inventory mapping.")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
-                <p className="text-foreground/50 text-sm">Update specific cart quantities mapping to actual physical counts at your local facility.</p>
-                <Button onClick={saveInventory} disabled={loading} style={{ background: brand.primaryColor }} className="text-foreground border-0 shadow-lg shadow-red-500/20 rounded-full h-10 px-6">
-                    {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Save Synchronization
-                </Button>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-                {Object.keys(equipment).map(cat => (
-                    <div key={cat} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] overflow-hidden">
-                        <div className="px-5 py-4 border-b border-foreground/5 flex items-center gap-3 bg-foreground/[0.01]">
-                            <Dumbbell className="h-4 w-4 text-foreground/40" />
-                            <span className="font-display font-medium">{cat}</span>
-                        </div>
-                        <div className="p-2 space-y-1">
-                            {equipment[cat].map((item, i) => (
-                                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-foreground/[0.04] transition group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center text-foreground/20 group-hover:text-foreground/50 transition">
-                                            <ArchiveX className="h-4 w-4" />
-                                        </div>
-                                        <span className="text-sm font-medium">{item.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 bg-card rounded-lg p-1 border border-foreground/5">
-                                        <button onClick={() => updateEquipment(cat, i, -1)} className="h-7 w-7 rounded-md flex items-center justify-center text-foreground/50 hover:bg-white/10 hover:text-foreground transition">-</button>
-                                        <div className="w-6 text-center text-sm font-mono tracking-wider">{item.qty}</div>
-                                        <button onClick={() => updateEquipment(cat, i, 1)} className="h-7 w-7 rounded-md flex items-center justify-center text-foreground/50 hover:bg-white/10 hover:text-foreground transition">+</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+  return (
+    <DashShell title="Equipment" subtitle="Your gym's equipment inventory" actions={<Button className="h-10" disabled={!dirty || pending} onClick={save}>{pending ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</Button>}>
+      <div className="flex gap-2 mb-5 max-w-md">
+        <input className={inputClass} placeholder="New category, e.g. Cardio" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCategory()} />
+        <Button variant="outline" className="h-11 shrink-0" onClick={addCategory}><Plus className="h-4 w-4 mr-1" />Add</Button>
+      </div>
+      {cats.length === 0 ? <Empty title="No equipment listed" hint="Add a category such as Cardio or Free Weights, then list the machines in it." /> : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {cats.map(cat => (
+            <Card key={cat} title={cat} action={<button aria-label={`Remove ${cat}`} className="text-foreground/40 hover:text-red-400 p-1" onClick={() => { const { [cat]: _, ...rest } = equipment; change(rest) }}><Trash2 className="h-4 w-4" /></button>}>
+              <ul className="space-y-2">
+                {equipment[cat].map((item, i) => (
+                  <li key={i} className="flex gap-2">
+                    <input className={`${inputClass} h-10`} value={item.name} placeholder="Item name" onChange={e => change({ ...equipment, [cat]: equipment[cat].map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
+                    <input className={`${inputClass} h-10 w-20`} type="number" min="0" inputMode="numeric" aria-label="Quantity" value={item.qty} onChange={e => change({ ...equipment, [cat]: equipment[cat].map((x, j) => j === i ? { ...x, qty: e.target.value } : x) })} />
+                    <button aria-label="Remove item" className="px-2 text-foreground/40 hover:text-red-400" onClick={() => change({ ...equipment, [cat]: equipment[cat].filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+                  </li>
                 ))}
-            </div>
+              </ul>
+              <button className="mt-3 text-xs underline text-foreground/60" onClick={() => change({ ...equipment, [cat]: [...equipment[cat], { name: '', qty: 1 }] })}>+ Add item</button>
+            </Card>
+          ))}
         </div>
-    )
+      )}
+    </DashShell>
+  )
 }

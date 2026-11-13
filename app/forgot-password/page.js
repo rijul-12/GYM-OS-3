@@ -16,9 +16,10 @@ export default function ForgotPasswordPage() {
         e.preventDefault()
         setStatus('loading')
         try {
-            await resetPasswordAction(email)
+            const res = await resetPasswordAction(email)
+            if (res?.error) throw new Error(res.error)
             setStatus('success')
-            setMsg('We sent a password reset link to your email.')
+            setMsg('If an account exists for that e-mail, a password reset link is on its way.')
         } catch (err) {
             setStatus('error')
             setMsg(err.message || 'Failed to send reset email.')

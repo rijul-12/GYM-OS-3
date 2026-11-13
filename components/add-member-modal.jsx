@@ -1,276 +1,192 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, CheckCircle2, AlertTriangle, Users, DollarSign, Dumbbell, MapPin, Phone } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useBrand } from './brand-provider'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { createMember } from '@/actions/db/members'
-import { getPlans } from '@/actions/db/plans'
-import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { Modal, Field, inputClass, formatDate, formatMoney } from '@/components/ui-kit'
+import { ScheduleEditor } from '@/components/schedule-editor'
+import { createMember, approveMember } from '@/actions/db/members'
+import { addDuration, cycleToMonths } from '@/lib/domain/membership'
+import { MUSCLE_GROUPS } from '@/lib/domain/schedule'
+import { useBrand } from './brand-provider'
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const STEPS = ['Details', 'Membership', 'Schedule', 'Review']
+const METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'Other']
+const today = () => new Date().toLocaleDateString('en-CA')
 
-export function AddMemberModal({ open, onOpenChange, onSuccess }) {
-    const { brand } = useBrand()
-    const [step, setStep] = useState(1) // 1: Personal, 2: Fitness & Schedule, 3: Finance, 4: Review
-    const [submitting, setSubmitting] = useState(false)
-    const [errorMsg, setErrorMsg] = useState(null)
-    const [availablePlans, setAvailablePlans] = useState([])
+const blank = () => ({
+  name: '', phone: '', email: '', gender: '', dob: '', address: '', emergencyContact: '', goal: '',
+  planId: '', plan: '', startDate: today(), expiryDate: '', paymentFee: '', amountPaid: '', paymentMethod: 'Cash',
+  trainer_id: '', noFixedSchedule: true, schedule: {},
+})
 
-    const defaultSchedule = { Monday: '', Tuesday: '', Wednesday: '', Thursday: '', Friday: '', Saturday: '', Sunday: '' }
+/**
+ * Add a member, or review-and-approve a member who registered themselves
+ * (`reviewMember`). The last step always shows the complete record before
+ * anything is saved; dues and payment status are recalculated on the server.
+ */
+export function AddMemberModal({ open, onOpenChange, onSuccess, plans = [], trainers = [], reviewMember = null }) {
+  const { brand } = useBrand()
+  const [step, setStep] = useState(0)
+  const [form, setForm] = useState(blank)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const isReview = !!reviewMember
+  const set = (patch) => setForm(f => ({ ...f, ...patch }))
 
-    const [form, setForm] = useState({
-        name: '', email: '', phone: '', dob: '', gender: 'Male', address: '', emergencyContact: '',
-        goal: '', preferredTime: '', trainer_name: 'Unassigned',
-        noFixedSchedule: false, schedule: defaultSchedule,
-        plan: 'Base Member', startDate: '', expiryDate: '',
-        paymentFee: '', amountPaid: '', outstandingAmount: 0, paymentStatus: 'Unpaid', paymentMethod: 'Cash', membershipStatus: 'Active'
-    })
+  useEffect(() => {
+    if (!open) return
+    setStep(isReview ? 1 : 0)
+    setError(null)
+    setForm(isReview ? {
+      ...blank(), ...reviewMember,
+      planId: reviewMember.planId || '', trainer_id: reviewMember.trainer_id || '',
+      startDate: reviewMember.startDate || today(), expiryDate: reviewMember.expiryDate || '',
+      paymentFee: reviewMember.paymentFee || '', amountPaid: reviewMember.paymentAmount || '',
+      paymentMethod: reviewMember.paymentMethod || 'Cash',
+      noFixedSchedule: reviewMember.noFixedSchedule !== false, schedule: reviewMember.schedule || {},
+    } : blank())
+  }, [open, isReview, reviewMember])
 
-    useEffect(() => {
-        if (open) {
-            getPlans().then(setAvailablePlans).catch(e => { })
-            setStep(1)
-            setErrorMsg(null)
-            setForm({
-                name: '', email: '', phone: '', dob: '', gender: 'Male', address: '', emergencyContact: '',
-                goal: '', preferredTime: '', trainer_name: 'Unassigned',
-                noFixedSchedule: false, schedule: defaultSchedule,
-                plan: 'Base Member', startDate: new Date().toISOString().split('T')[0], expiryDate: '',
-                paymentFee: '', amountPaid: '', outstandingAmount: 0, paymentStatus: 'Unpaid', paymentMethod: 'Cash', membershipStatus: 'Active'
-            })
-        }
-    }, [open])
+  const zoneOptions = useMemo(() => [...new Set([...MUSCLE_GROUPS, ...((brand.zones || []).map(z => z.muscleGroup))])], [brand.zones])
+  const fee = Number(form.paymentFee) || 0
+  const paid = Number(form.amountPaid) || 0
+  const outstanding = Math.max(0, fee - paid)
+  const paymentStatus = fee === 0 && paid === 0 ? 'Unpaid' : outstanding === 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Unpaid'
+  const trainer = trainers.find(t => t.id === form.trainer_id)
 
-    useEffect(() => {
-        const fee = Number(form.paymentFee) || 0
-        const paid = Number(form.amountPaid) || 0
-        const out = Math.max(0, fee - paid)
-        let status = 'Unpaid'
-        if (paid > 0 && paid < fee) status = 'Partially Paid'
-        if (paid > 0 && paid >= fee) status = 'Paid'
-        setForm(prev => ({ ...prev, outstandingAmount: out, paymentStatus: status }))
-    }, [form.paymentFee, form.amountPaid])
+  const pickPlan = (planId) => {
+    const p = plans.find(x => x.id === planId)
+    if (!p) return set({ planId: '', plan: '' })
+    set({ planId, plan: p.name, paymentFee: p.price, expiryDate: addDuration(form.startDate || today(), cycleToMonths(p.cycle)) })
+  }
 
-    const validateStep = () => {
-        if (step === 1) return form.name && form.email && form.phone
-        if (step === 2) return true
-        if (step === 3) return form.plan && form.startDate
-        return true
+  const stepError = () => {
+    if (step === 0) {
+      if (form.name.trim().length < 2) return 'Enter the member\'s full name.'
+      if (!form.phone.trim() && !form.email.trim()) return 'Enter a phone number or an e-mail address.'
+      if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) return 'Enter a valid e-mail address.'
     }
-
-    const handleSubmit = async () => {
-        setSubmitting(true)
-        setErrorMsg(null)
-        try {
-            const res = await createMember(form)
-            if (res.error) {
-                setErrorMsg(res.error)
-            } else {
-                toast.success(`Member ${form.name} successfully created!`, { id: 'create-member' })
-                onSuccess?.()
-                onOpenChange(false)
-            }
-        } catch (e) {
-            setErrorMsg(e.message || "Failed to create member.")
-        }
-        setSubmitting(false)
+    if (step === 1) {
+      if (!form.plan.trim()) return 'Choose a membership plan.'
+      if (!form.startDate) return 'Choose a start date.'
+      if (form.expiryDate && form.expiryDate < form.startDate) return 'Expiry date cannot be before the start date.'
+      if (paid > fee) return 'Amount paid cannot be more than the fee.'
     }
+    return null
+  }
 
-    return (
-        <AnimatePresence>
-            {open && (
-                <>
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => onOpenChange(false)} className="fixed inset-0 z-50 bg-black/70 backdrop-blur" />
-                    <motion.div initial={{ y: 200, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 200, opacity: 0 }} transition={{ type: 'spring', damping: 30 }} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-background border border-foreground/10 rounded-2xl p-0 shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
+  const next = () => {
+    const problem = stepError()
+    if (problem) return setError(problem)
+    setError(null)
+    setStep(s => Math.min(s + 1, STEPS.length - 1))
+  }
 
-                        {/* Sidebar Progress */}
-                        <div className="w-full md:w-56 bg-foreground/[0.02] border-b md:border-b-0 md:border-r border-foreground/5 p-6 flex flex-col gap-6 shrink-0">
-                            {[
-                                { s: 1, label: 'Identity', icon: Users },
-                                { s: 2, label: 'Fitness & Schedule', icon: Dumbbell },
-                                { s: 3, label: 'Membership Plan', icon: DollarSign },
-                                { s: 4, label: 'Owner Approval', icon: CheckCircle2 }
-                            ].map(item => (
-                                <div key={item.s} className={`flex items-center gap-3 transition-colors ${step === item.s ? 'text-foreground' : step > item.s ? 'text-foreground/70' : 'text-foreground/30'}`}>
-                                    <div className="h-8 w-8 rounded-full border-2 flex items-center justify-center shrink-0" style={{ borderColor: step >= item.s ? brand.primaryColor : 'transparent', background: step >= item.s ? `${brand.primaryColor}20` : 'rgba(255,255,255,0.05)' }}>
-                                        <item.icon className="h-4 w-4" style={{ color: step >= item.s ? brand.primaryColor : undefined }} />
-                                    </div>
-                                    <span className="text-xs font-semibold uppercase tracking-wider">{item.label}</span>
-                                </div>
-                            ))}
-                        </div>
+  const submit = async () => {
+    setSaving(true); setError(null)
+    try {
+      const payload = { ...form, trainer_id: form.trainer_id || null }
+      const res = isReview ? await approveMember(reviewMember.id, payload) : await createMember(payload)
+      if (!res || res.error) { setError(res?.error || 'Could not save the member.'); return }
+      if (isReview) toast.success(`${form.name} approved`)
+      else if (res.inviteSent) toast.success(`${form.name} added. An invitation e-mail was sent.`)
+      else if (form.email) toast.success(`${form.name} added. The invitation e-mail could not be sent${res.inviteError ? ` (${res.inviteError})` : ''}.`)
+      else toast.success(`${form.name} added`)
+      onSuccess?.()
+      onOpenChange(false)
+    } catch {
+      setError('Network error. Nothing was saved — please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
-                        {/* Content Area */}
-                        <div className="flex-1 flex flex-col min-w-0 bg-black overflow-y-auto">
-                            <div className="p-6 pb-2 border-b border-foreground/5 flex items-center justify-between sticky top-0 bg-black z-10">
-                                <h2 className="text-xl font-display font-bold">New Registration</h2>
-                                <button onClick={() => onOpenChange(false)} className="p-1 hover:bg-foreground/[0.04] rounded transition-colors"><X className="h-5 w-5 text-foreground/50" /></button>
-                            </div>
+  const Row = ({ k, v }) => <div className="flex justify-between gap-4 py-1.5 text-sm"><span className="text-foreground/50 shrink-0">{k}</span><span className="text-right break-words min-w-0">{v || '—'}</span></div>
 
-                            <div className="p-6 flex-1 min-h-[450px]">
-                                {errorMsg && (
-                                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-6 flex items-start gap-3">
-                                        <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                                        <div className="text-sm text-red-100">{errorMsg}</div>
-                                    </div>
-                                )}
+  return (
+    <Modal open={open} onClose={() => !saving && onOpenChange(false)} wide title={isReview ? `Review ${reviewMember?.name || 'member'}` : 'Add member'}
+      footer={<>
+        {step > (isReview ? 1 : 0) && <Button variant="outline" disabled={saving} onClick={() => { setError(null); setStep(s => s - 1) }}>Back</Button>}
+        {step < STEPS.length - 1
+          ? <Button onClick={next} style={{ background: brand.primaryColor }} className="text-white border-0">Continue</Button>
+          : <Button onClick={submit} disabled={saving} style={{ background: brand.primaryColor }} className="text-white border-0" data-testid="member-submit">{saving ? 'Saving…' : isReview ? 'Approve member' : 'Create member'}</Button>}
+      </>}>
+      <ol className="flex gap-1.5 mb-5" aria-label="Steps">
+        {STEPS.map((s, i) => (
+          <li key={s} className="flex-1">
+            <div className="h-1 rounded-full" style={{ background: i <= step ? brand.primaryColor : 'rgba(127,127,127,0.25)' }} />
+            <div className={`text-[11px] mt-1.5 ${i === step ? 'text-foreground' : 'text-foreground/40'}`}>{s}</div>
+          </li>
+        ))}
+      </ol>
 
-                                {step === 1 && (
-                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="col-span-2 md:col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Full Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="John Doe" /></div>
-                                            <div className="col-span-2 md:col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Email Address *</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="john@example.com" /></div>
-                                            <div className="col-span-2 md:col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Mobile Number *</label><input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="9876543210" /></div>
-                                            <div className="col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Date of Birth</label><input type="date" value={form.dob} onChange={e => setForm({ ...form, dob: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm appearance-none custom-date" /></div>
+      {error && <div role="alert" className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-sm px-3 py-2">{error}</div>}
 
-                                            <div className="col-span-2 md:col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Gender</label>
-                                                <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm appearance-none">
-                                                    <option value="Male" className="text-black">Male</option><option value="Female" className="text-black">Female</option><option value="Other" className="text-black">Other</option>
-                                                </select>
-                                            </div>
-                                            <div className="col-span-2 md:col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Emergency Contact</label><input value={form.emergencyContact} onChange={e => setForm({ ...form, emergencyContact: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="Name & Number" /></div>
-                                            <div className="col-span-2"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Home Address</label><input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="123 Street Name, City" /></div>
-                                        </div>
-                                    </motion.div>
-                                )}
+      {step === 0 && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Full name *"><input className={inputClass} value={form.name} onChange={e => set({ name: e.target.value })} autoComplete="off" name="member-name" /></Field>
+          <Field label="Phone"><input className={inputClass} type="tel" inputMode="tel" value={form.phone} onChange={e => set({ phone: e.target.value })} placeholder="98765 43210" name="member-phone" /></Field>
+          <Field label="E-mail" hint="Used to invite the member to create their login."><input className={inputClass} type="email" inputMode="email" autoCapitalize="none" value={form.email} onChange={e => set({ email: e.target.value })} name="member-email" /></Field>
+          <Field label="Gender"><select className={inputClass} value={form.gender} onChange={e => set({ gender: e.target.value })}><option value="">—</option><option>Male</option><option>Female</option><option>Other</option></select></Field>
+          <Field label="Date of birth"><input className={inputClass} type="date" value={form.dob} onChange={e => set({ dob: e.target.value })} /></Field>
+          <Field label="Emergency contact"><input className={inputClass} value={form.emergencyContact} onChange={e => set({ emergencyContact: e.target.value })} /></Field>
+          <div className="sm:col-span-2"><Field label="Fitness goal"><input className={inputClass} value={form.goal} onChange={e => set({ goal: e.target.value })} /></Field></div>
+        </div>
+      )}
 
-                                {step === 2 && (
-                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4 border-b border-foreground/10 pb-4">
-                                            <div className="col-span-2"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Primary Fitness Goal</label><input value={form.goal} onChange={e => setForm({ ...form, goal: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="Hypertrophy, Weight Loss, etc." /></div>
-                                            <div className="col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Preferred Time</label><input type="time" value={form.preferredTime} onChange={e => setForm({ ...form, preferredTime: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm custom-time" /></div>
-                                            <div className="col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Assigned Trainer</label><input value={form.trainer_name} onChange={e => setForm({ ...form, trainer_name: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" placeholder="Trainer Name or 'Unassigned'" /></div>
-                                        </div>
+      {step === 1 && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Membership plan *" hint={plans.length === 0 ? 'No plans yet — type a plan name, or create plans under Membership Plans.' : null}>
+            {plans.length > 0 ? (
+              <select className={inputClass} value={form.planId} onChange={e => pickPlan(e.target.value)} name="member-plan">
+                <option value="">Select a plan</option>
+                {plans.map(p => <option key={p.id} value={p.id}>{p.name} — {formatMoney(p.price)} / {p.cycle}</option>)}
+              </select>
+            ) : <input className={inputClass} value={form.plan} onChange={e => set({ plan: e.target.value })} name="member-plan-text" />}
+          </Field>
+          <Field label="Trainer (optional)">
+            <select className={inputClass} value={form.trainer_id} onChange={e => set({ trainer_id: e.target.value })}>
+              <option value="">Unassigned</option>
+              {trainers.filter(t => t.status === 'Active').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Start date *"><input className={inputClass} type="date" value={form.startDate} onChange={e => set({ startDate: e.target.value })} /></Field>
+          <Field label="Expiry date" hint="Leave empty for an open-ended membership."><input className={inputClass} type="date" value={form.expiryDate} min={form.startDate} onChange={e => set({ expiryDate: e.target.value })} /></Field>
+          <Field label="Membership fee"><input className={inputClass} type="number" inputMode="decimal" min="0" value={form.paymentFee} onChange={e => set({ paymentFee: e.target.value })} name="member-fee" /></Field>
+          <Field label="Amount paid"><input className={inputClass} type="number" inputMode="decimal" min="0" value={form.amountPaid} onChange={e => set({ amountPaid: e.target.value })} name="member-paid" /></Field>
+          <Field label="Payment method"><select className={inputClass} value={form.paymentMethod} onChange={e => set({ paymentMethod: e.target.value })}>{METHODS.map(m => <option key={m}>{m}</option>)}</select></Field>
+          <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] px-4 py-3 self-end">
+            <div className="flex justify-between text-sm"><span className="text-foreground/50">Outstanding</span><span className="font-semibold" data-testid="member-outstanding">{formatMoney(outstanding)}</span></div>
+            <div className="flex justify-between text-sm mt-1"><span className="text-foreground/50">Payment status</span><span>{paymentStatus}</span></div>
+          </div>
+        </div>
+      )}
 
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold">Weekly Workout Schedule (Multiple Muscles)</label>
-                                                <div className="flex items-center gap-2 text-sm text-foreground/60"><Switch checked={form.noFixedSchedule} onCheckedChange={(val) => setForm({ ...form, noFixedSchedule: val })} /> No fixed schedule</div>
-                                            </div>
-                                            {!form.noFixedSchedule ? (
-                                                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                                                    {DAYS.map(day => (
-                                                        <div key={day} className="flex flex-col">
-                                                            <div className="text-[10px] text-foreground/50 mb-0.5 ml-1">{day}</div>
-                                                            <input value={form.schedule[day]} onChange={(e) => setForm({ ...form, schedule: { ...form.schedule, [day]: e.target.value } })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-md p-2 outline-none font-medium text-xs" placeholder="Chest, Triceps" />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="bg-foreground/[0.02] border border-foreground/5 rounded-lg p-4 text-sm text-foreground/50 text-center">
-                                                    Member has flexible days. They will select their workout during QR Check-in.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                )}
+      {step === 2 && <ScheduleEditor value={form.schedule} noFixedSchedule={form.noFixedSchedule} options={zoneOptions} onChange={(v) => set(v)} />}
 
-                                {step === 3 && (
-                                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="col-span-2"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Membership Plan *</label>
-                                                <select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm text-foreground appearance-none">
-                                                    {availablePlans.length === 0 ? <option className="text-black" value="Base Member">Base Member</option> : null}
-                                                    {availablePlans.map(p => <option key={p.id} value={p.name} className="text-black">{p.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Start Date *</label><input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" /></div>
-                                            <div className="col-span-1"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Expiry Date</label><input type="date" value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm" /></div>
-                                            <div className="col-span-2"><label className="text-xs text-foreground/50 uppercase tracking-widest font-semibold block mb-1.5">Membership Status</label>
-                                                <select value={form.membershipStatus} onChange={e => setForm({ ...form, membershipStatus: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2.5 outline-none font-medium text-sm appearance-none">
-                                                    <option value="Active" className="text-black">Active</option>
-                                                    <option value="Pending" className="text-black">Pending</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="col-span-2 border-t border-foreground/10 pt-4 mt-2">
-                                                <div className="text-xs text-foreground/50 uppercase tracking-widest font-semibold mb-3">Revenue Collection</div>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                    <div><label className="text-[10px] text-foreground/40 block mb-1">Total Fee ₹</label><input type="number" value={form.paymentFee} onChange={e => setForm({ ...form, paymentFee: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 outline-none text-sm" placeholder="0" /></div>
-                                                    <div><label className="text-[10px] text-foreground/40 block mb-1">Amount Paid ₹</label><input type="number" value={form.amountPaid} onChange={e => setForm({ ...form, amountPaid: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 outline-none text-sm" placeholder="0" /></div>
-                                                    <div><label className="text-[10px] text-foreground/40 block mb-1">Status</label>
-                                                        <select disabled value={form.paymentStatus} className="w-full bg-foreground/[0.01] text-foreground/50 border border-foreground/5 rounded-lg p-2 outline-none text-sm appearance-none cursor-not-allowed">
-                                                            <option value={form.paymentStatus} className="text-black">{form.paymentStatus}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div><label className="text-[10px] text-foreground/40 block mb-1">Method</label>
-                                                        <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-2 outline-none text-sm appearance-none">
-                                                            <option value="Cash" className="text-black">Cash</option><option value="Card" className="text-black">Card</option><option value="Razorpay" className="text-black">Online / UPI</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="col-span-2 md:col-span-4 mt-1"><div className="text-[10px] text-foreground/40">Outstanding Amount: <strong className="text-foreground">₹{form.outstandingAmount}</strong></div></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-
-                                {step === 4 && (
-                                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
-                                        <div className="bg-foreground/[0.02] border border-foreground/5 rounded-xl p-5 mb-4">
-                                            <div className="font-display text-xl font-bold mb-1">{form.name}</div>
-                                            <div className="text-sm text-foreground/50">{form.email} • {form.phone}</div>
-
-                                            <div className="grid grid-cols-2 gap-4 mt-6">
-                                                <div>
-                                                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Membership</div>
-                                                    <div className="text-sm mt-1">{form.plan} • {form.membershipStatus}</div>
-                                                    <div className="text-xs text-foreground/50 mt-1">{form.startDate} to {form.expiryDate || 'N/A'}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Trainer</div>
-                                                    <div className="text-sm mt-1">{form.trainer_name}</div>
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Schedule</div>
-                                                    {form.noFixedSchedule ? (
-                                                        <div className="text-sm mt-1">No fixed schedule (Flexible)</div>
-                                                    ) : (
-                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 mt-1 text-xs">
-                                                            {DAYS.filter(d => form.schedule[d]).map(d => (
-                                                                <div key={d} className="bg-foreground/[0.05] p-1.5 rounded">{d.substring(0, 3)}: {form.schedule[d]}</div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="col-span-2 border-t border-foreground/10 pt-3">
-                                                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Financials</div>
-                                                    <div className="text-sm mt-1 flex gap-4 text-foreground/80">
-                                                        <span>Fee: ₹{form.paymentFee}</span>
-                                                        <span>Paid: ₹{form.amountPaid}</span>
-                                                        <span className="text-orange-400">Due: ₹{form.outstandingAmount}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-foreground/50 text-center">
-                                            Clicking "Approve & Add Member" will lock this identity in the database, provision portals, initialize revenue tracking, and generate credentials.
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </div>
-
-                            <div className="p-5 border-t border-foreground/5 flex justify-between bg-black sticky bottom-0">
-                                {step > 1 ? (
-                                    <Button variant="outline" className="border-foreground/10 text-foreground" onClick={() => { setErrorMsg(null); setStep(step - 1); }}>Back</Button>
-                                ) : (
-                                    <Button variant="outline" className="border-transparent text-foreground/50" onClick={() => onOpenChange(false)}>Cancel</Button>
-                                )}
-
-                                {step < 4 ? (
-                                    <Button style={{ background: brand.primaryColor }} className="text-white border-0 font-semibold" disabled={!validateStep()} onClick={() => setStep(step + 1)}>Continue</Button>
-                                ) : (
-                                    <Button disabled={submitting} style={{ background: brand.primaryColor }} className="text-white border-0 font-bold" onClick={handleSubmit}>
-                                        {submitting ? 'Provisioning Member...' : 'Approve & Add Member'}
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </motion.div>
-                </>
+      {step === 3 && (
+        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4" data-testid="member-review">
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-foreground/40 mb-1">Member</div>
+            <Row k="Name" v={form.name} /><Row k="Phone" v={form.phone} /><Row k="E-mail" v={form.email} />
+            <Row k="Gender" v={form.gender} /><Row k="Date of birth" v={form.dob ? formatDate(form.dob) : ''} /><Row k="Emergency contact" v={form.emergencyContact} /><Row k="Goal" v={form.goal} />
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-foreground/40 mb-1">Membership</div>
+            <Row k="Plan" v={form.plan} /><Row k="Start" v={formatDate(form.startDate)} /><Row k="Expiry" v={form.expiryDate ? formatDate(form.expiryDate) : 'No expiry'} />
+            <Row k="Fee" v={formatMoney(fee)} /><Row k="Paid" v={`${formatMoney(paid)} (${form.paymentMethod})`} /><Row k="Outstanding" v={formatMoney(outstanding)} /><Row k="Payment status" v={paymentStatus} />
+            <Row k="Trainer" v={trainer ? trainer.name : 'Unassigned'} />
+          </div>
+          <div className="sm:col-span-2">
+            <div className="text-[11px] uppercase tracking-widest text-foreground/40 mb-1">Workout schedule</div>
+            {form.noFixedSchedule ? <div className="text-sm">No Fixed Schedule</div> : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                {Object.entries(form.schedule).filter(([, v]) => v?.length).map(([d, v]) => <div key={d} className="rounded-lg border border-foreground/10 px-2.5 py-1.5"><div className="text-[11px] text-foreground/40">{d}</div>{v.join(' + ')}</div>)}
+              </div>
             )}
-        </AnimatePresence>
-    )
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
 }
