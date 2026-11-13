@@ -1,0 +1,20 @@
+{
+  "indexes": [
+    { "collectionGroup": "attendance", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "check_in_time", "order": "ASCENDING" }] },
+    { "collectionGroup": "attendance", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "check_out_time", "order": "ASCENDING" }] },
+    { "collectionGroup": "attendance", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "member_id", "order": "ASCENDING" }, { "fieldPath": "check_out_time", "order": "ASCENDING" }] },
+    { "collectionGroup": "member_transactions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "created_at", "order": "ASCENDING" }] },
+    { "collectionGroup": "member_transactions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "memberId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "targetRole", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "audit_logs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "email", "order": "ASCENDING" }] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "biometric_id", "order": "ASCENDING" }] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "plan", "order": "ASCENDING" }] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "planId", "order": "ASCENDING" }] },
+    { "collectionGroup": "trainers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gymId", "order": "ASCENDING" }, { "fieldPath": "email", "order": "ASCENDING" }] },
+    { "collectionGroup": "gym_api_settings", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "secret_hash", "order": "ASCENDING" }, { "fieldPath": "is_active", "order": "ASCENDING" }] }
+  ],
+  "fieldOverrides": []
+}

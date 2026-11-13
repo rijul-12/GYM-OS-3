@@ -1,26 +1,27 @@
-export default function PrivacyPolicy() {
-    return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-3xl mx-auto px-6 py-32 text-foreground/80 leading-relaxed font-sans">
-                <div className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.02] px-4 py-1.5 text-xs tracking-widest text-[#ef4444] uppercase mb-8">Statutory Compliance</div>
-                <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground tracking-tight mb-4">Privacy Policy</h1>
-                <p className="text-sm text-foreground/50 mb-16">Last Updated: October 2026</p>
+import { LegalPage } from '@/components/legal-page'
 
-                <div className="space-y-12">
-                    <section>
-                        <h2 className="text-2xl font-display font-semibold text-foreground mb-4">1. Information Collection</h2>
-                        <p>BGM Technologies restricts the collection of personal information strictly to what is necessary for operating your BGM SaaS platform. This includes basic identity variables required for Firebase Authentication and the intelligent health matrices opted-in by facility members.</p>
-                    </section>
-                    <section>
-                        <h2 className="text-2xl font-display font-semibold text-foreground mb-4">2. Data Security & Storage</h2>
-                        <p>All biometric and structural infrastructure data is encrypted at rest and in transit via Firebase and Google Cloud architectures. BGM Technologies unconditionally guarantees that it never sells, exposes, or brokers live gym telemetry to third-party ad networks.</p>
-                    </section>
-                    <section>
-                        <h2 className="text-2xl font-display font-semibold text-foreground mb-4">3. Contact Us</h2>
-                        <p>For urgent privacy or DPO concerns, contact us globally at: <strong>rijul0027@gmail.com</strong>.</p>
-                    </section>
-                </div>
-            </div>
-        </div>
-    )
+export const metadata = { title: 'Privacy Policy — BGM' }
+
+export default function PrivacyPolicy() {
+  return (
+    <LegalPage title="Privacy Policy" updated="November 2026">
+      <section><h2>Who we are</h2><p>BGM (Best Gym Manager) is gym management software used by gym owners, their trainers and their members. The gym you belong to decides which members and trainers are added to its account.</p></section>
+      <section><h2>Information we store</h2><ul>
+        <li>Account details: name, e-mail address, phone number and, if you add one, a profile photo.</li>
+        <li>Membership details entered by your gym: plan, start and expiry dates, fees, payments and outstanding balance.</li>
+        <li>Attendance: check-in and check-out times and the workout you selected.</li>
+        <li>Workout schedules, trainer notes and progress measurements.</li>
+        <li>For gym owners: gym profile, settings and subscription payments to BGM.</li>
+      </ul></section>
+      <section><h2>Who can see it</h2><ul>
+        <li>Members see only their own profile, attendance and payments.</li>
+        <li>Trainers see the members assigned to them, without payment details.</li>
+        <li>Gym owners see the records of their own gym only.</li>
+        <li>BGM staff access data only to operate and support the service.</li>
+      </ul></section>
+      <section><h2>Service providers</h2><p>Data is stored with Google Firebase (authentication, database, file storage) and the application is hosted on Vercel. Online payments are processed by Razorpay; we do not store card details. E-mail and SMS are delivered through our messaging providers.</p></section>
+      <section><h2>Deleting your account</h2><p>Members and trainers can delete their account from the Profile page; gym owners can delete their gym from Settings. Your profile, photo, attendance and login are erased. Payment records are kept in anonymised form because gyms and BGM are required to keep accounting records, and transactions held by Razorpay remain subject to Razorpay’s own retention rules.</p></section>
+      <section><h2>Your choices</h2><p>You can correct your details in your profile, or ask your gym or BGM support to do so.</p></section>
+    </LegalPage>
+  )
 }

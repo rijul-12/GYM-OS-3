@@ -33,22 +33,19 @@ function ResetContent() {
             return
         }
 
-        if (!oobCode && process.env.NODE_ENV === 'production') {
+        if (!oobCode) {
             setError("Invalid reset code. Please request a new link.")
             return
         }
 
         setLoading(true)
         try {
-            if (auth && oobCode) {
-                await confirmPasswordReset(auth, oobCode, password)
-            } else {
-                // local demo bypass
-                await new Promise(r => setTimeout(r, 1000))
-            }
+            if (password.length < 8) throw new Error('Password must be at least 8 characters.')
+            if (!auth) throw new Error('Password reset is unavailable: sign-in is not configured for this deployment.')
+            await confirmPasswordReset(auth, oobCode, password)
             setSuccess(true)
         } catch (err) {
-            setError(err.message || 'Failed to securely update password.')
+            setError(err?.code === 'auth/expired-action-code' || err?.code === 'auth/invalid-action-code' ? 'This reset link has expired or was already used. Request a new one.' : err?.code === 'auth/weak-password' ? 'Please choose a stronger password (at least 8 characters).' : (err.message || 'The password could not be updated.'))
         } finally {
             setLoading(false)
         }

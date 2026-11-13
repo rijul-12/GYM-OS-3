@@ -1,440 +1,138 @@
 'use client'
-import Image from 'next/image'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { motion, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, Check, Zap, Shield, BarChart3, Users, Palette, Activity, Menu, X, Star, Sparkles, ChevronRight, Play } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Logo } from '@/components/logo'
-import { useBrand } from '@/components/brand-provider'
-import { AreaChart, Area, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { QrCode, Users, Activity, CreditCard, UserCog, Database, BarChart3, Bell, Palette, Sparkles, Menu, X, Check } from 'lucide-react'
 
-// --- SYNTHETIC FALLBACKS START ---
-const stageColor = (s) => ({ Cardio: '#ef4444', Lifting: '#3b82f6', Recovery: '#10b981', CheckIn: '#f59e0b', Floor: '#8b5cf6' }[s] || '#e5e5e5')
-const WORKOUT_DIST = [{ name: 'Strength', value: 45, color: '#ef4444' }, { name: 'Cardio', value: 30, color: '#3b82f6' }]
-const IMAGES = {
-  hero: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
-  feature1: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
-  feature2: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
-  feature3: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
-  feature4: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
-  feature5: 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg',
-}
-const PLAN_DATA = [{ name: 'Basic', price: 9.99 }, { name: 'Pro', price: 19.99 }]
-const ATTENDANCE_WEEKLY = [{ day: 'Mon', in: 42, out: 38 }, { day: 'Tue', in: 55, out: 51 }]
-const TESTIMONIALS = [{ text: "Great gym!", name: "User", role: "Trainer", photo: "https://i.pravatar.cc/150?img=1" }]
-const FAQS = [
-  { q: "How does the Free Trial work?", a: "You get 2 full calendar months of access to all BGM features. No credit card is required to sign up. After the trial, you can choose a plan that fits your gym's size." },
-  { q: "How do you track live floor traffic?", a: "BGM combines biometric scans, QR check-ins, and schedule data to accurately show how many members are on the floor and predict peak hours." },
-  { q: "Is the QR Attendance system reliable?", a: "Yes, our QR system generates dynamically refreshing codes for members, which prevents unauthorized sharing and provides instant check-in sync." },
-  { q: "How does Member Registration work?", a: "Members can easily register using your secure facility Gym Code. They can set up flexible or fixed workout schedules directly matching their goals." },
-  { q: "Can I switch or cancel my subscription?", a: "Absolutely. You can upgrade, downgrade, or cancel your BGM subscription at any time." },
-  { q: "What payment methods do you support?", a: "We sync directly with Razorpay to support UPI, credit/debit cards, and net banking seamlessly in India." },
-  { q: "Is my gym data secure?", a: "We use enterprise-grade cloud security, strict authentication, and granular Role-Based Access Control to ensure your data stays private." },
-  { q: "What kind of customer support do you offer?", a: "We provide email and phone support from Monday to Saturday, 10 AM to 8 PM IST. Premium plans receive priority response times." }
+const RED = '#ef4444'
+
+const FEATURES = [
+  { icon: QrCode, title: 'QR attendance', text: 'One QR code at your entrance. Members scan it with their phone camera, confirm today’s workout and are checked in.' },
+  { icon: Activity, title: 'Live traffic & workout demand', text: 'See how many members are inside right now and which muscle groups they are training — per facility you define.' },
+  { icon: Users, title: 'Members & memberships', text: 'Plans, start and expiry dates, renewals, dues and status in one place. Expired memberships cannot check in.' },
+  { icon: CreditCard, title: 'Payments', text: 'Record cash at the desk, accept UPI transfers you verify yourself, or take online payments through Razorpay.' },
+  { icon: UserCog, title: 'Trainers', text: 'Invite trainers, assign members and let them manage workout schedules and progress for their own members.' },
+  { icon: Database, title: 'Bring your data', text: 'Import your existing members from CSV or Excel with column matching, validation and a full error report.' },
+  { icon: BarChart3, title: 'Analytics', text: 'Attendance, revenue, membership trends and trainer activity, calculated from your own records.' },
+  { icon: Bell, title: 'Notifications', text: 'In-app and e-mail alerts for approvals, payments to verify and memberships about to expire.' },
+  { icon: Palette, title: 'White-label', text: 'Your gym’s name and colours across the member and trainer portals.' },
+  { icon: Sparkles, title: 'GymAI', text: 'Personal insights for members, grounded in their real attendance — never invented.' },
 ]
-const PLANS = [
-  { id: "v1-usage", popular: true, name: 'BGM Scale', price: '1,999', period: 'month', tag: '+ ₹20 / active member', features: ['Unlimited Members (Pay as you grow)', 'Full Dashboard Access', 'Live Member AI Engine', 'Member Fee Recovery (Pass-through)'] },
-  { id: "enterprise", name: 'Enterprise', price: 'Custom', period: 'month', features: ['Custom White-Label App', 'Enterprise API Access', 'Multi-Location Sync', '24/7 SLA Support'] }
+
+const ROLES = [
+  { title: 'Gym owners', text: 'Run members, trainers, attendance and payments from one dashboard.' },
+  { title: 'Trainers', text: 'See only your assigned members, their schedules and their progress.' },
+  { title: 'Members', text: 'Check in by QR, follow your workout schedule and track your membership and dues.' },
 ]
-const MEMBER_INSIGHTS = [{ value: '5:30 AM', detail: 'Quiet tomorrow.' }]
-const ASSIGNED_MEMBERS = [{ id: 't1', name: 'James Wilson', photo: 'https://i.pravatar.cc/150?u=j', checkedIn: true, stage: 'Lifting', todayWorkout: 'Hypertrophy Block A', attendance: 85, progress: 40, status: 'Active' }]
-const PROGRESS = { default: [{ w: 1, bench: 135, squat: 185 }] }
-const CURRENT_TRAINER = { name: "Lead Trainer", role: "Head of PT", rating: 4.9, activeClients: 12, thisMonth: 45, target: 50, joined: "2021", bio: "Expert." }
-const WEEKLY_PLANS = {}
-const WORKOUT_TYPES = ['Hypertrophy', 'Strength', 'Endurance', 'Mobility']
-const ATTENDANCE_CALENDAR = []
-const WORKOUT_HISTORY = []
-const ME = { id: '#102', name: 'James Wilson', plan: 'Premium', joined: 'Jan 2024', expiry: 'Jan 2025' }
-const PERSONAL = { dob: "1994-05-15", gender: "Male", phone: "555-0101", emergency: "Jane Wilson 555-0102" }
-const SCHEDULE = [{ day: 'Mon', type: 'Chest & Triceps', cals: 450 }]
-const NOTIFICATION_PREFS = { push: true, sms: false, email: true }
-// --- SYNTHETIC FALLBACKS END ---
 
-
-const Nav = () => {
+export default function LandingClient({ stats, publicGyms = [], pricing }) {
   const [open, setOpen] = useState(false)
-  const { brand } = useBrand()
-  return (
-    <nav className="fixed top-0 inset-x-0 z-50 border-b border-foreground/10 bg-background/95 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/"><Logo /></Link>
-        <div className="hidden md:flex items-center gap-8 text-sm text-foreground/70">
-          <a href="#features" className="hover:text-foreground transition">Features</a>
-          <a href="#preview" className="hover:text-foreground transition">Dashboard</a>
-          <a href="#pricing" className="hover:text-foreground transition">Pricing</a>
-          <a href="#faq" className="hover:text-foreground transition">FAQ</a>
-          <a href="#contact" className="hover:text-foreground transition">Contact</a>
-        </div>
-        <div className="hidden md:flex items-center gap-3">
-          <Link href="/portal" className="text-sm text-foreground/70 hover:text-foreground">Member portal</Link>
-          <Link href="/login" className="text-sm text-foreground/70 hover:text-foreground">Sign in</Link>
-          <Link href="/dashboard">
-            <Button size="sm" style={{ background: brand.primaryColor }} className="text-foreground hover:opacity-90 border-0">
-              Launch app <ArrowRight className="h-3.5 w-3.5 ml-1" />
-            </Button>
-          </Link>
-        </div>
-        <button className="md:hidden p-2.5 -mr-2.5 rounded-lg text-foreground hover:bg-white/10 active:bg-white/20 transition" onClick={() => setOpen(!open)}>{open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}</button>
-      </div>
-      {open && (
-        <div className="md:hidden border-t border-foreground/5 bg-black/95 px-6 py-4 space-y-3">
-          <a href="#features" className="block text-foreground/70">Features</a>
-          <a href="#pricing" className="block text-foreground/70">Pricing</a>
-          <a href="#faq" className="block text-foreground/70">FAQ</a>
-          <Link href="/dashboard" className="block text-foreground font-semibold">Launch app →</Link>
-        </div>
-      )}
-    </nav>
-  )
-}
-
-const Hero = ({ stats }) => {
-  const { brand } = useBrand()
-  const ref = useRef(null)
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
-  const y = useTransform(scrollYProgress, [0, 1], [0, 120])
-
-  const isFounding = !stats || stats.gyms < 10;
-
-  return (
-    <section ref={ref} className="relative pt-32 pb-20 overflow-hidden">
-      <div className="absolute inset-0 radial-red pointer-events-none" />
-      <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
-      <div className="max-w-7xl mx-auto px-6 relative">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs text-foreground/70 mb-8">
-            <Sparkles className="h-3 w-3" style={{ color: brand.primaryColor }} />
-            <span>BEST GYM MANAGER</span>
-            <ChevronRight className="h-3 w-3" />
-          </div>
-          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-[0.95]">
-            <span className="text-gradient">Your gym runs.</span>
-            <br />
-            <span className="text-gradient-red">BGM handles the rest.</span>
-          </h1>
-          <p className="mt-8 text-lg md:text-xl text-foreground/60 max-w-2xl mx-auto leading-relaxed">
-            Manage members, memberships, trainers, attendance, payments, schedules and everyday gym operations from one intelligent platform.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3 justify-center">
-            <Link href="/dashboard">
-              <Button size="lg" style={{ background: brand.primaryColor }} className="text-foreground h-12 px-6 border-0 hover:opacity-90 shadow-lg shadow-red-500/20">
-                Start Free <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
-            <Button size="lg" variant="outline" className="h-12 px-6 bg-foreground/[0.03] border-foreground/10 text-foreground hover:bg-foreground/[0.06]">
-              <Play className="h-4 w-4 mr-2" /> See How It Works
-            </Button>
-          </div>
-          <div className="mt-10 flex items-center justify-center gap-6 text-xs text-foreground/40">
-            <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> Start instantly</div>
-            <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> No card required</div>
-            <div className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> White-label ready</div>
-          </div>
-        </motion.div>
-
-        <motion.div style={{ y }} className="mt-20 relative">
-          <div className="absolute -inset-4 rounded-3xl bg-red-500/10 blur-3xl" />
-          <div className="relative rounded-2xl overflow-hidden border border-foreground/10 glass-strong shadow-2xl">
-            <Image src={IMAGES.hero} alt="Luxury gym" className="w-full h-[280px] sm:h-[420px] md:h-[520px] object-cover" width={120} height={120} />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-            <div className="absolute bottom-6 left-6 right-6 flex flex-wrap gap-3 justify-between items-end">
-              <div>
-                <div className="font-display text-2xl md:text-3xl font-bold">
-                  {isFounding ? '🚀 Founding Gym Program Open' : `${stats?.gyms || 0}+ Registered Gyms Online`}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-full glass px-4 py-2 text-xs">
-                <span className="h-2 w-2 rounded-full pulse-red" style={{ background: brand.primaryColor }} />
-                Real-time sync
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  )
-}
-
-const LogoMarquee = ({ gyms }) => {
-  const displayGyms = gyms && gyms.length > 0
-    ? [...gyms, ...gyms, ...gyms] // duplicate for marquee
-    : ['BGM FOUNDING PROGRAM', 'EARLY ACCESS', 'BGM PLATFORM'];
-
-  return (
-    <section className="py-10 border-y border-foreground/5 overflow-hidden">
-      <div className="text-center text-xs text-foreground/40 uppercase tracking-widest mb-6">Powering intelligent gyms</div>
-      <div className="flex overflow-hidden">
-        <div className="flex gap-14 marquee whitespace-nowrap">
-          {displayGyms.map((n, i) => (
-            <span key={i} className="font-display text-2xl font-bold text-foreground/20 tracking-tight">{n}</span>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-const Features = () => {
-  const { brand } = useBrand()
-  const items = [
-    { icon: Activity, title: 'Live Gym Traffic', desc: 'See live gym activity and workout demand in one place.', img: IMAGES.feature1 },
-    { icon: Users, title: 'Per-Member Live State', desc: 'Every profile shows today\u2019s workout, check-in time, progress stage, ETA, and machine queue \u2014 in real time.', img: IMAGES.feature2 },
-    { icon: BarChart3, title: 'AI Predictions', desc: 'Peak-hour forecasts, churn risk, equipment demand and revenue signals \u2014 scored with confidence intervals.', img: IMAGES.feature3 },
-    { icon: Palette, title: 'True White-Label', desc: 'Change logo, colors, name, banner, footer — without touching a line of code.', img: IMAGES.feature4 },
-    { icon: Shield, title: 'Enterprise Security', desc: 'SSO, role-based access, granular permissions, and full audit logs.', img: IMAGES.feature5 },
-    { icon: Zap, title: 'Instant Onboarding', desc: 'CSV imports, trainer invites, membership plans — live in under an hour.', img: IMAGES.hero },
+  const [faq, setFaq] = useState(0)
+  const inr = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`
+  const FAQS = [
+    { q: 'How does the free trial work?', a: 'Every new gym gets two months with all features. No card is needed to sign up. When the trial ends the account becomes read-only until you subscribe.' },
+    { q: 'How is BGM priced?', a: `${inr(pricing.base)} per month plus ${inr(pricing.perMember)} per active paid member, and a one-time ${inr(pricing.registration)} registration fee with your first payment.` },
+    { q: 'How does QR check-in work?', a: 'Your gym has one QR code that you print and display. It stays the same until you choose to regenerate it; the old code then stops working immediately.' },
+    { q: 'How do members pay their gym?', a: 'You choose: record payments at the desk, enable direct UPI (you confirm each transfer after checking your account), or enable online payments through Razorpay, which are verified automatically.' },
+    { q: 'Can I move from other gym software?', a: 'Yes. Export your members to CSV or Excel and use Bring Your Data. Nothing is saved until you review the preview and confirm.' },
+    { q: 'Who can see my gym’s data?', a: 'Only you. Trainers see just the members assigned to them, and members see only their own profile, attendance and payments.' },
   ]
-  return (
-    <section id="features" className="py-32 relative">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-20">
-          <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Everything you need</div>
-          <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient">One platform. Every workflow.</h2>
-          <p className="mt-6 text-foreground/60">From front-desk check-ins to executive KPIs, {brand.gymName} replaces five tools with one gorgeous interface.</p>
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((f, i) => {
-            const Icon = f.icon
-            return (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }} className="group relative rounded-2xl overflow-hidden border border-foreground/5 bg-gradient-to-b from-white/[0.03] to-transparent p-6 card-hover">
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-700">
-                  <Image src={f.img} className="w-full h-full object-cover opacity-20" alt="" width={120} height={120} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" />
-                </div>
-                <div className="relative">
-                  <div className="h-11 w-11 rounded-lg flex items-center justify-center mb-5" style={{ background: `${brand.primaryColor}20`, border: `1px solid ${brand.primaryColor}40` }}>
-                    <Icon className="h-5 w-5" style={{ color: brand.primaryColor }} />
-                  </div>
-                  <h3 className="font-display text-xl font-semibold mb-2">{f.title}</h3>
-                  <p className="text-sm text-foreground/60 leading-relaxed">{f.desc}</p>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-const DashboardPreview = ({ stats }) => {
-  const { brand } = useBrand()
-
-  const metrics = [
-    { label: 'Registered Gyms', v: stats?.gyms || 0, d: 'Live' },
-    { label: 'Active Members', v: stats?.members || 0, d: 'Live' },
-    { label: 'Total Trainers', v: stats?.trainers || 0, d: 'Live' },
-    { label: 'Platform Check-ins', v: stats?.checkins || 0, d: 'Live' },
-    { label: 'QR Scan Hooks', v: stats?.qrCheckins || 0, d: 'Live' }
-  ];
+  const showStats = stats && stats.gyms >= 5
 
   return (
-    <section id="preview" className="py-32 relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Live Platform Telemetry</div>
-          <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient">Data-driven operations.</h2>
+    <div className="min-h-[100dvh] bg-background text-foreground">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur border-b border-foreground/10 pt-[env(safe-area-inset-top)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: RED }}>BGM</span>
+            <span className="font-display font-bold tracking-tight">BGM <span className="hidden sm:inline font-normal text-foreground/50">· Best Gym Manager</span></span>
+          </Link>
+          <nav className="hidden md:flex items-center gap-6 text-sm text-foreground/70">
+            <a href="#features" className="hover:text-foreground">Features</a><a href="#pricing" className="hover:text-foreground">Pricing</a><a href="#faq" className="hover:text-foreground">FAQ</a>
+          </nav>
+          <div className="hidden md:flex items-center gap-2">
+            <Link href="/login" className="h-10 px-4 inline-flex items-center rounded-lg text-sm border border-foreground/15 hover:bg-foreground/[0.05]">Sign in</Link>
+            <Link href="/register" className="h-10 px-4 inline-flex items-center rounded-lg text-sm text-white font-medium" style={{ background: RED }}>Start free trial</Link>
+          </div>
+          <button className="md:hidden p-2.5 -mr-2 rounded-lg" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(!open)}>{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
         </div>
-        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="relative rounded-3xl border border-foreground/10 glass-strong p-4 md:p-8 shadow-2xl">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {metrics.map((s, i) => (
-              <div key={i} className="rounded-xl border border-foreground/5 bg-black/40 p-5">
-                <div className="text-xs text-foreground/50">{s.label}</div>
-                <div className="font-display text-3xl font-bold mt-1">{s.v}</div>
-                <div className="text-[10px] mt-1 uppercase tracking-widest font-semibold" style={{ color: brand.primaryColor }}>{s.d}</div>
+        {open && (
+          <div className="md:hidden border-t border-foreground/10 px-4 py-3 space-y-1 text-sm">
+            {[['#features', 'Features'], ['#pricing', 'Pricing'], ['#faq', 'FAQ']].map(([h, l]) => <a key={h} href={h} onClick={() => setOpen(false)} className="block py-2.5">{l}</a>)}
+            <div className="grid grid-cols-2 gap-2 pt-2"><Link href="/login" className="h-11 inline-flex items-center justify-center rounded-lg border border-foreground/15">Sign in</Link><Link href="/register" className="h-11 inline-flex items-center justify-center rounded-lg text-white font-medium" style={{ background: RED }}>Start free trial</Link></div>
+          </div>
+        )}
+      </header>
+
+      <main>
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-24 pb-14 text-center">
+          <p className="text-xs uppercase tracking-[0.2em] text-foreground/50">BGM — Best Gym Manager</p>
+          <h1 className="font-display font-bold tracking-tight text-4xl sm:text-6xl mt-4 leading-[1.05]">Your gym runs.<br /><span style={{ color: RED }}>BGM handles the rest.</span></h1>
+          <p className="mt-5 text-base sm:text-lg text-foreground/60 max-w-2xl mx-auto">Memberships, QR attendance, live gym traffic, trainers and payments — one system for owners, trainers and members.</p>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/register" className="h-12 px-6 inline-flex items-center justify-center rounded-xl text-white font-medium" style={{ background: RED }}>Start your 2-month free trial</Link>
+            <Link href="/login" className="h-12 px-6 inline-flex items-center justify-center rounded-xl border border-foreground/15 hover:bg-foreground/[0.05]">Sign in</Link>
+          </div>
+          <p className="mt-3 text-xs text-foreground/40">No card required to start.</p>
+          {showStats && (
+            <dl className="mt-12 grid grid-cols-3 gap-4 max-w-xl mx-auto">
+              {[['Gyms', stats.gyms], ['Members', stats.members], ['Check-ins', stats.checkins]].map(([l, v]) => <div key={l}><dd className="font-display text-2xl sm:text-3xl font-bold tabular-nums">{Number(v).toLocaleString('en-IN')}</dd><dt className="text-xs text-foreground/50">{l}</dt></div>)}
+            </dl>
+          )}
+          {publicGyms.length > 0 && <p className="mt-8 text-xs text-foreground/40">Used by {publicGyms.slice(0, 6).join(' · ')}</p>}
+        </section>
+
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 grid sm:grid-cols-3 gap-4">
+          {ROLES.map(r => <div key={r.title} className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-5"><h3 className="font-display font-semibold">{r.title}</h3><p className="text-sm text-foreground/60 mt-1">{r.text}</p></div>)}
+        </section>
+
+        <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 scroll-mt-20">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-center">Everything your gym does, in one place</h2>
+          <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {FEATURES.map(f => (
+              <div key={f.title} className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-5">
+                <f.icon className="h-5 w-5" style={{ color: RED }} />
+                <h3 className="font-display font-semibold mt-3">{f.title}</h3>
+                <p className="text-sm text-foreground/60 mt-1">{f.text}</p>
               </div>
             ))}
           </div>
-          <div className="grid md:grid-cols-3 gap-4 mt-4">
-            <div className="md:col-span-2 rounded-xl border border-foreground/5 bg-black/40 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-foreground/70">Weekly attendance</div>
-                <div className="text-xs text-foreground/40">Last 7 days</div>
-              </div>
-              <div className="h-52">
-                <ResponsiveContainer>
-                  <AreaChart data={ATTENDANCE_WEEKLY}>
-                    <defs>
-                      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={brand.primaryColor} stopOpacity={0.6} /><stop offset="100%" stopColor={brand.primaryColor} stopOpacity={0} /></linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="in" stroke={brand.primaryColor} fill="url(#g1)" strokeWidth={2} />
-                    <Tooltip contentStyle={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: 8, fontSize: 12 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="rounded-xl border border-foreground/5 bg-black/40 p-5">
-              <div className="text-sm text-foreground/70 mb-4">Workout mix</div>
-              <div className="h-52">
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie data={WORKOUT_DIST} dataKey="value" innerRadius={45} outerRadius={75} paddingAngle={3}>
-                      {WORKOUT_DIST.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+        </section>
+
+        <section id="pricing" className="max-w-3xl mx-auto px-4 sm:px-6 py-16 scroll-mt-20">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-center">Simple pricing that grows with you</h2>
+          <div className="mt-8 rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-6 sm:p-8">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="font-display text-4xl font-bold">{inr(pricing.base)}</span><span className="text-foreground/60">per month</span><span className="text-foreground/60">+ {inr(pricing.perMember)} per active paid member</span></div>
+            <ul className="mt-6 space-y-2 text-sm text-foreground/70">
+              {['2 months free — every feature included', 'No member limit: you pay for active paid members only', `One-time registration fee of ${inr(pricing.registration)} with your first payment`, 'Owner, trainer and member portals included', 'Cancel any time'].map(t => <li key={t} className="flex gap-2"><Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: RED }} />{t}</li>)}
+            </ul>
+            <Link href="/register" className="mt-6 h-12 w-full inline-flex items-center justify-center rounded-xl text-white font-medium" style={{ background: RED }}>Start free trial</Link>
           </div>
-        </motion.div>
-      </div>
-    </section>
-  )
-}
+        </section>
 
-const Pricing = ({ stats }) => {
-  const { brand } = useBrand()
-  const isFounding = !stats || (typeof stats.gyms === 'number' && stats.gyms < 10)
-
-  return (
-    <section id="pricing" className="py-32 relative">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Membership plans</div>
-          <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient">Priced for every gym.</h2>
-        </div>
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {PLANS.map((p, i) => (
-            <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className={`relative rounded-2xl border p-8 ${p.popular ? 'border-foreground/20 bg-gradient-to-b from-white/[0.06] to-transparent' : 'border-foreground/5 bg-foreground/[0.02]'}`}>
-              {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs font-medium rounded-full text-foreground" style={{ background: brand.primaryColor }}>Usage-Based Model</div>}
-              <div className="font-display text-2xl font-semibold mb-1">{p.name}</div>
-              <div className="flex items-baseline gap-1 mb-2 flex-wrap">
-                <span className="font-display text-4xl lg:text-5xl font-bold">{p.price === 'Custom' ? "Let's Talk" : `₹${p.price}`}</span>
-                {p.price !== 'Custom' && <span className="text-foreground/40 text-sm">/{p.period}</span>}
-                {p.tag && <div className="w-full mt-2 mb-2"><span className="text-emerald-500 font-medium text-sm bg-emerald-500/10 px-2.5 py-1 rounded-md">{p.tag}</span></div>}
+        <section id="faq" className="max-w-3xl mx-auto px-4 sm:px-6 py-16 scroll-mt-20">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-center">Questions</h2>
+          <div className="mt-8 divide-y divide-foreground/10 rounded-2xl border border-foreground/10">
+            {FAQS.map((f, i) => (
+              <div key={f.q}>
+                <button className="w-full text-left px-5 py-4 flex justify-between gap-4 font-medium" aria-expanded={faq === i} onClick={() => setFaq(faq === i ? -1 : i)}><span>{f.q}</span><span className="text-foreground/40">{faq === i ? '–' : '+'}</span></button>
+                {faq === i && <p className="px-5 pb-4 text-sm text-foreground/60">{f.a}</p>}
               </div>
-              <div className="text-xs text-foreground/50 mb-8 flex items-center gap-2 mt-4">
-                {p.price !== 'Custom' && <span>Registration Fee:</span>}
-                {p.price !== 'Custom' && isFounding ? (
-                  <span className="flex items-center gap-1.5"><span className="line-through text-foreground/30">₹2999</span> <span className="text-emerald-500 font-medium">Waived (Founding)</span></span>
-                ) : (
-                  p.price !== 'Custom' && <span>₹2999</span>
-                )}
-                {p.price === 'Custom' && <span>Custom solutions for enterprise.</span>}
-              </div>
-              <ul className="space-y-4 mb-10">
-                {p.features.map((f, j) => (
-                  <li key={j} className="flex items-start gap-3 text-sm text-foreground/70 leading-relaxed">
-                    <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: brand.primaryColor }} /> {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href={p.price === 'Custom' ? "mailto:sales@gymos.app" : "/dashboard"}>
-                <Button className={`w-full h-12 text-base ${p.popular ? 'text-foreground border-0' : 'bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.12] border-0'}`} style={p.popular ? { background: brand.primaryColor } : {}}>
-                  {p.price === 'Custom' ? 'Contact Sales' : 'Start with BGM Scale'}
-                </Button>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
+            ))}
+          </div>
+        </section>
+      </main>
 
-const Testimonials = () => (
-  <section className="py-32 border-t border-foreground/5">
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="text-center max-w-2xl mx-auto mb-16">
-        <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Loved by operators</div>
-        <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient">The best gyms run on it.</h2>
-      </div>
-      <div className="grid md:grid-cols-3 gap-5">
-        {TESTIMONIALS.map((t, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className="rounded-2xl border border-foreground/5 bg-foreground/[0.02] p-8">
-            <div className="flex gap-1 mb-4">{[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 fill-red-500 text-red-500" />)}</div>
-            <p className="text-foreground/80 leading-relaxed mb-6">“{t.text}”</p>
-            <div className="flex items-center gap-3">
-              <Image src={t.photo} alt={t.name} className="h-10 w-10 rounded-full object-cover" width={120} height={120} />
-              <div>
-                <div className="text-sm font-semibold">{t.name}</div>
-                <div className="text-xs text-foreground/50">{t.role}</div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  </section>
-)
-
-const Contact = () => {
-  const { brand } = useBrand()
-  return (
-    <section id="contact" className="py-32 border-t border-foreground/5">
-      <div className="max-w-4xl mx-auto px-6 text-center">
-        <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tighter text-gradient-red mb-6">Ready to elevate your gym?</h2>
-        <p className="text-foreground/60 mb-10 max-w-xl mx-auto">Talk to our team. Or launch the live demo and explore every screen — no signup required.</p>
-        <div className="flex flex-wrap gap-3 justify-center mb-12">
-          <Link href="/dashboard"><Button size="lg" style={{ background: brand.primaryColor }} className="h-12 px-6 text-foreground border-0">Launch demo <ArrowRight className="h-4 w-4 ml-2" /></Button></Link>
-          <a href={`mailto:${brand.email}`}><Button size="lg" variant="outline" className="h-12 px-6 bg-transparent border-foreground/10 text-foreground hover:bg-foreground/[0.06]">Contact sales</Button></a>
+      <footer className="border-t border-foreground/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col md:flex-row gap-6 justify-between text-sm pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+          <div><div className="font-display font-bold">BGM — Best Gym Manager</div><p className="text-foreground/50 mt-1">Your gym runs. BGM handles the rest.</p><p className="text-foreground/40 mt-3 text-xs">© {new Date().getFullYear()} BGM. All rights reserved.</p></div>
+          <nav className="grid grid-cols-2 gap-x-10 gap-y-2 text-foreground/60">
+            <Link href="/login" className="hover:text-foreground">Sign in</Link><Link href="/register" className="hover:text-foreground">Register</Link>
+            <Link href="/privacy" className="hover:text-foreground">Privacy</Link><Link href="/terms" className="hover:text-foreground">Terms</Link>
+            <Link href="/refund" className="hover:text-foreground">Refunds</Link><Link href="/security" className="hover:text-foreground">Security</Link>
+            <Link href="/help" className="hover:text-foreground">Help</Link><a href="mailto:support@gymos.app" className="hover:text-foreground">support@gymos.app</a>
+          </nav>
         </div>
-        <div className="grid sm:grid-cols-3 gap-4 text-sm text-foreground/50">
-          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">EMAIL</div><div className="text-foreground font-medium">rijul0027@gmail.com</div></div>
-          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">PHONE</div><div className="text-foreground font-medium">+91 9304449915</div></div>
-          <div className="rounded-xl border border-foreground/5 bg-foreground/[0.02] p-5"><div className="text-foreground/40 text-xs mb-1">SUPPORT</div><div className="text-foreground font-medium">Mon–Sat<br />10:00 AM – 8:00 PM IST</div></div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-const FAQ = () => (
-  <section id="faq" className="py-32 border-t border-foreground/5">
-    <div className="max-w-3xl mx-auto px-6">
-      <div className="text-center mb-12">
-        <div className="text-xs uppercase tracking-widest text-foreground/40 mb-4">Questions</div>
-        <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tighter text-gradient">Frequently asked.</h2>
-      </div>
-      <Accordion type="single" collapsible className="space-y-2">
-        {FAQS.map((f, i) => (
-          <AccordionItem key={i} value={`i${i}`} className="rounded-xl border border-foreground/5 bg-foreground/[0.02] px-5">
-            <AccordionTrigger className="text-left hover:no-underline py-5 font-medium">{f.q}</AccordionTrigger>
-            <AccordionContent className="text-foreground/60 pb-5">{f.a}</AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
-    </div>
-  </section>
-)
-
-const Footer = () => {
-  const { brand } = useBrand()
-  return (
-    <footer className="border-t border-foreground/5 py-12">
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row gap-6 items-center justify-between">
-        <Logo />
-        <div className="text-xs text-foreground/40 text-center md:text-left leading-relaxed">
-          <span className="font-semibold text-foreground/60">BGM</span><br />
-          Best Gym Manager.<br />
-          Built in India 🇮🇳
-        </div>
-        <div className="flex gap-6 text-xs font-medium text-foreground/50">
-          <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-          <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms of Service</Link>
-          <Link href="/security" className="hover:text-foreground transition-colors">Security</Link>
-          <Link href="/refund" className="hover:text-foreground transition-colors">Refund Policy</Link>
-        </div>
-      </div>
-    </footer>
-  )
-}
-
-export default function LandingClient({ stats, publicGyms }) {
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Nav />
-      <Hero stats={stats} />
-      <LogoMarquee gyms={publicGyms} />
-      <Features />
-      <DashboardPreview stats={stats} />
-      <Pricing stats={stats} />
-      <Testimonials />
-      <Contact />
-      <FAQ />
-      <Footer />
+      </footer>
     </div>
   )
 }

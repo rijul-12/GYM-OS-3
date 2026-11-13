@@ -1,26 +1,21 @@
-export default function TermsConditions() {
-    return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-3xl mx-auto px-6 py-32 text-foreground/80 leading-relaxed font-sans">
-                <div className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.02] px-4 py-1.5 text-xs tracking-widest text-[#ef4444] uppercase mb-8">Statutory Compliance</div>
-                <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground tracking-tight mb-4">Terms & Conditions</h1>
-                <p className="text-sm text-foreground/50 mb-16">Last Updated: October 2026</p>
+import { LegalPage } from '@/components/legal-page'
 
-                <div className="space-y-12">
-                    <section>
-                        <h2 className="text-2xl font-display font-semibold text-foreground mb-4">1. Acceptance of Terms</h2>
-                        <p>By registering for the BGM platform and paying the associated activation fees (e.g. ₹2999 Registration), the facility Owner structurally binds their enterprise to the terms of BGM Technologies. The platform is offered as a premium B2B SaaS framework.</p>
-                    </section>
-                    <section>
-                        <h2 className="text-2xl font-display font-semibold text-foreground mb-4">2. Usage Compliance & Ethics</h2>
-                        <p>Gym Owners are legally responsible for all trainers and members onboarded into their specific ecosystem. The platform enforces strict Role-Based Access Controls, and any malicious manipulation, API scraping, or reverse-engineering of the authentication system is strictly prohibited.</p>
-                    </section>
-                    <section>
-                        <h2 className="text-2xl font-display font-semibold text-foreground mb-4">3. Governing Law</h2>
-                        <p>These terms and all structural service agreements are governed strictly by the laws of India. Legal jurisdiction mandates all queries and compliance checks to be directed solely to <strong>rijul0027@gmail.com</strong>.</p>
-                    </section>
-                </div>
-            </div>
-        </div>
-    )
+export const metadata = { title: 'Terms of Service — BGM' }
+
+export default function Terms() {
+  return (
+    <LegalPage title="Terms of Service" updated="November 2026">
+      <section><h2>The service</h2><p>BGM provides software for running a gym: memberships, attendance, trainers, schedules and payments. By creating an account you agree to these terms.</p></section>
+      <section><h2>Gym owners</h2><ul>
+        <li>You are responsible for the members and trainers you add and for the accuracy of the records you keep.</li>
+        <li>New gyms receive a free trial. After it ends, the account is read-only until a subscription is paid.</li>
+        <li>Subscription pricing is shown on the pricing section of our website and on your subscription page before you pay.</li>
+        <li>Payments your members make to you are between you and your members. When you confirm a UPI transfer you are confirming that you received the money.</li>
+      </ul></section>
+      <section><h2>Trainers and members</h2><p>Your access is granted by your gym, which can change or remove it. Use your own account only and keep your password private.</p></section>
+      <section><h2>Acceptable use</h2><p>Do not attempt to access another gym’s or another person’s data, interfere with the service, or use it for unlawful purposes.</p></section>
+      <section><h2>Availability</h2><p>We work to keep BGM available and your data safe, but the service is provided without a guarantee of uninterrupted availability.</p></section>
+      <section><h2>Governing law</h2><p>These terms are governed by the laws of India.</p></section>
+    </LegalPage>
+  )
 }

@@ -19,7 +19,7 @@ function VerifyContent() {
     const [errorMsg, setErrorMsg] = useState('')
 
     useEffect(() => {
-        if (!oobCode && process.env.NODE_ENV === 'production') {
+        if (!oobCode) {
             setStatus('error')
             setErrorMsg('Invalid or missing verification code. Please request a new link.')
             return
@@ -27,16 +27,12 @@ function VerifyContent() {
 
         const verify = async () => {
             try {
-                if (auth && oobCode) {
-                    await applyActionCode(auth, oobCode)
-                } else {
-                    // local bypass delay
-                    await new Promise(r => setTimeout(r, 1500))
-                }
+                if (!auth) throw new Error('Verification is unavailable: sign-in is not configured for this deployment.')
+                await applyActionCode(auth, oobCode)
                 setStatus('success')
             } catch (err) {
                 setStatus('error')
-                setErrorMsg(err.message || 'We could not securely verify this link. It may have expired.')
+                setErrorMsg(err?.code ? 'This verification link has expired or was already used. Request a new one from your profile.' : (err.message || 'We could not verify this link.'))
             }
         }
 

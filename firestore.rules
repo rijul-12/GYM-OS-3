@@ -1,97 +1,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions for Custom Claims RBAC
-    function isSuperAdmin() {
-      return request.auth != null && request.auth.token.role == 'super_admin';
-    }
-    
-    function isOwner() {
-      return request.auth != null && request.auth.token.role == 'owner';
-    }
-    
-    function isTrainer() {
-      return request.auth != null && request.auth.token.role == 'trainer';
-    }
-    
-    function isMember() {
-      return request.auth != null && request.auth.token.role == 'member';
-    }
-
-    function hasGymAccess(gymCode) {
-      return request.auth != null && request.auth.token.gymCode == gymCode;
-    }
-
-    // ----------------------------------------------------
-    // SUPER ADMIN - Absolute access across all collections
-    // ----------------------------------------------------
+    // ---------------------------------------------------------------------
+    // BGM reads and writes ALL application data through authorised Server
+    // Actions that use the Firebase Admin SDK (which bypasses these rules).
+    // The browser SDK is used for authentication only and never touches
+    // Firestore, so direct client access is denied for every collection.
+    //
+    // This closes the door on anyone using the public web API key to read or
+    // modify data directly: gym isolation and role checks cannot be bypassed
+    // by talking to Firestore instead of the application.
+    //
+    // If a client-side listener is ever introduced, add a narrowly scoped
+    // read rule for that collection here — never a wildcard.
+    // ---------------------------------------------------------------------
     match /{document=**} {
-      allow read, write: if isSuperAdmin();
-    }
-
-    // ----------------------------------------------------
-    // GYMS - Tenant Core
-    // ----------------------------------------------------
-    match /gyms/{gymId} {
-      // Anyone can read gyms (needed for trainer/member registration validation)
-      // but only owner can write to their own gym config
-      allow read: if true;
-      allow write: if isOwner() && (request.auth.uid == request.resource.data.ownerUid || hasGymAccess(gymId));
-    }
-
-    match /gym_settings/{gymId} {
-      allow read: if hasGymAccess(gymId);
-      allow write: if isOwner() && hasGymAccess(gymId);
-    }
-
-    // ----------------------------------------------------
-    // MEMBERS - Client Profiles
-    // ----------------------------------------------------
-    match /members/{memberId} {
-      // Trainers and Owners of the same gym can read
-      allow read: if isOwner() || isTrainer() || request.auth.uid == memberId;
-      // Members can edit their own profiles, Owners can edit all members in their gym
-      allow update: if request.auth.uid == memberId || (isOwner() && hasGymAccess(resource.data.gymId));
-      allow create, delete: if false; // Creation handled explicitly by Server Admin SDK Registration Action
-    }
-
-    // ----------------------------------------------------
-    // TRAINERS - Employee Profiles
-    // ----------------------------------------------------
-    match /trainers/{trainerId} {
-      // Members of the same gym can browse trainers; Owners can read/write
-      allow read: if hasGymAccess(resource.data.gymId) || hasGymAccess(request.resource.data.gymId);
-      allow update: if request.auth.uid == trainerId || (isOwner() && hasGymAccess(resource.data.gymId));
-      allow create, delete: if false; // Server Admin SDK handles creation
-    }
-
-    // ----------------------------------------------------
-    // ATTENDANCE & TRANSACTIONS - Live Analytics Data
-    // ----------------------------------------------------
-    match /attendance/{logId} {
-      // Owners & Trainers see logs globally for their gym
-      allow read: if (isOwner() || isTrainer()) && hasGymAccess(resource.data.gymId);
-      // Members can only read their own logs
-      allow read, write: if isMember() && request.auth.uid == resource.data.member_id;
-      // Allow general creation if matching gym
-      allow create: if hasGymAccess(request.resource.data.gymId);
-    }
-
-    match /transactions/{txId} {
-      // Only Owners can view financial transactions
-      allow read, write: if isOwner() && hasGymAccess(resource.data.gymId);
-      // Members can read their own billing history
-      allow read: if isMember() && request.auth.uid == resource.data.member_id;
-    }
-
-    // ----------------------------------------------------
-    // PLANS & WORKOUTS
-    // ----------------------------------------------------
-    match /plans/{planId} {
-      // Everyone in the gym can see plans
-      allow read: if hasGymAccess(resource.data.gymId);
-      allow write: if isOwner() && hasGymAccess(resource.data.gymId);
+      allow read, write: if false;
     }
   }
 }
