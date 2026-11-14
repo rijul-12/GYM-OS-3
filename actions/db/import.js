@@ -100,7 +100,7 @@ export async function executeImportBatch(mappedRows, filename, { includeWarnings
                 dob: d.dob, gender: d.gender, address: d.address, emergencyContact: '', goal: '', preferredTime: '',
                 plan: d.plan, planId: d.planId, startDate: d.startDate, expiryDate: d.expiryDate,
                 // Stored as Active; an elapsed expiry date makes it show as Expired everywhere.
-                status: MEMBER_STATUS.ACTIVE, is_active: !d.expired,
+                status: MEMBER_STATUS.ACTIVE, is_active: true,
                 paymentFee: d.fee, paymentAmount: d.amountPaid, outstandingAmount: d.outstanding,
                 payment_status: d.paymentStatus, paymentMethod: d.paymentMethod,
                 trainer_id: d.trainerId, trainer_name: d.trainerName || 'Unassigned', trainer_status: d.trainerId ? 'Active' : null,

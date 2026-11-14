@@ -21,7 +21,7 @@ export default function OnboardingClient({ gymName, gymCode, capacity }) {
   const finish = async () => {
     setSaving(true)
     try {
-      const res = await completeOnboarding({ gymInfo: { name }, plans: plans.filter(p => p.name.trim()), attendanceMode: 'QR' })
+      const res = await completeOnboarding({ gymInfo: { name }, plans: plans.filter(p => p.name.trim() && Number(p.price) > 0), attendanceMode: 'QR' })
       if (res?.error) return toast.error(res.error)
       if (parseInt(cap, 10) > 0) await saveGymBrand(null, { buildingCapacity: parseInt(cap, 10) })
       await refresh()
@@ -44,7 +44,7 @@ export default function OnboardingClient({ gymName, gymCode, capacity }) {
 
         {step === 1 && (
           <div className="mt-6 space-y-3">
-            <p className="text-sm text-foreground/60">Add the memberships you sell. You can change these later under Membership Plans.</p>
+            <p className="text-sm text-foreground/60">Add the memberships you sell. Rows without a price are skipped. You can change these later under Membership Plans.</p>
             {plans.map((p, i) => (
               <div key={i} className="grid grid-cols-[1fr_7rem_auto] gap-2 items-end">
                 <Field label={i === 0 ? 'Plan name' : ''}><input className={inputClass} value={p.name} onChange={e => setPlans(plans.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} /></Field>

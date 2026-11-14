@@ -1,5 +1,4 @@
 import './globals.css'
-import { Providers } from './providers'
 import { BrandProvider } from '@/components/brand-provider'
 import { AuthProvider } from '@/lib/auth'
 import { Toaster } from '@/components/ui/sonner'
@@ -60,7 +59,6 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <Providers>
             <AuthProvider>
               <BrandProvider>
                 {children}
@@ -68,7 +66,6 @@ export default function RootLayout({ children }) {
                 <Toaster theme="system" position="bottom-right" />
               </BrandProvider>
             </AuthProvider>
-          </Providers>
         </ThemeProvider>
       </body>
     </html>

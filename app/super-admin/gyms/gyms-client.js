@@ -13,7 +13,7 @@ export default function GymsClient({ initialGyms }) {
   const [pending, start] = useTransition()
   const [q, setQ] = useState('')
   const [dialog, setDialog] = useState(null)
-  const gyms = initialGyms || []
+  const gyms = useMemo(() => initialGyms || [], [initialGyms])
   const list = useMemo(() => { const n = q.trim().toLowerCase(); return gyms.filter(g => !n || [g.name, g.email, g.gymCode, g.city, g.ownerName].some(v => String(v || '').toLowerCase().includes(n))) }, [gyms, q])
 
   const run = (fn, ok) => start(async () => {

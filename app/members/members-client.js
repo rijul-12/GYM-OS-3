@@ -30,7 +30,7 @@ export default function MembersClient({ initialMembers, plans, trainers }) {
   const [review, setReview] = useState(null)
   const [menu, setMenu] = useState(null)
   const [dialog, setDialog] = useState(null) // { type, member }
-  const members = initialMembers || []
+  const members = useMemo(() => initialMembers || [], [initialMembers])
   const readOnly = !!user?.readOnly
 
   const counts = useMemo(() => {
