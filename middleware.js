@@ -61,7 +61,16 @@ export function middleware(request) {
 
     if (session) {
         const home = ROLE_HOMES[session.role]
-        if (pathname === '/login') return NextResponse.redirect(new URL(home, request.url))
+        if (pathname === '/login') {
+            // The server rejected this cookie (revoked, account removed, gym suspended):
+            // drop it here instead of bouncing between /login and the portal.
+            if (request.nextUrl.searchParams.get('expired') === '1') {
+                const res = NextResponse.next()
+                res.cookies.delete(SESSION_COOKIE)
+                return res
+            }
+            return NextResponse.redirect(new URL(home, request.url))
+        }
         if (zone.super_admin && session.role !== 'super_admin') return NextResponse.redirect(new URL(home, request.url))
         if (zone.owner && session.role !== 'owner') return NextResponse.redirect(new URL(home, request.url))
         if (zone.trainer && session.role !== 'trainer') return NextResponse.redirect(new URL(home, request.url))

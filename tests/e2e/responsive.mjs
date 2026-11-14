@@ -79,6 +79,7 @@ for (const p of PORTALS) {
     // Menu + sign-out reachability on a short viewport
     await open(page, BASE + p.home)
     await page.getByRole('button', { name: 'Open menu' }).click()
+    await page.waitForTimeout(400) // drawer slide-in animation
     const out = page.locator('[data-testid="sign-out"]:visible').first()
     await out.scrollIntoViewIfNeeded().catch(() => { })
     const box = await out.boundingBox().catch(() => null)

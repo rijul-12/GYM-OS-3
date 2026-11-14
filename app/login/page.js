@@ -32,7 +32,7 @@ function LoginContent() {
   const router = useRouter()
   const params = useSearchParams()
   const { brand } = useBrand()
-  const { signIn, user } = useAuth()
+  const { signIn, user, loading: authLoading } = useAuth()
 
   const [role, setRole] = useState(null)
   const [step, setStep] = useState('role') // 'role' | 'creds' | 'success'
@@ -46,18 +46,19 @@ function LoginContent() {
 
   // If already logged in, forward to appropriate home
   useEffect(() => {
-    if (user) {
+    // Wait for the server to confirm the session: a cached summary alone must not redirect.
+    if (user && !authLoading) {
       if (user.role === 'owner' && user.onboarded === false) {
         router.replace('/onboarding')
       } else {
         router.replace(safeNext(params) || ROLES[user.role]?.home || '/')
       }
     }
-  }, [user, router, params])
+  }, [user, authLoading, router, params])
 
   // Messages handed over by redirects (e.g. trainer invitation accepted)
   const notice = params.get('message')
-  const redirectError = params.get('error')
+  const redirectError = params.get('error') || (params.get('expired') === '1' ? 'Your session has ended. Please sign in again.' : null)
 
   const pickRole = (r) => {
     setRole(r)

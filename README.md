@@ -1,24 +1,64 @@
-# GymOS
-The all-in-one multi-tenant management software built specifically to engineer scaling gym chains.
+# BGM — Best Gym Manager
 
-## Project Vision
-GymOS radically consolidates the fragmented software stack of commercial gym chains (attendance hardware, member mobile apps, trainer portals, and executive analytics) into a single unified cloud operating system mapped for performance and speed.
+*Your gym runs. BGM handles the rest.*
 
-## Core Features
-1. **Multi-Tenant Administration (`/super-admin`)**: Control revenue metrics, hardware limits, gym subscriptions, and AI-driven growth metrics globally.
-2. **Owner Analytics (`/dashboard`)**: Granular real-time access monitoring, subscription churn projections, and live occupancy heatmaps.
-3. **Trainer Hub (`/trainer`)**: Active client deployments, workout periodization graphs, and member progression charting.
-4. **Member Portal (`/portal`)**: Secure booking endpoints, hardware integration tracking, and diet mapping.
+Gym management SaaS for gym owners, trainers and members: memberships, QR attendance, live gym traffic and workout demand, trainers, payments (Razorpay and owner-verified UPI), member import, notifications and analytics.
 
-## The Architecture
-- **Framework**: Next.js 15+ (App Router)
-- **UI & State**: React Server Components, Client Suspense, Context Providers
-- **Design Engine**: Vanilla CSS + Tailwind Shims + Lucide Icons
-- **Animation Layer**: Framer Motion
-- **Data Rendering**: Recharts
-- **Offline / Caching**: Next.js Server Actions + Service Worker (PWA Ready) 
+Production: https://gymos.app
+
+## Stack
+
+Next.js 15 (App Router) · React 18 · Firebase Authentication · Cloud Firestore · Firebase Storage · Razorpay · Vercel.
+
+All data access happens on the server through authorised Server Actions using the Firebase Admin SDK. The browser uses Firebase for sign-in only.
 
 ## Documentation
-- `INSTALL.md`: Setting up GymOS on your local dev machine.
-- `DEPLOYMENT.md`: Infrastructure guidelines for Vercel/Netlify hosting.
-- `PROJECT_STRUCTURE.md`: Map of the Next.js directories and data paths. 
+
+| File | Contents |
+|---|---|
+| `BGM_ARCHITECTURE.md` | How the system is built: structure, collections, auth, payments, attendance, deployment |
+| `BGM_COMPLETE_AUDIT.md` | Every issue found in the audit, with root cause, severity and status |
+| `BGM_FINAL_ENGINEERING_REPORT.md` | What was changed, how it was tested, what is still open and what you need to do |
+
+## Running locally
+
+```bash
+npm ci
+cp .env.example .env.local   # fill in your Firebase project values
+npm run dev
+```
+
+## Tests
+
+```bash
+npm run test:unit            # domain logic, no services needed
+```
+
+End-to-end tests run a real browser against the Firebase emulators (never a real project):
+
+```bash
+# terminal 1 (needs firebase-tools and Java)
+firebase emulators:start --only auth,firestore,storage --project demo-bgm
+
+# terminal 2
+set -a; . tests/e2e/emulator.env; set +a
+npx next build && npx next start -p 3100
+
+# terminal 3
+set -a; . tests/e2e/emulator.env; set +a
+node tests/e2e/run.mjs          # 33 core flows
+node tests/e2e/trainer.mjs      # trainer invitation, isolation, removal, session revocation
+node tests/e2e/webhook.mjs      # Razorpay webhook: both flows, idempotency, refunds
+node tests/e2e/responsive.mjs   # every portal route at 320–430 px and 768 px
+```
+
+## Deployment
+
+Vercel builds and serves the app. Firebase rules, indexes and the Auth-deletion function are deployed separately:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,storage
+firebase deploy --only functions
+```
+
+See `BGM_FINAL_ENGINEERING_REPORT.md` for the full launch checklist and the environment variables (`.env.example`).
