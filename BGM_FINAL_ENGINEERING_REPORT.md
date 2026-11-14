@@ -5,7 +5,7 @@ Branch: `claude/bgm-production-readiness-kzs130` (5 commits on top of `a1caf95`)
 ## Read this first
 
 1. **The code is ready for a staging deployment, not yet for production.** Everything was verified against the Firebase emulators with a production build. Nothing could be verified against your real Firebase project, live Razorpay, real e-mail or Twilio — no credentials were available in this environment.
-2. **The branch could not be pushed.** GitHub returned 403: the Claude GitHub App does not have access to `rijul-12/GYM-OS-3`. The commits exist only in this session's container; a git bundle of the branch was handed over with this report so the work is not lost.
+2. **The branch is pushed** to `origin/claude/bgm-production-readiness-kzs130`. No pull request has been opened and nothing is merged.
 3. **Two things need your attention before anything else** (details in §15):
    * check Firebase Authentication for the accounts `superadmin@gymos.com` and `owner@gymos.com`. Scripts in the old repository created them with the passwords `admin123` / `123456`. If they exist, change the passwords or delete them.
    * every signed-in user will have to sign in again after deployment (the session format changed).
@@ -173,7 +173,7 @@ Explicitly covered by the end-to-end suite: forged session cookie rejected; dupl
 ## 15. Remaining blockers
 
 **CRITICAL**
-1. **Push the branch.** Give the Claude GitHub App access to the repository (or apply the provided bundle) — the work is not on GitHub yet.
+1. **Review and merge.** The branch is on GitHub but not reviewed or merged; open a pull request when you are ready.
 2. **Weak-password accounts.** Check for `superadmin@gymos.com` and `owner@gymos.com` in Firebase Authentication and secure or delete them.
 3. **Confirm a Super Admin account exists with the `role: super_admin` custom claim** and a strong password. The app no longer contains any way to create one (by design); it is set once with the Admin SDK or Firebase console tooling.
 
@@ -198,7 +198,7 @@ Explicitly covered by the end-to-end suite: forged session cookie rejected; dupl
 
 ## 16. Recommended next steps
 
-1. Fix GitHub access and push the branch; open a pull request for review.
+1. Open a pull request for the branch and review it.
 2. Create a **staging** Firebase project and Vercel preview with the variables from §10; deploy rules and indexes there; run the end-to-end suites' flows by hand on real phones.
 3. Run one Razorpay test-mode payment for each flow and confirm the webhook.
 4. Take a Firestore export of production, then deploy to production in this order: environment variables → app → Firestore/Storage rules and indexes → Cloud Function → Razorpay webhook.
